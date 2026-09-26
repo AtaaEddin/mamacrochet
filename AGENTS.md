@@ -80,8 +80,10 @@ scripts/dev.sh             (one-command dev)          deploy/  (plan 10: compose
 
 - .NET: warnings are **errors** (`Directory.Build.props`); nullable on; schema changes only
   via EF Core migrations; no new infrastructure service without a justifying plan.
-- TypeScript: strict (`tsconfig.json`); no `any`; no assertions to silence errors; explicit
+- TypeScript: strict (`frontend/tsconfig.json`); no `any`; no assertions to silence errors; explicit
   types at public/component/API boundaries; lint with zero warnings.
+  (Frontend tsconfig is self-contained: Turbopack in Next 16 cannot resolve an `extends`
+  to a file outside the app root.)
 - Next.js: server components by default, minimal `"use client"`. **Never guess APIs** —
   read the version-matched docs bundled in the `next` package (`frontend/node_modules/next/dist/docs/`).
 - UI: shadcn/ui + semantic design tokens (no arbitrary hex values); **brand feel:

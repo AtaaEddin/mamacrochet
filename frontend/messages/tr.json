@@ -1,0 +1,77 @@
+{
+  "Metadata": {
+    "name": "mamacrochet",
+    "title": "El emeği kroeşe — sevgiyle, sadece senin için",
+    "description": "El işi kroeşe çantalar ve sıcacık parçalar, her dikiş özenle işlenir. Belirli bir şey mi hayal ediyorsun? Sohbetten yaz, senin için işleyelim — hesab gerekmez."
+  },
+  "Nav": {
+    "howItWorks": "Nasıl çalışır",
+    "shop": "Mağaza",
+    "hello": "Merhaba de"
+  },
+  "Theme": {
+    "label": "Tema",
+    "light": "Açık",
+    "dark": "Koyu",
+    "system": "Sistem"
+  },
+  "Locale": {
+    "label": "Dil",
+    "en": "English",
+    "ar": "العربية",
+    "tr": "Türkçe"
+  },
+  "Hero": {
+    "badge": "Her dikişte el emeği",
+    "title": "Yumuşacık, sıcacık kroeşe — sadece senin için",
+    "subtitle": "Her parça, dikiş dikiş elle işleniyor. Fikrini sohbette paylaş — başlamak için hesaba gerek yok.",
+    "primaryCta": "Merhaba de 👋",
+    "secondaryCta": "Nasıl çalışır"
+  },
+  "Values": {
+    "title": "Neden mamacrochet?",
+    "customTitle": "Siparişle yapılır",
+    "customBody": "Seri üretim yok. Her parça sen sipariş verdiğinde başlar — ilk dikişten itibaren senin.",
+    "ideasTitle": "Fikirlerin hoş geldin",
+    "ideasBody": "Belirli bir şey mi hayal ediyorsun? Sohbette bir fotoğraf ya da eskiz gönder, senin için işleyelim.",
+    "liveTitle": "Her adımı izle",
+    "liveBody": "Her siparişin canlı bir durum panosu var — işte, ödeme hazır, yola çıktı; hepsini gör."
+  },
+  "HowItWorks": {
+    "title": "Nasıl çalışır",
+    "step1Title": "Merhaba de",
+    "step1Body": "Hayalini sohbette paylaş — bir çanta, bir bebek ya da özel bir parça — hesab gerekmeden.",
+    "step2Title": "İşliyoruz",
+    "step2Body": "Mama dikiş dikiş işe koyulur, sen de ilerlemeyi kendi durum panosundan canlı izlersin.",
+    "step3Title": "Kucakla",
+    "step3Body": "Fişle birlikte ödeme konusunda anlaşıp parçanı sana ulaştırıyoruz — döngü tamamlanır."
+  },
+  "Shop": {
+    "comingSoon": "Raflarımız hazırlanıyor…",
+    "body": "İlk el yapımı parçalarımız küçük mağazaya doğru yola çıktı. O zamana kadar hayalini kurduğun parçayı isteyebilirsin.",
+    "cta": "Özel parça iste"
+  },
+  "Footer": {
+    "tagline": "Sevgiyle, dikiş dikiş yapıldı.",
+    "rights": "Tüm hakları saklıdır."
+  },
+  "Widget": {
+    "ariaOpen": "Sohbeti aç",
+    "ariaClose": "Sohbeti kapat",
+    "title": "Mama ile sohbet",
+    "opener": "Merhaba! 👋 Parçalar, özel fikirler ya da teslimat hakkında her şeyi sorabilirsin.",
+    "placeholder": "Mesajın…",
+    "send": "Gönder",
+    "comingSoon": "Sohbet hazırlanıyor — yakında açılıyor 🐰"
+  },
+  "NotFound": {
+    "title": "Bu sayfa ipin içine dolandı",
+    "body": "Aradığın sayfa yok ya da yerinden taşındı. Eve dönelim.",
+    "cta": "Ana sayfaya dön"
+  },
+  "Health": {
+    "online": "API çevrimiçi",
+    "offline": "API çevrimdışı",
+    "checking": "API kontrol ediliyor…"
+  }
+}

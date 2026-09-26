@@ -80,19 +80,19 @@ hardware.
 
 ## Sub-plans (this folder)
 
-| #  | File                                | Responsibility                                   | Status    |
-|----|-------------------------------------|--------------------------------------------------|-----------|
-| 01 | 01-agent-and-skills-setup.md        | Agent skills tree + prompts for Pi               | proposed  |
-| 02 | 02-repo-scaffold.md                 | Aspire 13 + .NET 10 + Next.js 16 skeleton        | proposed  |
-| 03 | 03-identity-and-roles.md            | Accounts, auth, RBAC, user management            | proposed  |
-| 04 | 04-products-catalog.md              | Products, categories, images, stock, public shop | proposed  |
-| 05 | 05-orders-and-status.md             | Order model, lifecycle, status board, assignment | proposed  |
-| 06 | 06-chat.md                          | Realtime chat per order + attachments            | proposed  |
-| 07 | 07-payments-receipts-delivery.md    | Receipt-gated payment, delivery, close rules     | proposed  |
-| 08 | 08-localization-and-themes.md       | en/ar/tr i18n (RTL) + light/dark themes          | proposed  |
-| 09 | 09-hiring.md                        | Public hiring page + admin review                | proposed  |
-| 10 | 10-deployment.md                    | Docker Compose prod, deploy/backup scripts       | proposed  |
-| 11 | 11-visual-identity.md               | Brand & design language (feminine/fluffy/joyful) | proposed  |
+| #  | File                                | Responsibility                                   | Status      |
+|----|-------------------------------------|--------------------------------------------------|-------------|
+| 01 | 01-agent-and-skills-setup.md        | Agent skills tree + prompts for Pi               | done        |
+| 02 | 02-repo-scaffold.md                 | Aspire 13 + .NET 10 + Next.js 16 skeleton        | done        |
+| 03 | 03-identity-and-roles.md            | Accounts, auth, RBAC, user management            | proposed    |
+| 04 | 04-products-catalog.md              | Products, categories, images, stock, public shop | proposed    |
+| 05 | 05-orders-and-status.md             | Order model, lifecycle, status board, assignment | proposed    |
+| 06 | 06-chat.md                          | Realtime chat per order + attachments            | proposed    |
+| 07 | 07-payments-receipts-delivery.md    | Receipt-gated payment, delivery, close rules     | proposed    |
+| 08 | 08-localization-and-themes.md       | en/ar/tr i18n (RTL) + light/dark themes          | in-progress (foundation done 2026-09-26) |
+| 09 | 09-hiring.md                        | Public hiring page + admin review                | proposed    |
+| 10 | 10-deployment.md                    | Docker Compose prod, deploy/backup scripts       | proposed    |
+| 11 | 11-visual-identity.md               | Brand & design language (feminine/fluffy/joyful) | done        |
 
 **Future plan (post release 1)** — sibling folder
 `doc/plans/20260926-1935_email-notifications-google-login/`: email sending (D13),

@@ -1,0 +1,77 @@
+{
+  "Metadata": {
+    "name": "mamacrochet",
+    "title": "Handmade crochet, made with love — just for you",
+    "description": "Handmade crochet bags and cozy little pieces, crafted one stitch at a time. Dreaming of something specific? Chat with us and we'll make it — no account needed to start."
+  },
+  "Nav": {
+    "howItWorks": "How it works",
+    "shop": "Shop",
+    "hello": "Say hi"
+  },
+  "Theme": {
+    "label": "Color theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "Locale": {
+    "label": "Language",
+    "en": "English",
+    "ar": "العربية",
+    "tr": "Türkçe"
+  },
+  "Hero": {
+    "badge": "Handmade in every stitch",
+    "title": "Soft, cozy crochet — made just for you",
+    "subtitle": "Every piece is handcrafted by mama, one stitch at a time. Tell us your idea in chat — no account needed to start.",
+    "primaryCta": "Say hi 👋",
+    "secondaryCta": "How it works"
+  },
+  "Values": {
+    "title": "Why mamacrochet",
+    "customTitle": "Made to order",
+    "customBody": "Nothing mass-produced. Every piece is started the moment you order it — yours from the very first stitch.",
+    "ideasTitle": "Your ideas, welcome",
+    "ideasBody": "Dreaming of something specific? Send a photo or a sketch in chat and we'll crochet it just for you.",
+    "liveTitle": "Follow every step",
+    "liveBody": "Your order has a live status board — see when it's in the works, ready for payment, and on its way to you."
+  },
+  "HowItWorks": {
+    "title": "How it works",
+    "step1Title": "Say hi",
+    "step1Body": "Tell us what you're dreaming of — a bag, a doll, a custom piece — right in chat, no account needed.",
+    "step2Title": "We craft it",
+    "step2Body": "Mama gets to work, stitch by stitch, and you follow the progress live from your own status board.",
+    "step3Title": "Receive it",
+    "step3Body": "We agree on payment with a receipt, then your piece travels to you — and the loop is closed."
+  },
+  "Shop": {
+    "comingSoon": "Our shelves are getting fluffy…",
+    "body": "The first handmade pieces are on their way to the little shop. In the meantime, request the piece you've been dreaming of.",
+    "cta": "Request a custom piece"
+  },
+  "Footer": {
+    "tagline": "Handmade with love, one stitch at a time.",
+    "rights": "All rights reserved."
+  },
+  "Widget": {
+    "ariaOpen": "Open chat",
+    "ariaClose": "Close chat",
+    "title": "Chat with mama",
+    "opener": "Hi! 👋 Ask me anything — about pieces, custom ideas, or delivery.",
+    "placeholder": "Your message…",
+    "send": "Send",
+    "comingSoon": "Chat is being stitched together — it opens soon 🐰"
+  },
+  "NotFound": {
+    "title": "This page got tangled in the yarn",
+    "body": "The page you're looking for doesn't exist — or it moved. Let's get you back home.",
+    "cta": "Back to home"
+  },
+  "Health": {
+    "online": "API online",
+    "offline": "API offline",
+    "checking": "Checking API…"
+  }
+}

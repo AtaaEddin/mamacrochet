@@ -1,27 +1,32 @@
 {
-  "extends": "../tsconfig.json",
+  // Self-contained strict TypeScript config for the Next.js frontend.
+  //
+  // NOTE: previously this extended the repo-root tsconfig.json, but Turbopack
+  // (the default bundler for `next dev`/`next build` in Next.js 16) cannot
+  // resolve an `extends` to a file outside the app root ("extends:
+  // \"../tsconfig.json\" doesn't resolve correctly" — known Turbopack
+  // limitation). All strictness flags are inlined here instead.
+  // Rules: warnings must not be silenced; fix the underlying issue.
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": [
     "next-env.d.ts",
