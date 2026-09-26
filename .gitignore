@@ -1,0 +1,50 @@
+# ---------- .NET ----------
+bin/
+obj/
+*.user
+*.suo
+*.binlog
+.vs/
+artifacts/
+TestResults/
+[Dd]ebug*/
+[Rr]elease*/
+*.AppData/
+.aspire/
+
+# secrets / local config
+appsettings.*.Local.json
+*.pfx
+secrets/
+user-secrets.json
+
+# ---------- Node / Next.js ----------
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+.pnp/
+.pnp.*
+
+# env files (never commit real env)
+.env
+.env.*
+!.env.example
+
+# ---------- local data / uploads ----------
+data/
+uploads/
+
+# ---------- editor / OS ----------
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

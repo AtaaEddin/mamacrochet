@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    Shared build settings for every .NET project in this repo (imported automatically by MSBuild).
+    Policy: language/compiler warnings are treated as ERRORS. Fix the root cause;
+    do not suppress warnings without a documented reason in a plan file.
+    Individual projects may override these properties in their own .csproj if truly needed.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>
