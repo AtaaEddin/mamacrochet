@@ -22,11 +22,11 @@ Brand feel: soft, feminine, cozy, joyful (plan 11).
 ## Repo layout (planned until scaffolded)
 
 ```
-Mamacrochet.sln            src/Mamacrochet.AppHost   (Aspire, dev only)
-src/Mamacrochet.Api        (API + SignalR + EF Core)  frontend/  (Next.js 16, src/ dir)
+Mamacrochet.slnx           src/Mamacrochet.AppHost   (Aspire 13, dev only)
+src/Mamacrochet.Api        (API + EF Core; SignalR w/ plan 06)   frontend/  (Next.js 16, src/)
 .agents/skills/            (agent skills)             .pi/prompts/  (prompt templates)
 doc/plans/                 (plans, one folder each)   doc/references/ (saved material)
-deploy/ scripts/           (docker-compose, Caddy, deploy/backup)
+scripts/dev.sh             (one-command dev)          deploy/  (plan 10: compose, Caddy)
 ```
 
 ## Domain (main points)

@@ -1,6 +1,6 @@
 # 02 — Repo Scaffold (Aspire 13 + .NET 10 + Next.js 16)
 
-status: proposed
+status: done
 parent: main.md
 
 ## Goal
@@ -10,23 +10,23 @@ migrations work; build is warning-free (warnings = errors); strict TS verified.
 
 ## Layout
 
-```
-Mamacrochet.sln
+``` (actual, 2026-09-26)
+Mamacrochet.slnx           # .NET 10 XML solution format (dotnet new default)
 src/
-  Mamacrochet.AppHost/     # Aspire 13 AppHost (dev only)
-  Mamacrochet.Api/         # ASP.NET Core Web API + SignalR + EF Core (Npgsql)
-frontend/                  # Next.js 16 (App Router, src/ dir, Tailwind v4, shadcn/ui)
+  Mamacrochet.AppHost/     # Aspire 13 AppHost (dev only) — Postgres + Api
+  Mamacrochet.Api/         # ASP.NET Core Web API + EF Core (Npgsql); SignalR w/ plan 06
+frontend/                  # Next.js 16.3 (App Router, src/ dir, Tailwind v4, shadcn/ui)
   tsconfig.json            # extends ../tsconfig.json
+scripts/dev.sh             # one-command dev (Aspire + Next dev)
 deploy/                    # (plan 10) docker-compose, Caddyfile
-scripts/                   # (plan 10) deploy.sh, backup.sh
 ```
 
 ## Decisions
 
 - Solution at repo root; .NET projects under `src/`; Next.js under `frontend/`
   (separate from the solution; Aspire 13 runs it as a JS/Node resource in dev).
-- AppHost resources: `Postgres` (Aspire Postgres resource), `Api` (project reference),
-  `Web` (frontend dev server as an executable/node resource).
+- AppHost resources: `Postgres` (Aspire Postgres resource) + `Api` (project reference).
+  The Next dev server runs via `scripts/dev.sh` (pnpm) — see Result note on DCP.
 - EF Core 10 + Npgsql; migrations live in `Mamacrochet.Api`; dashboard health checks for
   Postgres + Api.
 - pnpm as package manager; ESLint (Next.js flat config) + Prettier; `pnpm typecheck`,
@@ -37,15 +37,35 @@ scripts/                   # (plan 10) deploy.sh, backup.sh
 
 ## Tasks
 
-- [ ] `dotnet new sln` + Aspire 13 templates (AppHost + Api, net10.0); verify
-      `dotnet run --project src/Mamacrochet.AppHost` opens the dashboard
-- [ ] Postgres resource + EF Core DbContext + first migration (empty context ok)
-- [ ] `create-next-app` for Next 16: TS, Tailwind v4, App Router, `src/` dir, pnpm, ESLint
-- [ ] `frontend/tsconfig.json` extends root `../tsconfig.json` (strict stays on)
-- [ ] shadcn init + one base page using tokens (bg-background, text-foreground, dark variant)
-- [ ] Wire frontend → api (env var, one fetch to `/health` shown on the page)
-- [ ] Verify: `dotnet build` 0 warnings, `pnpm typecheck` + `pnpm lint` clean,
-      browser shows hello page with live health status
+- [x] Solution + Aspire 13 AppHost + Api (net10.0); dashboard verified
+- [x] Postgres resource + EF Core DbContext + `InitialCreate` migration (empty model)
+- [x] `create-next-app` for Next 16.3: TS, Tailwind v4, App Router, `src/` dir, pnpm, ESLint
+- [x] `frontend/tsconfig.json` extends root `../tsconfig.json` (strict stays on)
+- [x] shadcn init + scaffold page using tokens, live `/health` widget
+- [x] Wire frontend → api (`NEXT_PUBLIC_API_URL`, fetch to `/health` shown on the page)
+- [x] Verify: `dotnet build` 0 warnings, `pnpm typecheck` + `pnpm lint` clean, stack runs
+
+## Result (2026-09-26)
+
+- `Mamacrochet.slnx` (XML solution format is the .NET 10 default), projects AppHost + Api.
+- **Aspire 13 needs no workload**: AppHost uses `Sdk="Aspire.AppHost.Sdk/13.5.4"`
+  (NuGet-based); templates via `dotnet new install Aspire.ProjectTemplates`.
+  Verified 13.x API changes: `.WithReference()` (replaces `.Reference()`),
+  `WithHttpEndpoint(port:)` + `WithExternalHttpEndpoints()`.
+- Postgres container + `mamacrochet` db; EF Core 10 + Npgsql 10.0.3; `dotnet-ef` 10.0.12
+  (global tool); `InitialCreate` migration (empty model).
+- Next.js 16.3.6 scaffold page shows live API + database health.
+- **Fixed dev ports (documented)**: api **8085** (8080 is taken by local llama-server),
+  web **3001**.
+- Next dev server runs via `scripts/dev.sh`, NOT as an AppHost resource: DCP's process
+  proxy failed to start it in this environment (silent FailedToStart). TODO: re-evaluate
+  Aspire 13 first-class Node hosting (`AddNodeApp`) — official Aspire skill added to
+  `.agents/skills/aspire` for reference (incl. 13.x breaking changes).
+- Verified end-to-end: `./scripts/dev.sh` → api `/health` =
+  `{"status":"ok","database":"connected"}`, page renders on :3001.
+- CNA-generated `frontend/AGENTS.md` (official Next.js agent guidance) kept.
+- Browser-visual check of the health widget: pending next UI session (no browser in
+  this agent environment).
 
 ## Acceptance
 

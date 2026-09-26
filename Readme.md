@@ -27,11 +27,13 @@ by an uploaded receipt.
 Soft, feminine, cozy — light & dark · English (default), Arabic (RTL), Turkish ·
 mobile-first.
 
-## Development (planned — see plans below)
+## Development
 
-- Prereqs: .NET 10 SDK, Node 22+, pnpm
-- `dotnet run --project src/Mamacrochet.AppHost` → Aspire dashboard (Postgres + API + Web)
-- `pnpm install && pnpm dev` in `frontend/`
+- Prereqs: .NET 10 SDK, Node 22+, pnpm, Docker
+- One command: `./scripts/dev.sh` → Aspire (Postgres + API on :8085) + Next dev (:3001)
+  - Or separately: `dotnet run --project src/Mamacrochet.AppHost` and
+    `cd frontend && pnpm dev -p 3001`
+- Scaffold page at http://localhost:3001 shows live API + database health.
 
 ## Docs
 
