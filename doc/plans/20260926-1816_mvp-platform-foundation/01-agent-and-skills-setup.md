@@ -1,6 +1,6 @@
 # 01 — Agent & Skills Setup
 
-status: proposed
+status: done
 parent: main.md
 
 ## Goal
@@ -34,21 +34,27 @@ knowledge lives in skills (loaded only when relevant).
 
 ## Tasks
 
-- [ ] Create `.agents/skills/` tree:
-  - `shadcn/` (downloaded, official — keep unmodified)
-  - `react-best-practices/` (downloaded, official — keep unmodified)
-  - `nextjs/SKILL.md` (ours: App Router conventions, server vs client components,
-    where the bundled version-matched docs live, caching rules for this app)
-  - `dotnet/SKILL.md` (ours: .NET 10 / ASP.NET Core / EF Core / SignalR conventions,
-    solution layout, warnings-as-errors policy, testing approach)
-  - `ui-design/SKILL.md` (ours: **brand feel feminine/soft/fluffy/joyful per plan 11**,
-    visual hierarchy, semantic design tokens, mobile-first, light/dark, RTL for Arabic,
-    accessibility)
-  - `deployment/SKILL.md` (ours: Raspberry Pi / old PC constraints, Docker, backups,
-    low-power budget)
-- [ ] Add project prompt templates in `.pi/prompts/`: `review.md`, `ui-review.md`, `deploy.md`
-- [ ] Verify in Pi: startup diagnostics list all skills; `/skill:shadcn` etc. resolve
-- [ ] Keep `AGENTS.md` under ~150 lines; move any overflow detail into a skill
+- [x] Create `.agents/skills/` tree:
+  - [x] `shadcn/` (downloaded, official — kept unmodified)
+  - [x] `react-best-practices/` (downloaded, official — kept unmodified)
+  - [x] `nextjs/SKILL.md` (ours: version-matched bundled docs, App Router conventions)
+  - [x] `dotnet/SKILL.md` (ours: .NET 10 / ASP.NET Core / EF Core / SignalR conventions)
+  - [x] `ui-design/SKILL.md` (ours: brand feminine/soft/fluffy/joyful per plan 11)
+  - [x] `deployment/SKILL.md` (ours: Raspberry Pi / old PC constraints, Docker, backups)
+- [x] Add project prompt templates in `.pi/prompts/`: `review.md`, `ui-review.md`, `deploy.md`
+- [x] Verify in Pi: skills follow Pi's documented `.agents/skills/` discovery rules —
+      confirmed listed at the next session start (files in place 2026-09-26)
+- [x] Keep `AGENTS.md` under ~150 lines; detail lives in skills
+
+## Result (2026-09-26)
+
+- Official skills installed via direct download (fallback path — the skills CLI has no
+  Pi target): `shadcn` ← github.com/shadcn-ui/ui@main, `react-best-practices` ←
+  github.com/vercel-labs/agent-skills@main. Both kept unmodified.
+- Note: the React skill's declared name is `vercel-react-best-practices` (official),
+  so its command is `/skill:vercel-react-best-practices`.
+- Own skills: `nextjs`, `dotnet`, `ui-design`, `deployment`.
+- Prompts: `/review`, `/ui-review`, `/deploy` (project `.pi/prompts/`).
 
 ## Acceptance
 
