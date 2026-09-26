@@ -27,8 +27,15 @@ Customer self-service accounts + staff accounts with RBAC, and admin user manage
 - Auth: **cookie-based** (httpOnly, SameSite=Lax, secure in prod) for the first-party
   Web + same-origin API; SignalR connects with the same cookie. No public/3rd-party API
   in MVP, so no JWT needed. Re-check guidance if an external API becomes necessary.
-- Email: SMTP (provider to be confirmed with owner — self-hosted deliverability is
-  unreliable without a transactional email service). Templates exist in en/ar/tr (plan 08).
+- Email (owner decision 2026-09-26, D13): send from a **Google account via SMTP**
+  (dedicated store account; not self-hosted mail). `smtp.gmail.com`, port 587 STARTTLS.
+  Auth: **OAuth 2.0 (XOAUTH2)** in production — basic auth is retired by Google and OAuth
+  is required for Workspace; app password (2SV enabled) only as a dev fallback.
+  Refresh token lives in `.env` (never in the repo). Volume is a few dozen messages/day —
+  far under Gmail's daily sending limits. Implement behind an `IEmailSender` abstraction
+  so the provider can be swapped later without touching callers.
+  Sources: developers.google.com/workspace/gmail/imap/xoauth2-protocol,
+  support.google.com/mail/answer/81126. Templates exist in en/ar/tr (plan 08).
 - Security: rate-limit auth endpoints, CSRF protection for cookie flows, strong password
   policy (ASP.NET Identity defaults), audit note on sensitive admin actions.
 
@@ -39,7 +46,8 @@ Customer self-service accounts + staff accounts with RBAC, and admin user manage
 - [ ] Frontend: /register, /login, /verify, /forgot-email, /reset, /account; /staff/login
 - [ ] Authorization policies (Customer / Employee / Admin) enforced in API middleware
 - [ ] Admin users page: list/search/create/edit/deactivate/delete/roles/assignment
-- [ ] Email templates (en/ar/tr) + SMTP config (dev: local dev server, e.g., MailHog-equivalent)
+- [ ] `IEmailSender` + Google SMTP transport (OAuth2 primary, app-password dev fallback,
+      in-memory/console sender when no SMTP config) + email templates (en/ar/tr)
 
 ## Acceptance
 

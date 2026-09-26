@@ -94,13 +94,13 @@ hardware.
 | D10  | MVP languages: en, ar, tr only (ar full RTL)                                                                             | owner requirement                         |
 | D11  | Prices stored as amount + currency code; display USD only; regional pricing deferred to a future plan                   | owner: MVP first                          |
 | D12  | Next.js agent guidance: version-matched docs bundled inside the `next` npm package; AGENTS.md + `nextjs` skill point at them | nextjs.org/docs/app/guides/ai-agents      |
+| D13  | Email sent from a **Google account via SMTP** (owner decision 2026-09-26; no self-hosted mail): `smtp.gmail.com:587` STARTTLS, OAuth 2.0 (XOAUTH2) in production — basic auth is retired by Google and required-to-OAuth for Workspace; app password (2SV) only as a dev fallback. Volume is a few dozen/day, far under Gmail daily limits. | developers.google.com/workspace/gmail/imap/xoauth2-protocol, support.google.com/mail/answer/81126 |
 
 ## Risks / open questions
 
 - Regional pricing algorithm (Steam-like up/down-scaling per region) — deferred; needs its
   own plan when it comes in (research: Steam's regional pricing + purchasing-power models).
-- Owner's instruction list item 5 was cut off in Readme.md ("Make sure that you don't …")
-  — needs clarification from owner. Generic "do not" rules were added to AGENTS.md meanwhile.
 - Single employee today: assignment logic must still support N employees (owner requirement).
-- Email deliverability from a self-hosted machine: needs a reliable SMTP provider
-  (e.g., transactional email service) — confirm with owner during plan 03.
+- A dedicated Google account (ideally on a custom domain via Google Workspace) should be
+  created for store email; if a custom domain is used, set SPF/DKIM for it. Owner to confirm
+  which account is used before plan 03 implementation.

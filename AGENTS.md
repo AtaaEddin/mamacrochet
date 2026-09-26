@@ -15,7 +15,7 @@ uploaded receipt file. Team: admin(s) + employee(s) (makers).
 - Backend: .NET 10 (LTS, to Nov 2028) · ASP.NET Core Web API · EF Core (Npgsql) · SignalR
 - Dev orchestration: Aspire 13.x (dev only, never shipped)
 - Frontend: Next.js 16.x stable (App Router) · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui · pnpm
-- Data: PostgreSQL · files on local disk (volume) · email via SMTP
+- Data: PostgreSQL · files on local disk (volume) · email via Google SMTP (OAuth2)
 - Deploy: Docker Compose on Raspberry Pi / old PC (low-power, single machine)
 
 ## Repo layout (planned until scaffolded)
