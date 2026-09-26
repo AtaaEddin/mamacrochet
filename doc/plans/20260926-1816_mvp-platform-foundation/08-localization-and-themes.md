@@ -6,7 +6,12 @@ parent: main.md
 ## Goal
 
 Full trilingual support — English (default), Arabic (full RTL), Turkish — plus
-light/dark theming across the whole app.
+light/dark theming across the whole app. Release 1 ships **en + ar complete**; tr
+catalogs are scaffolded (translations best-effort / owner-supplied).
+
+**Sequencing note**: the *foundation* (next-intl setup, dir/RTL handling, brand theme
+tokens from plan 11) is built right after the scaffold (02) so every feature page is
+i18n-ready from the start; whole-page translations are finished last (phase 7).
 
 ## Scope
 
@@ -17,14 +22,15 @@ light/dark theming across the whole app.
   implementation time — search online per plan rule 3).
 - **Domain content**: per-language rows (ProductTranslation etc., plan 04) with
   fallback to en. Admin translation editor per content item (3 tabs: en/ar/tr).
-- **Emails**: 3-language templates (plan 03) chosen by the recipient's profile language.
+- **Emails**: not in release 1 (deferred with plan 03 / D13).
 - **RTL**: `<html dir>` per language; use CSS logical properties (margin-inline etc.);
   verify layout of chat (bubbles), forms, tables, status board in Arabic.
 - **Formatting**: Intl API for dates/numbers; currency shown as USD in all languages
   (plan D11); locale-aware date picker in delivery form.
 - **Themes**: light + dark. Default = system preference; manual toggle (light/dark/system)
   persisted in profile (or localStorage when logged out). shadcn/ui design tokens
-  (OKLCH CSS variables) for both modes — no hard-coded colors in components.
+  (OKLCH CSS variables) for both modes, **palette from the brand system (plan 11)** —
+  no hard-coded colors in components.
 
 ## Tasks
 
@@ -32,7 +38,8 @@ light/dark theming across the whole app.
 - [ ] Translate core UI strings (catalog, orders, chat, auth, admin) en/ar/tr
 - [ ] RTL pass: dir handling, logical properties, component review (shadcn RTL support)
 - [ ] Theme provider (system/light/dark) + toggle in header + token audit (no raw hex)
-- [ ] Email templates en/ar/tr (with plan 03)
+- [ ] Brand tokens: plan 11 palette/type/motion tokens into the shadcn theme (light+dark)
+- [ ] (deferred — future email plan) email templates en/ar/tr
 - [ ] Translation editor (admin/employee) for product/category content
 
 ## Acceptance

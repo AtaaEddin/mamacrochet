@@ -1,12 +1,15 @@
 # mamacrochet
 
 Self-hosted store + commission platform for handmade crochet products (bags & more).
-Customers buy in-stock pieces or request a **custom** one (sample images welcome),
-follow the order's live status board, and chat with the maker. Payment is agreed in
-chat and proven by an uploaded receipt.
+Even without an account, visitors can chat with the maker, buy in-stock pieces, or
+request a **custom** one (sample images welcome) — an account is only needed to confirm
+an order. Every order follows a live status board. Payment is agreed in chat and proven
+by an uploaded receipt.
 
 ## Roles
 
+- **Visitor** (no account) — browse, chat, start an order (name + phone); sign in at
+  confirmation.
 - **Customer** — browse the catalog, order (stock or custom), chat, track status, rate.
 - **Employee** (maker) — manage products, work assigned orders, chat, record payment
   (receipt upload) and delivery.
@@ -19,9 +22,10 @@ chat and proven by an uploaded receipt.
 - Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind v4 · shadcn/ui · pnpm
 - Docker Compose on Raspberry Pi / old PC — everything self-hosted on one machine
 
-## Languages & themes
+## Feel, languages & themes
 
-English (default), Arabic (RTL), Turkish · light & dark · mobile-first.
+Soft, feminine, cozy — light & dark · English (default), Arabic (RTL), Turkish ·
+mobile-first.
 
 ## Development (planned — see plans below)
 

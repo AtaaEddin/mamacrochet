@@ -28,6 +28,17 @@ customer + employee, full admin trace, assignment, and per-order customer rating
 - **Timeline events**: every status change + free note + actor + timestamp. This timeline
   **is** the customer-facing status board and the admin trace (single source of truth).
 - `OrderAttachment`: files (samples, WIP photos, receipt, delivery proof) typed by kind.
+- **Guest orders (D14)**: an anonymous visitor can create an order with **name + phone
+  (required)** and email (optional); the order stores the device `guestId`. When the
+  order reaches `ready_for_payment` the customer-side flow prompts login/registration;
+  on success the order (and any linked thread) links to the account. Staff can see guest
+  contact details and may record payment for unlinked orders (offline flow).
+- **Guest anti-abuse (D16)**: guests stay easy to start but bounded — rate limits per
+  device (`guestId`) + IP, a small cap on open guest orders (per device and per phone
+  number), **unconfirmed guest orders auto-cancel after 7 days** (lazy check on read +
+  daily sweep), honeypot field on the guest order form. A real captcha (e.g.
+  Cloudflare Turnstile) is added only if spam actually materializes. Registration at
+  confirmation stays the final gate (D14).
 
 ## Rules
 
@@ -53,13 +64,16 @@ customer + employee, full admin trace, assignment, and per-order customer rating
 - [ ] Frontend: employee "My orders" (filters by status) + action buttons per state
 - [ ] Frontend: admin orders table (filter: status, customer, employee, date) +
       order detail with full trace + assignment controls + metrics panel
-- [ ] Custom order creation flow: from product page (out-of-stock) or /request-custom
-      (spec text + sample image upload)
+- [ ] Order creation flows (all guest-capable): in-stock purchase, product page
+      (out-of-stock CTA), /request-custom (spec text + sample images); guest step =
+      name + phone (+ optional email)
 
 ## Acceptance
 
 - End-to-end catalog order and custom order walk-through in the UI, all transitions
   guarded server-side (invalid transition → 409/400 with message).
 - Customer status board updates live (plan 06 realtime) and is readable on a phone.
+- Guest journey works with no account until confirmation: browse → chat → order
+  (name + phone) → register at confirmation → order appears in “My orders”.
 - Admin trace shows actor + timestamp for every event; metrics panel returns correct
   numbers for the test data.

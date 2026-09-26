@@ -14,11 +14,11 @@ Public "we're hiring" disclosure + application flow, ending in an employee accou
   (text description + optional image/PDF uploads), optional message.
 - Application: stored with status `new → accepted | declined` + admin notes;
   visible to admin only (list + filter by status/date).
-- Accept flow: admin accepts → prompted to create the employee account
-  (email must match application or be corrected) → invite email with
-  set-password link (reuse plan 03 reset link infrastructure) → employee can log in.
-- Decline flow: admin declines with optional note (sent to applicant email,
-  localized — polite template).
+- Accept flow: admin accepts → creates the employee account (email must match the
+  application or be corrected) → release 1: admin shares credentials offline (invite
+  email with set-password link comes with the future email plan D13).
+- Decline flow: admin declines with optional note; release 1: no email — admin
+  contacts the applicant offline (phone); localized email comes later (D13).
 - Public page is localized (en/ar/tr) and mobile-first.
 
 ## Decisions
@@ -32,7 +32,7 @@ Public "we're hiring" disclosure + application flow, ending in an employee accou
 - [ ] Entity + migration: HiringApplication (+ files)
 - [ ] API: public submit (rate-limited), admin list/detail/accept/decline
 - [ ] Frontend: /join form (validation, uploads, success state), admin hiring page
-- [ ] Invite email (localized) + acceptance wiring into plan 03 account creation
+- [ ] Acceptance wiring into plan 03 account creation (offline credentials in release 1)
 
 ## Acceptance
 

@@ -41,7 +41,7 @@ Implement the owner-mandated payment/delivery rules with hard server-side enforc
 - [ ] Frontend: employee payment form (amount, method, receipt upload with type/size check),
       delivery form (method, datetime, description); admin override dialog with
       mandatory reason; customer view of payment/delivery state (no raw files)
-- [ ] Email: single notification when order reaches `ready_for_payment` (plan 03 SMTP)
+- [ ] (deferred — future email plan D13) notification when order reaches `ready_for_payment`
 
 ## Acceptance
 

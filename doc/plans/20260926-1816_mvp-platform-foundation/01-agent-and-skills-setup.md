@@ -16,6 +16,8 @@ knowledge lives in skills (loaded only when relevant).
   (Pi docs: skills.md; agentskills.io/specification).
 - Installer CLI: `npx skills add <owner/repo> [--skill <name>]`
   (vercel-labs/skills, skills.sh — supports many agents including project `.agents`).
+  Fallback (when the CLI has no target for Pi): download the same files directly from
+  the repos into `.agents/skills/` and note the source URL inside the skill folder.
 - Upstream skills to install:
   - shadcn (official): `npx skills add shadcn-ui/ui --skill shadcn`
     → github.com/shadcn-ui/ui/tree/main/skills/shadcn
@@ -39,8 +41,9 @@ knowledge lives in skills (loaded only when relevant).
     where the bundled version-matched docs live, caching rules for this app)
   - `dotnet/SKILL.md` (ours: .NET 10 / ASP.NET Core / EF Core / SignalR conventions,
     solution layout, warnings-as-errors policy, testing approach)
-  - `ui-design/SKILL.md` (ours: visual hierarchy, semantic design tokens, mobile-first,
-    light/dark, RTL for Arabic, accessibility)
+  - `ui-design/SKILL.md` (ours: **brand feel feminine/soft/fluffy/joyful per plan 11**,
+    visual hierarchy, semantic design tokens, mobile-first, light/dark, RTL for Arabic,
+    accessibility)
   - `deployment/SKILL.md` (ours: Raspberry Pi / old PC constraints, Docker, backups,
     low-power budget)
 - [ ] Add project prompt templates in `.pi/prompts/`: `review.md`, `ui-review.md`, `deploy.md`

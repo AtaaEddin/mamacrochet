@@ -6,16 +6,17 @@ demand) and in the active plan under `doc/plans/`. Keep this file small.
 ## What this is
 
 Self-hosted store + commission platform for handmade crochet products (bags & more).
-Customers buy in-stock pieces or request custom ones (sample images welcome), chat with
-the maker, and follow a live status board. Payment is agreed in chat and proven by an
-uploaded receipt file. Team: admin(s) + employee(s) (makers).
+Even anonymous visitors can chat with the maker, buy in-stock pieces, or request custom
+ones (sample images welcome) — an account is only needed to confirm an order. Payment is
+agreed in chat and proven by an uploaded receipt file. Team: admin(s) + employee(s).
+Brand feel: soft, feminine, cozy, joyful (plan 11).
 
 ## Stack (verified 2026-09-26 — re-verify online before upgrading anything)
 
 - Backend: .NET 10 (LTS, to Nov 2028) · ASP.NET Core Web API · EF Core (Npgsql) · SignalR
 - Dev orchestration: Aspire 13.x (dev only, never shipped)
 - Frontend: Next.js 16.x stable (App Router) · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui · pnpm
-- Data: PostgreSQL · files on local disk (volume) · email via Google SMTP (OAuth2)
+- Data: PostgreSQL · files on local disk (volume) · email: **not in release 1** (future: Google SMTP, plan D13)
 - Deploy: Docker Compose on Raspberry Pi / old PC (low-power, single machine)
 
 ## Repo layout (planned until scaffolded)
@@ -34,14 +35,19 @@ deploy/ scripts/           (docker-compose, Caddy, deploy/backup)
   and the full trace (who worked on what, how long), assigns customers→employees, reviews
   hiring requests, and may override closing without a receipt (**mandatory reason note**).
 - **One "Order" concept** (no separate "process"): `kind = catalog | custom`; custom
-  orders carry the customer's spec + sample images. Inquiries create orders (no anonymous chat).
+  orders carry the customer's spec + sample images. **Guest-first**: anonymous visitors
+  start orders (name + phone) without an account; login/registration at confirmation
+  links the order + thread to the account.
 - **Order lifecycle**: `open → in_progress → ready_for_payment → paid → delivered → closed`
   (+ `cancelled` with reason). Every change writes a timeline event = the customer's
   live status board and the admin trace.
 - **Products**: category, images, USD price, stock units, visibility. Out-of-stock stays
   visible → "ask / request custom" CTA. Stock-0 items are made to order.
-- **Chat**: one thread per order (customer ↔ employee ↔ admin), realtime (SignalR),
-  attachments. Also the place where payment & delivery are agreed.
+- **Chat is the core surface**: floating widget for anonymous visitors (guest thread) +
+  per-order threads (customer ↔ employee ↔ admin), realtime (SignalR), attachments.
+  Also the place where payment & delivery are agreed.
+- **Guest safety (D16)**: guest chat/orders are rate-limited and expire; registration
+  remains the mandatory final gate to complete an order.
 - **Payment**: NO gateway. Employee sets `paid` **only after** uploading a receipt
   (pdf/image) + recording the paid amount. Admin override requires a written reason.
 - **Delivery**: agreed in chat or offline; record method + actual date/time + description.
@@ -78,9 +84,10 @@ deploy/ scripts/           (docker-compose, Caddy, deploy/backup)
   types at public/component/API boundaries; lint with zero warnings.
 - Next.js: server components by default, minimal `"use client"`. **Never guess APIs** —
   read the version-matched docs bundled in the `next` package (`frontend/node_modules/next/dist/docs/`).
-- UI: shadcn/ui + semantic design tokens (no arbitrary hex values); must work in light+dark,
-  in RTL (ar), be accessible (names, keyboard, focus, contrast), and be mobile-first.
-  No decorative-only effects.
+- UI: shadcn/ui + semantic design tokens (no arbitrary hex values); **brand feel:
+  feminine, soft, fluffy, joyful** (plan 11) — brand-serving decoration is allowed when
+  tasteful and cheap to render; must work in light+dark, in RTL (ar), be accessible
+  (names, keyboard, focus, contrast), and be mobile-first.
 - Self-hosted (low-power target): no Redis/queues/Elasticsearch; small images; DB indexes
   over in-memory filtering; small Docker images; only the 4 production containers.
 - Never commit secrets, env files, or uploaded user files. Dev config via Aspire; prod via `.env`.
