@@ -3,27 +3,30 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { YarnLoader } from "@/components/illustrations/yarn-loader";
+import { api } from "@/lib/api/client";
+import type { components } from "@/lib/api/schema";
 
-type Health = { status: string; database: string };
+type Health = components["schemas"]["ApiHealth"];
 
 type State = { health: Health | null; error: boolean };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
 /**
  * Small API status pill for the footer (dev signal from plan 02, brand-styled).
+ * First consumer of the generated OpenAPI client — the rest of the data
+ * fetching (plans 03/04/05) uses the same `api` client.
  */
 export function ApiStatus() {
   const t = useTranslations("Health");
   const [state, setState] = useState<State>({ health: null, error: false });
 
   useEffect(() => {
-    if (!apiUrl) return;
     let cancelled = false;
-    fetch(`${apiUrl}/health`)
-      .then((res) => res.json() as Promise<Health>)
-      .then((health) => {
-        if (!cancelled) setState({ health, error: false });
+    api
+      .GET("/health")
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (data) setState({ health: data, error: false });
+        else if (error) setState({ health: null, error: true });
       })
       .catch(() => {
         if (!cancelled) setState({ health: null, error: true });
@@ -33,30 +36,29 @@ export function ApiStatus() {
     };
   }, []);
 
-  if (!apiUrl) return null;
-
-  const online = state.health?.status === "ok";
+  const { health, error } = state;
+  const online = health?.status === "ok";
 
   return (
     <span
       role="status"
       className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground"
     >
-      {state.health ? (
+      {health ? (
         <span
           className={`size-2 rounded-full ${online ? "bg-brand-olive" : "bg-destructive"}`}
           aria-hidden="true"
         />
-      ) : state.error ? (
+      ) : error ? (
         <span className="size-2 rounded-full bg-destructive" aria-hidden="true" />
       ) : (
         <YarnLoader className="size-4" />
       )}
-      {state.health
+      {health
         ? online
           ? t("online")
           : t("offline")
-        : state.error
+        : error
           ? t("offline")
           : t("checking")}
     </span>

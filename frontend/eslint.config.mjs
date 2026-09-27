@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated from the API's OpenAPI spec (pnpm gen:api).
+    "src/lib/api/schema.d.ts",
   ]),
 ]);
 
