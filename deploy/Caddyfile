@@ -1,0 +1,23 @@
+# mamacrochet reverse proxy (plan 10) — the ONLY public surface.
+#
+# Site address comes from the CADDY_SITE env var (set in docker-compose.yml
+# from .env):
+#   - "http://"                      → plain HTTP on every host (LAN / IP)
+#   - "mamacrochet.example.com"      → automatic HTTPS (Let's Encrypt) +
+#                                      HTTP→HTTPS redirect
+#
+# Routing: /api/* → api:8085 (prefix stripped) | everything else → web:3000.
+# WebSockets (SignalR, under /api/) need no extra configuration — Caddy
+# upgrades the connection automatically. TLS storage lives in /data
+# (mounted ./data/caddy).
+
+{$CADDY_SITE:http://} {
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:8085
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
+using System.Net;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -262,6 +263,18 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     }
 }));
 
+// Production error envelope (plan 03). The registration MUST happen before
+// Build(): the service collection is read-only afterwards, and the prod
+// branch crashed at startup (caught by the plan 10 Docker smoke test).
+// AddProblemDetails is required by .NET 10 for the parameterless
+// UseExceptionHandler() (it also provides the fallback for exceptions our
+// handler does not claim, which is none in practice).
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+    builder.Services.AddProblemDetails();
+}
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -270,13 +283,27 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    builder.Services.AddExceptionHandler<ApiExceptionHandler>();
     app.UseExceptionHandler();
 }
 
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
+}
+
+// Plan 10: in production the app runs behind Caddy, which terminates TLS and
+// sets X-Forwarded-For/-Proto. Honouring them keeps client IPs correct (rate
+// limiting, guest caps) and Secure cookies settable. In compose ONLY the
+// caddy container can reach the api (its port is not published), and Docker
+// allocates compose networks from 172.16.0.0/12 — so the whole bridge range
+// is our proxy. Dev has no such proxy and keeps its direct behaviour.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        // .NET 10 API (KnownNetworks/IPAddressRange is deprecated): IPNetwork.
+        KnownIPNetworks = { IPNetwork.Parse("172.16.0.0/12") },
+    });
 }
 
 app.UseCors();
@@ -312,6 +339,15 @@ app.MapHealthChecks("/alive", new HealthCheckOptions
 {
     Predicate = r => r.Tags.Contains("live"),
 });
+
+// Plan 10: single-instance deployment — apply pending EF Core migrations on
+// startup. Migrate() is idempotent (a no-op when the schema is current), so
+// every (re)start is safe; compose gates this on a healthy postgres.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 app.Run();
 

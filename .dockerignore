@@ -1,0 +1,28 @@
+# Shared Docker build-context ignores (both images build from the repo root).
+# Keep this list in sync with .gitignore for anything bulky or local-only.
+
+.git
+.aspire
+artifacts/
+TestResults/
+data/
+
+# .NET build output (the images restore/publish fresh)
+**/bin/
+**/obj/
+*.binlog
+
+# Frontend deps + build output (rebuilt inside the image)
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Local env + runtime data (never ship config or user files)
+.env
+.env.*
+deploy/.env
+deploy/data/
+deploy/backups/
+deploy/images/
+*.tar

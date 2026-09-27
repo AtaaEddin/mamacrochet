@@ -1,6 +1,6 @@
 # 10 — Deployment (Self-hosted, Low Power)
 
-status: proposed
+status: in-progress
 parent: main.md
 
 ## Goal
@@ -38,16 +38,67 @@ deployable with one script, with backups.
 
 ## Tasks
 
-- [ ] Dockerfiles: api (multi-stage .NET 10, small final image), web (Next standalone)
-- [ ] docker-compose.yml (healthchecks, restart policies, volumes, resource limits)
-- [ ] Caddyfile (http→https auto, proxy /api + / to respective containers, websocket upgrade for SignalR)
-- [ ] Migrations-on-startup guard in api (idempotent, single instance)
-- [ ] deploy.sh + backup.sh + restore.md + .env.example
+- [x] Dockerfiles: api (multi-stage .NET 10, small final image), web (Next standalone)
+- [x] docker-compose.yml (healthchecks, restart policies, volumes, resource limits)
+- [x] Caddyfile (http→https auto, proxy /api + / to respective containers, websocket upgrade for SignalR)
+- [x] Migrations-on-startup guard in api (idempotent, single instance)
+- [x] deploy.sh + backup.sh + restore.md + .env.example
 - [ ] Smoke test on Pi-class hardware (or QEMU ARM64): fresh install → deploy.sh →
       full user flow works over HTTPS (or local HTTP)
+      — **remaining**: x64 Docker smoke test passed 2026-09-27 (see below); ARM64/
+      real-hardware pass + chat-realtime-through-Caddy (needs plan 06) still open.
 
 ## Acceptance
 
 - Fresh machine with Docker installed → `./deploy.sh` → site reachable, all healthchecks
   green, chat realtime works through Caddy, backup script produces a restorable dump.
 - `docker compose ps` shows exactly the 4 containers; memory footprint within budget.
+
+## Done (2026-09-27)
+
+- **Images**: `src/Mamacrochet.Api/Dockerfile` (multi-stage `sdk:10.0` →
+  `aspnet:10.0-alpine`, `UseAppHost=false`) and `frontend/Dockerfile` (3-stage
+  `node:22-alpine`, corepack-pinned pnpm, Next `output: "standalone"`, static+
+  public copied). Both build from the repo-root context; new root `.dockerignore`
+  keeps node_modules/.next/bin/obj/env out. All base images are multi-arch.
+- **Compose**: exactly 4 services (postgres/api/web/caddy); only caddy publishes
+  ports (80 + 443); api/web/postgres reachable from the compose network only;
+  healthchecks on all four; `api` gates on a healthy postgres; `restart:
+  unless-stopped`; optional `mem_limit` lines for a Pi; data in `./data/`.
+- **Caddy**: one site block `{$CADDY_SITE:http://}` — plain HTTP for LAN/IP, or a
+  bare domain → automatic Let's Encrypt. `handle /api/*` strips the prefix →
+  api:8085 (same-origin for the browser → cookie auth works, no CORS); everything
+  else → web:3000. WebSockets need no config (Caddy upgrades automatically).
+- **API production fixes (found by the smoke test)**:
+  1. `AddExceptionHandler<ApiExceptionHandler>()` ran **after** `builder.Build()`
+     → read-only service collection → crash on prod startup (dev never hit the
+     branch). Moved before `Build()`; also added `AddProblemDetails()` — .NET 10
+     requires it for the parameterless `UseExceptionHandler()` (verified with a
+     minimal repro).
+  2. `UseForwardedHeaders` (prod only, trusting the 172.16.0.0/12 compose bridge —
+     only Caddy can reach the unpublished api port) so client IPs stay correct
+     for rate limiting and Secure cookies set behind TLS termination.
+  3. Migrations-on-startup guard: `db.Database.Migrate()` before `app.Run()`
+     (idempotent; compose gates it on a healthy postgres).
+- **Frontend**: `output: "standalone"` in `next.config.ts`; `NEXT_PUBLIC_SITE_URL`
+  fallback fixed to `||` (empty build-arg string made `new URL("")` throw during
+  prerender) — in `layout.tsx` metadataBase.
+- **Scripts**: `deploy.sh` (.env check → load `images/*.tar` or build → up →
+  wait-for-healthy → status/URL), `backup.sh` (pg_dump + uploads tar, same-day
+  timestamp suffix, keep-last-N), `restore.md`, `.env.example`, `README.md`
+  (incl. air-gapped `docker save`/`load` Pi path + cron).
+- **Smoke test (x64, 2026-09-27)**: fresh `postgres:16-alpine` → api container
+  applied all EF migrations on an empty DB on first boot (10 tables); full
+  `docker compose up` → all 4 healthy; through Caddy: `/`→200, `/ar`→200 (RTL
+  messages load from the standalone bundle), `/en/works`→200, `/api/health`→
+  JSON, `/api/identity/me`→401 typed ApiError, OpenAPI correctly 404 in
+  Production. `backup.sh` dump + uploads tar verified; restore of the dump into
+  a **fresh** DB: 0 errors, 10 tables. `deploy.sh` run end-to-end: 4/4 healthy,
+  URL printed.
+
+## Open
+
+- ARM64 / real-hardware smoke test (owner, on the Pi or QEMU).
+- "Chat realtime through Caddy" acceptance item — verifiable once plan 06
+  (SignalR) lands; Caddy needs no change for WebSockets.
+- Pi memory budget check (`docker stats`) after plan 04–07 land.

@@ -30,7 +30,9 @@ export function generateStaticParams(): { locale: string }[] {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Metadata");
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001"),
+    // `||` (not `??`): the production Docker build passes an EMPTY string
+    // when no public URL is configured, and new URL("") throws (plan 10).
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001"),
     title: {
       default: t("title"),
       template: `%s · ${t("name")}`,

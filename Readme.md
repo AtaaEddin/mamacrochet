@@ -30,10 +30,20 @@ mobile-first.
 ## Development
 
 - Prereqs: .NET 10 SDK, Node 22+, pnpm, Docker
-- One command: `./scripts/dev.sh` → Aspire (Postgres + API on :8085) + Next dev (:3001)
-  - Or separately: `dotnet run --project src/Mamacrochet.AppHost` and
-    `cd frontend && pnpm dev -p 3001`
-- Scaffold page at http://localhost:3001 shows live API + database health.
+- One command: `dotnet run --project src/Mamacrochet.AppHost` → Aspire runs the
+  whole dev stack: Postgres + API on :8085 + Next dev on :3000 (see the Aspire
+  dashboard in the terminal output)
+- Site at http://localhost:3000 (default locale `en`), API health at
+  http://localhost:8085/health
+
+## Deployment (production)
+
+Self-hosted on one machine (Raspberry Pi / old PC) — 4 containers
+(postgres, api, web, caddy), local-disk uploads, one script:
+
+- `deploy/deploy.sh` — one-shot deploy (builds or loads images, starts, waits for health)
+- `deploy/backup.sh` + `deploy/restore.md` — backups & restore
+- details: [`deploy/README.md`](deploy/README.md) (config in `deploy/.env`, air-gapped Pi path)
 
 ## Docs
 
