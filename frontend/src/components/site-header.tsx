@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { MessageCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { AuthBadge } from "@/components/auth-badge";
 import { MamaMark } from "@/components/illustrations/mama-mark";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -45,11 +46,15 @@ export async function SiteHeader() {
           <div className="hidden items-center gap-3 md:flex">
             <LanguageSwitcher />
             <ThemeToggle />
+            <AuthBadge />
             {chatCta}
           </div>
 
-          {/* Mobile chat CTA (row 1) */}
-          <div className="md:hidden">{chatCta}</div>
+          {/* Mobile row 1: sign-in state + chat CTA */}
+          <div className="flex items-center gap-2 md:hidden">
+            <AuthBadge />
+            {chatCta}
+          </div>
         </div>
 
         {/* Row 2 — mobile only: language + theme (44 px tap targets) */}

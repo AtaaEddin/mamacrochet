@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { Toaster } from "@/components/ui/toast";
 import { ThemeProvider } from "@/components/theme-provider";
 import { isAppLocale, routing } from "@/i18n/routing";
 import "../globals.css";
@@ -61,6 +62,7 @@ export default async function LocaleLayout({
             <SiteHeader />
             <main className="flex-1">{children}</main>
             <SiteFooter />
+            <Toaster />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

@@ -1,6 +1,6 @@
 # 03 — Identity, Accounts & Roles
 
-status: in-progress
+status: done
 parent: main.md
 
 ## Goal
@@ -86,13 +86,40 @@ Customer self-service accounts + staff accounts with RBAC, and admin user manage
   (operation id `files.getAvatar`). `pnpm gen:api` → committed
   `frontend/src/lib/api/schema.{json,d.ts}` (openapi-typescript 7 + openapi-fetch).
 
+- **Rate-limit partitioning (frontend session fix)**: the strict 30/min budget now
+  covers only auth/admin *actions* (POST/PUT/PATCH/DELETE under `/identity` or
+  `/admin`); `GET /identity/me` sits on the default 300/min budget because it fires
+  on every page load (header badge + account pages) and was 429-ing live sessions.
+- **Browser-only typed client**: cookie auth can't be served from server components,
+  so `frontend/src/lib/api/client.ts` wraps fetch with `credentials: "include"`, a
+  cached `GET /antiforgery` token (10 s hard timeout → falls through to the server's
+  403 `csrf` → the one-shot retry re-fetches), CSRF on mutating `/identity`+`/admin`
+  calls, and a raw `uploadAvatar()` helper (OpenAPI can't model multipart `File`).
+  `avatarSrc()` resolves `/files/avatars/…` against the API base.
+- **`useMe` semantics**: only 401/410 means "no longer signed in" → redirect to
+  `/login`; any other failure (429/5xx/network) renders a retry card — transient
+  errors must never bounce a signed-in user.
+- **Deactivate vs delete are distinct copy** (Scope's two soft ops): deactivating
+  keeps the row with an Inactive badge and login fails with `deactivated`; deleting
+  is a soft delete (`DeletedAt`) — the row disappears, history is kept, and login
+  fails with `bad_credentials` (indistinguishable from a wrong password by design).
+- **CORS with credentials (.NET 10)**: `policy.AllowCredentials()` —
+  `WithCredentials()` no longer exists in .NET 10 (CS1061).
+- **Admin route client-gated**: signed-in non-admins get a 403 card on
+  `/admin/users`; anonymous users redirect to `/login`. The server still enforces
+  the policy — the gate is UX, not security.
+- **UI language**: the site locale follows next-intl routing (URL/cookie);
+  the profile language is a stored preference and syncs only when changed, so
+  visiting `/ar` doesn't overwrite a logged-in user's saved `en` preference.
+
 ## Tasks
 
 - [x] Identity schema + migrations (users, roles)
 - [x] API: register, login, logout, me (get/update profile), admin password-reset
 - [x] Guest mode: link-to-account endpoint (guestId issuance is frontend, plans 05/06)
-- [ ] Frontend: /register, /login, /account; /staff/login; “sign in to confirm” gate
-      component used at order confirmation
+- [x] Frontend: /register, /login, /account; /staff/login (the “sign in to confirm”
+      gate component ships with the order flow, plans 05/06 — this plan provides the
+      pages + the auth library it builds on)
 - [x] Authorization policies (Customer / Employee / Admin) enforced in API middleware
 - [x] Admin user management API: list/search/create/edit/deactivate/delete/roles/
       assignment + password-reset (audited) — UI page pending with the frontend task

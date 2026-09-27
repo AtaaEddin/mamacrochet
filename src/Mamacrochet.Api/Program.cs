@@ -228,11 +228,19 @@ builder.Services.AddRateLimiter(options =>
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        var isAuthOrAdmin = context.Request.Path.StartsWithSegments("/identity")
-            || context.Request.Path.StartsWithSegments("/admin");
-        var permitLimit = isAuthOrAdmin ? 30 : 300;
+        var path = context.Request.Path;
+        var inAuthArea = path.StartsWithSegments("/identity")
+            || path.StartsWithSegments("/admin");
+        // The strict budget is for auth/admin ACTIONS (login, register,
+        // mutations). Reading one's own profile is part of every page load
+        // (header badge + account pages) and belongs to the default budget,
+        // otherwise a normal session 429s itself mid-minute.
+        var isOwnProfileRead = context.Request.Method == HttpMethods.Get
+            && path == "/identity/me";
+        var isAuthAction = inAuthArea && !isOwnProfileRead;
+        var permitLimit = isAuthAction ? 30 : 300;
         return RateLimitPartition.GetFixedWindowLimiter(
-            $"{ip}:{isAuthOrAdmin}",
+            $"{ip}:{isAuthAction}",
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permitLimit,
@@ -247,7 +255,9 @@ builder.Services.AddRateLimiter(options =>
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
-    policy.AllowAnyHeader().AllowAnyMethod();
+    // AllowCredentials: cookie auth (plan 03) — the browser only sends the
+    // mm.auth cookie cross-origin when the response opts in.
+    policy.AllowAnyHeader().AllowAnyMethod().AllowCredentials();
     if (corsOrigins.Length > 0)
     {
         policy.WithOrigins(corsOrigins);
