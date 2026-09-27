@@ -1,7 +1,20 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // PostgreSQL (container) + application database.
-var postgres = builder.AddPostgres("postgres");
+// Port + credentials are pinned so `dotnet ef` design-time runs (which fall
+// back to localhost:5432/postgres/postgres) match the container.
+// Aspire 13: AddParameter(name, value, publishValueAsDefault, secret) pins the
+// literal value (no publishing — dev only, prod composes its own compose env).
+var postgresUser = builder.AddParameter("postgres-username", "postgres", false, secret: false);
+var postgresPass = builder.AddParameter("postgres-password", "postgres", false, secret: true);
+var postgres = builder.AddPostgres(
+    "postgres",
+    postgresUser,
+    postgresPass,
+    port: 5432);
+// Named volume: DCP recreates the container on every stack (re)start, so an
+// anonymous volume would wipe the dev database each restart.
+postgres.WithDataVolume("mamacrochet-postgres-data", false);
 var database = postgres.AddDatabase("mamacrochet");
 
 // ASP.NET Core API (EF Core uses the connection string Aspire injects:

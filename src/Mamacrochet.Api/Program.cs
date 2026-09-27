@@ -1,9 +1,18 @@
+using Mamacrochet.Api.Authorization;
 using Mamacrochet.Api.Data;
+using Mamacrochet.Api.Endpoints;
 using Mamacrochet.Api.Models;
+using Mamacrochet.Api.Services;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,12 +47,199 @@ builder.Services.AddOpenApi(options =>
             },
         };
     });
+
+    // Standard error envelope: every request can fail with any of these, and
+    // every failure body is ApiError JSON (400 validation, 401 unauthenticated,
+    // 403 forbidden, 404 not found, 409 conflict, 423 locked, 429 rate limited,
+    // 500 server error). Declaring them on every operation makes the generated
+    // client type `error` as ApiError on every call. Success bodies are declared
+    // per endpoint with WithResults. (files.getAvatar is excluded: its 404 is an
+    // empty body, handled by the transformer below.)
+    options.AddOperationTransformer(async (operation, context, ct) =>
+    {
+        if (operation.OperationId is "Health" or "files.getAvatar")
+        {
+            return;
+        }
+
+        operation.Responses ??= new OpenApiResponses();
+        var errorSchema = await context.GetOrCreateSchemaAsync(typeof(ApiError), null, ct);
+        context.Document?.AddComponent("ApiError", errorSchema);
+        foreach (var code in new[] { "400", "401", "403", "404", "409", "423", "429", "500" })
+        {
+            operation.Responses[code] = new OpenApiResponse
+            {
+                Description = $"Error {code}",
+                Content = new Dictionary<string, OpenApiMediaType>
+                {
+                    [
+                        "application/json"] = new()
+                    {
+                        Schema = new OpenApiSchemaReference("ApiError", context.Document),
+                    },
+                },
+            };
+        }
+    });
+
+    // Binary avatar file: 200 = the image bytes, 404 = empty (no JSON envelope).
+    // Rate limiting and server errors still return the ApiError JSON envelope.
+    options.AddOperationTransformer(async (operation, context, ct) =>
+    {
+        if (operation.OperationId != "files.getAvatar")
+        {
+            return;
+        }
+
+        operation.Responses ??= new OpenApiResponses();
+        operation.Responses["200"] = new OpenApiResponse
+        {
+            Description = "The image file.",
+            Content = new Dictionary<string, OpenApiMediaType>
+            {
+                [
+                    "image/*"] = new()
+                {
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" },
+                },
+            },
+        };
+        operation.Responses["404"] = new OpenApiResponse
+        {
+            Description = "File not found.",
+        };
+
+        var errorSchema = await context.GetOrCreateSchemaAsync(typeof(ApiError), null, ct);
+        context.Document?.AddComponent("ApiError", errorSchema);
+        foreach (var code in new[] { "429", "500" })
+        {
+            operation.Responses[code] = new OpenApiResponse
+            {
+                Description = $"Error {code}",
+                Content = new Dictionary<string, OpenApiMediaType>
+                {
+                    [
+                        "application/json"] = new()
+                    {
+                        Schema = new OpenApiSchemaReference("ApiError", context.Document),
+                    },
+                },
+            };
+        }
+    });
 });
 
 var connectionString = builder.Configuration.GetConnectionString("mamacrochet")
     ?? throw new InvalidOperationException("Connection string 'mamacrochet' is not configured.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+
+// Identity (plan 03): cookie auth for the first-party web + same-origin API.
+// Dev runs cross-origin-but-same-site (localhost:3000 → localhost:8085), so
+// SameSite=Lax still delivers the cookie; Secure is dropped over plain HTTP
+// in dev (SameAsRequest) and enforced in prod behind Caddy's TLS.
+builder.Services
+    .AddIdentity<AppUser, IdentityRole>(options =>
+    {
+        // ASP.NET Identity defaults (documented here on purpose).
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    })
+    .AddEntityFrameworkStores<AppDbContext>();
+
+// .NET 10 moved the cookie out of IdentityOptions: configure the
+// application (auth) cookie through the dedicated builder extension, with
+// the cookie itself a CookieBuilder property.
+builder.Services.ConfigureApplicationCookie(cookie =>
+{
+    cookie.Cookie.Name = "mm.auth";
+    cookie.Cookie.Path = "/";
+    cookie.Cookie.HttpOnly = true;
+    cookie.Cookie.SameSite = SameSiteMode.Lax;
+    cookie.Cookie.MaxAge = TimeSpan.FromDays(14);
+    cookie.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    cookie.SlidingExpiration = true;
+
+    // .NET 10 returns 401/403 with an EMPTY body for "known API" endpoints
+    // (those with IApiEndpointMetadata) instead of redirecting, and would
+    // still 302-redirect the rest. Overriding these events restores a single
+    // typed-response path for every protected endpoint (plan 03 contract).
+    cookie.Events.OnRedirectToLogin = async ctx =>
+    {
+        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await ctx.Response.WriteAsJsonAsync(
+            new ApiError("unauthenticated", "Sign in to continue."));
+    };
+    cookie.Events.OnRedirectToAccessDenied = async ctx =>
+    {
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await ctx.Response.WriteAsJsonAsync(
+            new ApiError("forbidden", "You do not have permission to do this."));
+    };
+});
+
+builder.Services
+    .AddAuthorization(options =>
+    {
+        // .NET 10 dropped RequirePolicy, so each policy states its requirements
+        // directly; the ActiveUserRequirement is what they all share.
+        options.AddPolicy(Policies.Any, p =>
+            p.RequireAuthenticatedUser().AddRequirements(new ActiveUserRequirement()));
+        options.AddPolicy(Policies.Customer, p =>
+            p.RequireAuthenticatedUser().AddRequirements(new ActiveUserRequirement()));
+        options.AddPolicy(Policies.Employee, p =>
+            p.RequireAuthenticatedUser()
+                .AddRequirements(new ActiveUserRequirement(), new RoleFlagRequirement(Policies.RoleEmployee)));
+        options.AddPolicy(Policies.Admin, p =>
+            p.RequireAuthenticatedUser()
+                .AddRequirements(new ActiveUserRequirement(), new RoleFlagRequirement(Policies.RoleAdmin)));
+    })
+    .AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>()
+    .AddScoped<UserAdministrationService>()
+    .AddScoped<GuestLinkService>();
+
+builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection(UploadsOptions.SectionName));
+
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+
+// Rate limits (D16 step 1 — guest caps land in plans 05/06): a tight budget
+// on auth/admin flows, a generous default. Partitioned per client IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, ct) =>
+    {
+        var response = context.HttpContext.Response;
+        response.ContentType = "application/json";
+        await response.WriteAsJsonAsync(
+            new ApiError("rate_limited", "Too many requests — please try again in a minute."),
+            ct);
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var isAuthOrAdmin = context.Request.Path.StartsWithSegments("/identity")
+            || context.Request.Path.StartsWithSegments("/admin");
+        var permitLimit = isAuthOrAdmin ? 30 : 300;
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"{ip}:{isAuthOrAdmin}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            });
+    });
+});
 
 // The browser talks to the API cross-origin in dev (Next dev server on its own
 // port). The allowed origins are injected by the AppHost from the web endpoint.
@@ -72,11 +268,33 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+    app.UseExceptionHandler();
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+app.UseCors();
+app.UseRateLimiter();
 
 // TLS is terminated by the reverse proxy (Caddy in prod, plan 10); the dev
 // proxy from Aspire speaks plain HTTP, so no https redirection here.
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.UseCors();
+// CSRF validation must run AFTER authentication: .NET 10 antiforgery tokens
+// are scoped to the authenticated principal, so validation has to see the
+// same HttpContext.User that issued the token (plan 03).
+app.UseApiAntiforgery();
+
+IdentityEndpoints.MapIdentityEndpoints(app);
+AdminUserEndpoints.MapAdminUserEndpoints(app);
+FileEndpoints.MapFileEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 
 app.MapGet("/health", (AppDbContext db) =>
 {
@@ -96,3 +314,60 @@ app.MapHealthChecks("/alive", new HealthCheckOptions
 });
 
 app.Run();
+
+/// <summary>
+/// CSRF check for cookie-auth state-changing API requests (plan 03). The
+/// frontend fetches a token from GET /antiforgery and sends it in the
+/// X-CSRF-TOKEN header; GETs and everything outside /identity + /admin are
+/// untouched (SignalR paths join the exclusion list in plan 06).
+/// </summary>
+public static class AntiforgeryMiddleware
+{
+    public static IApplicationBuilder UseApiAntiforgery(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            var request = context.Request;
+            if ((request.Path.StartsWithSegments("/identity") || request.Path.StartsWithSegments("/admin"))
+                && (HttpMethods.IsPost(request.Method)
+                    || HttpMethods.IsPut(request.Method)
+                    || HttpMethods.IsDelete(request.Method)
+                    || request.Method == HttpMethods.Patch))
+            {
+                try
+                {
+                    var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
+                    await antiforgery.ValidateRequestAsync(context);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(
+                        new ApiError("csrf", "Your session expired. Please try again."));
+                    return;
+                }
+            }
+
+            await next();
+        });
+    }
+}
+
+/// <summary>Production error envelope — never leak exception details (plan 03).</summary>
+public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken cancellationToken)
+    {
+        if (context.Response.HasStarted)
+        {
+            return false;
+        }
+
+        logger.LogError(exception, "Request {Path} {Method} failed", context.Request.Path, context.Request.Method);
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        await context.Response.WriteAsJsonAsync(
+            new ApiError("server_error", "Something went wrong."), cancellationToken);
+        return true;
+    }
+}
