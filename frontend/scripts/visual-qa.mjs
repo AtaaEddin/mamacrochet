@@ -141,7 +141,10 @@ async function samplePixels(page, screenshotPath, points) {
     const body = document.body;
     const logo = document.querySelector("header a");
     const widget = document.querySelector('[data-testid="chat-toggle"]');
-    const cta = document.querySelector("main button");
+    const cta = document.querySelector('header [data-chat-cta]');
+    const ctaBox = cta ? cta.getBoundingClientRect() : null;
+    const workCards = document.querySelectorAll('#works li a');
+    const customCta = document.querySelector('#custom-offer-title')?.closest('section')?.querySelector('a[href$="/chat"]') ?? null;
     const fonts = Array.from(document.fonts).map((f) => `${f.family} ${f.weight}`);
     return {
       dir: document.documentElement.dir,
@@ -154,6 +157,9 @@ async function samplePixels(page, screenshotPath, points) {
       bodyBg: getComputedStyle(body).backgroundColor,
       logoBox: logo ? logo.getBoundingClientRect() : null,
       widgetBox: widget ? widget.getBoundingClientRect() : null,
+      ctaCenter: ctaBox ? { x: ctaBox.x + ctaBox.width / 2, y: ctaBox.y + ctaBox.height / 2 } : null,
+      workCards: workCards.length,
+      customOffer: Boolean(customCta),
       ctaColor: cta ? getComputedStyle(cta).color : null,
       ctaBg: cta ? getComputedStyle(cta).backgroundColor : null,
       scrollW: document.documentElement.scrollWidth,
@@ -189,10 +195,12 @@ async function samplePixels(page, screenshotPath, points) {
     `x=${doc.logoBox?.x}`,
   );
   check(
-    "en: chat widget at logical end (right)",
-    doc.widgetBox ? doc.widgetBox.x > 1280 - 100 : false,
-    `x=${doc.widgetBox?.x}`,
+    "en: no chat UI on home (chat is a page now)",
+    doc.widgetBox === null,
+    `widget=${doc.widgetBox ? "present" : "absent"}`,
   );
+  check("en: works grid starts the page (3 cards)", doc.workCards === 3, `cards=${doc.workCards}`);
+  check("en: custom-offer CTA links to chat", doc.customOffer, String(doc.customOffer));
   const loaded = doc.fontsLoaded.join(" | ");
   check(
     "en: brand fonts loaded (Baloo Bhaijaan 2 + Cairo)",
@@ -200,21 +208,21 @@ async function samplePixels(page, screenshotPath, points) {
     loaded.slice(0, 80),
   );
 
-  // Rendered pixel sampling: page background (top-left of hero) + CTA button center
+  // Rendered pixel sampling: page background (top area) + chat bubble center
   const shot = await page.screenshot();
   const fs = await import("node:fs");
   fs.writeFileSync("/tmp/qa-en-desktop.png", shot);
   const [bgPixel, ctaPixel] = await samplePixels(page, "/tmp/qa-en-desktop.png", [
-    [64, 120], // hero ambient area
-    [140, 470], // primary CTA (approx)
+    [64, 120], // top area (intro bar / works)
+    [doc.ctaCenter?.x ?? 1236, doc.ctaCenter?.y ?? 32], // header chat CTA center
   ]);
   const bgLum = luminanceOf(bgPixel);
   check(
-    "en: rendered bg is warm light cream (L>0.85)",
+    "en: rendered bg is warm light sand (L>0.85)",
     bgLum !== null && bgLum > 0.8,
     bgPixel,
   );
-  console.log(`      info  hero-bg pixel=${bgPixel} cta-area pixel=${ctaPixel}`);
+  console.log(`      info  bg pixel=${bgPixel} bubble pixel=${ctaPixel}`);
   await page.context().close();
 }
 
@@ -225,6 +233,88 @@ async function samplePixels(page, screenshotPath, points) {
   await page.waitForTimeout(600);
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   check("en: no horizontal overflow (mobile)", scrollW <= 390, `scrollWidth=${scrollW}`);
+  await page.context().close();
+}
+
+// ---------------------------------------------------------------- EN chat page
+{
+  const page = await newPage({ width: 1280, height: 800 });
+  await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(800);
+
+  const doc = await page.evaluate(() => {
+    const thread = document.querySelector('[aria-live="polite"]');
+    const composer = document.querySelector('textarea');
+    const rail = document.querySelector('aside[aria-label]');
+    const railCards = rail ? rail.querySelectorAll('ul button').length : 0;
+    const panel = document.querySelector('section[aria-label]');
+    return {
+      panelH: panel ? panel.getBoundingClientRect().height : 0,
+      panelW: panel ? panel.getBoundingClientRect().width : 0,
+      messages: thread && thread.firstElementChild ? thread.firstElementChild.children.length : 0,
+      composer: Boolean(composer),
+      rail: Boolean(rail),
+      railCards,
+    };
+  });
+
+  check("chat: full-width panel (>= 90% viewport)", doc.panelW >= 1280 * 0.9, `w=${doc.panelW}`);
+  check("chat: near full height (>= 600px)", doc.panelH >= 600, `h=${doc.panelH}`);
+  check("chat: thread seeded (>= 2 messages)", doc.messages >= 2, `n=${doc.messages}`);
+  check("chat: composer present", doc.composer);
+  check("chat: product rail present (6 works)", doc.rail && doc.railCards === 6, `n=${doc.railCards}`);
+
+  // Pick a product from the rail -> product card appears in the thread.
+  await page.locator('aside[aria-label] ul button').first().click();
+  await page.waitForTimeout(400);
+  const after = await page.evaluate(() =>
+    document.querySelector('[aria-live="polite"]')?.firstElementChild?.children.length ?? 0,
+  );
+  check("chat: rail pick adds a product message", after > doc.messages, `n=${after}`);
+  const hasProductCard = await page.evaluate(() =>
+    Boolean(document.querySelector('[aria-live="polite"] .max-w-sm')),
+  );
+  check("chat: product card rendered", hasProductCard);
+
+  // Composer search picker opens.
+  await page.locator('button[aria-label="Search works"]').click();
+  await page.waitForTimeout(300);
+  const picker = await page.locator('input[type="search"]').count();
+  check("chat: composer search picker opens", picker === 1);
+
+  await page.context().close();
+}
+
+// ---------------------------------------------------------------- EN chat ?work=
+{
+  const page = await newPage({ width: 1280, height: 800 });
+  await page.goto(`${BASE}/en/chat?work=w1`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(800);
+  const seeded = await page.evaluate(() =>
+    Boolean(document.querySelector('[aria-live="polite"] .max-w-sm')),
+  );
+  check("chat: ?work= seeds a product message", seeded);
+  await page.context().close();
+}
+
+// ---------------------------------------------------------------- EN works page
+{
+  const page = await newPage({ width: 1280, height: 800 });
+  await page.goto(`${BASE}/en/works`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(800);
+
+  const all = await page.locator('main a[href^="/en/chat?work="]').count();
+  check("works: full list shows 6", all === 6, `n=${all}`);
+
+  // Category filter: Bags -> 2 items.
+  await page.getByRole("button", { name: "Bags" }).click();
+  await page.waitForTimeout(300);
+  const bags = await page.locator('main a[href^="/en/chat?work="]').count();
+  check("works: category filter (Bags -> 2)", bags === 2, `n=${bags}`);
+
+  // Custom offer at the bottom links to chat.
+  const offer = await page.locator('#custom-offer-title').count();
+  check("works: custom offer present", offer === 1);
   await page.context().close();
 }
 
@@ -251,7 +341,11 @@ async function samplePixels(page, screenshotPath, points) {
 
   check("ar: html dir=rtl", doc.dir === "rtl", doc.dir);
   check("ar: title localized (Arabic)", /كروشيه/.test(doc.title), doc.title.slice(0, 50));
-  check("ar: h1 Arabic present", doc.h1Text?.includes("كروشيه") ?? false, doc.h1Text?.slice(0, 40));
+  check(
+    "ar: h1 Arabic present",
+    /[؀-ۿ]/.test(doc.h1Text ?? ""),
+    doc.h1Text?.slice(0, 40),
+  );
   check("ar: no horizontal overflow (mobile)", doc.scrollW <= 390, `scrollWidth=${doc.scrollW}`);
   check(
     "ar: logo mirrored to right (RTL start)",
@@ -259,9 +353,9 @@ async function samplePixels(page, screenshotPath, points) {
     `x=${doc.logoBox?.x}`,
   );
   check(
-    "ar: chat widget mirrored to left (RTL end)",
-    doc.widgetBox ? doc.widgetBox.x < 100 : false,
-    `x=${doc.widgetBox?.x}`,
+    "ar: no chat UI on home (chat is a page now)",
+    doc.widgetBox === null,
+    `widget=${doc.widgetBox ? "present" : "absent"}`,
   );
 
   // Touch targets in header (>= 44px, visible only)

@@ -69,3 +69,26 @@ design details, payment agreement, and delivery agreement.
   admin can open the same thread and post.
 - Killing the websocket (devtools) still delivers messages via fallback.
 - Unread badges are correct per role; UI is usable on a small phone screen.
+
+## Design input (owner, 2026-09-26 — brand v2)
+
+**Chat-first is the core surface** for every role (customers, employees,
+admins — "I always care about the chat that happened with the customer"):
+- Home: big full-width chat section below the works (no side column there).
+- Product picking / order pages: persistent large chat panel alongside.
+- **Order page**: side list of orders + full-width middle stage toggling
+  between the chat and the order stages (see plan 05 design input).
+- The floating bubble is only a launcher (mobile sheet / focus jump).
+- **Employee main page**: a ChatGPT-style workspace (conversation rail +
+  ChatGPT-style thread) — same thread UI as customer chat and the order
+  page middle stage (added 2026-09-26, owner).
+The brand surface (panel header, thread, quick topics, composer, local
+echo) already ships in `frontend/src/components/chat-panel.tsx`; plan 06
+replaces the local echo with guest/order threads over SignalR.
+- **Employee main page (owner, 2026-09-26)**: after login, an employee
+  lands in a **ChatGPT-style workspace** — list of conversations/orders on
+  the side rail, ChatGPT-style thread in the middle (the same component
+  look as the customer chat: centered column, avatar + plain-text maker
+  messages, soft visitor bubbles, single rounded composer). The customer
+  chat page and the order page middle stage share this exact thread UI —
+  one chat design for every role.

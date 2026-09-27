@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { Baloo_Bhaijaan_2, Cairo } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { ChatWidget } from "@/components/chat-widget";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -60,7 +59,6 @@ export default async function LocaleLayout({
             <SiteHeader />
             <main className="flex-1">{children}</main>
             <SiteFooter />
-            <ChatWidget />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

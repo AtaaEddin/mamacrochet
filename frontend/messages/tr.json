@@ -5,8 +5,6 @@
     "description": "El işi kroeşe çantalar ve sıcacık parçalar, her dikiş özenle işlenir. Belirli bir şey mi hayal ediyorsun? Sohbetten yaz, senin için işleyelim — hesab gerekmez."
   },
   "Nav": {
-    "howItWorks": "Nasıl çalışır",
-    "shop": "Mağaza",
     "hello": "Merhaba de"
   },
   "Theme": {
@@ -21,48 +19,70 @@
     "ar": "العربية",
     "tr": "Türkçe"
   },
-  "Hero": {
-    "badge": "Her dikişte el emeği",
-    "title": "Yumuşacık, sıcacık kroeşe — sadece senin için",
-    "subtitle": "Her parça, dikiş dikiş elle işleniyor. Fikrini sohbette paylaş — başlamak için hesaba gerek yok.",
-    "primaryCta": "Merhaba de 👋",
-    "secondaryCta": "Nasıl çalışır"
+  "IntroBar": {
+    "title": "Her parça elde, sipariş üzerine",
+    "body": "sohbetten başla — hesap gerekmez, hazır olunca ödersin",
+    "cta": "Sohbet edelim"
   },
-  "Values": {
-    "title": "Neden mamacrochet?",
-    "customTitle": "Siparişle yapılır",
-    "customBody": "Seri üretim yok. Her parça sen sipariş verdiğinde başlar — ilk dikişten itibaren senin.",
-    "ideasTitle": "Fikirlerin hoş geldin",
-    "ideasBody": "Belirli bir şey mi hayal ediyorsun? Sohbette bir fotoğraf ya da eskiz gönder, senin için işleyelim.",
-    "liveTitle": "Her adımı izle",
-    "liveBody": "Her siparişin canlı bir durum panosu var — işte, ödeme hazır, yola çıktı; hepsini gör."
+  "Works": {
+    "title": "Sevgiyle işlenmiş eserler",
+    "subtitle": "En çok sevilen parçalar — en çok sipariş edilen ve en yüksek puanlı",
+    "allTitle": "Tüm eserlerimiz",
+    "allSubtitle": "Mama'nın işlediği her şey — kategoriye göre filtrela, favorini sohbete taşı",
+    "categories": {
+      "all": "Tümü",
+      "bags": "Çantalar",
+      "dolls": "Bebekler",
+      "small": "Küçük parçalar"
+    },
+    "seeAll": "Tüm eserler",
+    "orders": "{count, plural, one {# sipariş} other {# sipariş}}",
+    "ask": "Sohbette sor",
+    "showMore": "Daha fazla göster",
+    "items": {
+      "sunflowerTote": "Ayçiçeği el çantası",
+      "owlBag": "Baykuş çantası",
+      "pumpkin": "Balkabağı dostum",
+      "strawberry": "Çilekli saç tokası",
+      "bird": "Küçük altın kuş",
+      "teacup": "Karanfilli fincan & tabak"
+    }
   },
-  "HowItWorks": {
-    "title": "Nasıl çalışır",
-    "step1Title": "Merhaba de",
-    "step1Body": "Hayalini sohbette paylaş — bir çanta, bir bebek ya da özel bir parça — hesab gerekmeden.",
-    "step2Title": "İşliyoruz",
-    "step2Body": "Mama dikiş dikiş işe koyulur, sen de ilerlemeyi kendi durum panosundan canlı izlersin.",
-    "step3Title": "Kucakla",
-    "step3Body": "Fişle birlikte ödeme konusunda anlaşıp parçanı sana ulaştırıyoruz — döngü tamamlanır."
+  "CustomOffer": {
+    "title": "Beğenini bulamadın mı?",
+    "body": "Mama'ya bir fikir, eskiz ya da fotoğraf gönder — neredeyse her şeyi, sadece senin için örer. Başlamak için hesaba gerek yok.",
+    "cta": "Özel parça için sohbet et"
   },
-  "Shop": {
-    "comingSoon": "Raflarımız hazırlanıyor…",
-    "body": "İlk el yapımı parçalarımız küçük mağazaya doğru yola çıktı. O zamana kadar hayalini kurduğun parçayı isteyebilirsin.",
-    "cta": "Özel parça iste"
+  "ChatPanel": {
+    "label": "Mama ile sohbet",
+    "title": "Mama",
+    "status": "çevrimiçi — genelde birkaç dakikada yanıt verir",
+    "comingSoon": "Çok yakında",
+    "opener": "Merhaba tatlım! 👋 Ben Mama. Bugün birlikte ne yapalım?",
+    "photoHint": "Fikrinin fotoğrafını gönder — neredeyse her şeyi örebilirim 🧶",
+    "chipCustom": "Özel sipariş",
+    "chipTrack": "Siparişimi takip et",
+    "chipDelivery": "Ödeme & teslimat",
+    "placeholder": "Bir mesaj yaz…",
+    "send": "Mesajı gönder",
+    "attach": "Fotoğraf veya dosya ekle",
+    "reply": "Alındı! Bir bakayım — hemen döneceğim 💛",
+    "replyAlt": "Vay, bu fikri çok sevdim! Bir an ipe danışayım 😄",
+    "pickerLabel": "Eserlerde ara",
+    "pickerSearch": "Bir eser ara…",
+    "pickerClose": "Aramayı kapat",
+    "pickerEmpty": "Sonuç yok — fikrini Mamaya anlat, neredeyse her şeyi özer!",
+    "productShow": "Ayrıntılar",
+    "productHide": "Ayrıntıları gizle",
+    "productDetail1": "Ne değiştirmemi istediğini Mamaya söyle — renk, boyut, şekil, ona bir isim.",
+    "productDetail2": "Beğendiysen siparişin olur — fiyat aynı kalır.",
+    "railTitle": "Ekleyebileceğin eserler",
+    "railHint": "Sohbete eklemek için dokun — ya da kartı sürükleyip bırak.",
+    "railFoot": "Ya da tam listeye göz at — her parça senin olabilir."
   },
   "Footer": {
     "tagline": "Sevgiyle, dikiş dikiş yapıldı.",
     "rights": "Tüm hakları saklıdır."
-  },
-  "Widget": {
-    "ariaOpen": "Sohbeti aç",
-    "ariaClose": "Sohbeti kapat",
-    "title": "Mama ile sohbet",
-    "opener": "Merhaba! 👋 Parçalar, özel fikirler ya da teslimat hakkında her şeyi sorabilirsin.",
-    "placeholder": "Mesajın…",
-    "send": "Gönder",
-    "comingSoon": "Sohbet hazırlanıyor — yakında açılıyor 🐰"
   },
   "NotFound": {
     "title": "Bu sayfa ipin içine dolandı",

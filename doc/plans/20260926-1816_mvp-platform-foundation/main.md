@@ -94,6 +94,11 @@ hardware.
 | 10 | 10-deployment.md                    | Docker Compose prod, deploy/backup scripts       | proposed    |
 | 11 | 11-visual-identity.md               | Brand & design language (feminine/fluffy/joyful) | done        |
 
+**Standalone brand/UX revision** — `doc/plans/20260926-2309_mama-identity-chat-first-home/`
+(done 2026-09-26): "Mama" identity v2 (grandmother, hair-scarf not hijab; Iznik
+red/teal/gold on warm sand; soft coffee dark) + chat-first home (D20/D21). Supersedes
+part of plan 11 (mascot, palette, home layout); see its decisions D19–D23 above.
+
 **Future plan (post release 1)** — sibling folder
 `doc/plans/20260926-1935_email-notifications-google-login/`: email sending (D13),
 notifications for all roles (D18), Google sign-in (D17), self-service password reset.
@@ -132,6 +137,11 @@ notifications for all roles (D18), Google sign-in (D17), self-service password r
 | D16  | **Guest anti-abuse (with D14)**: easy start, bounded scale — rate limits per device (`guestId`) + IP, small caps on open guest orders (per device and per phone), unconfirmed guest orders auto-cancel (7 days), stale guest threads auto-close (30 days), honeypot on guest forms; real captcha (e.g. Cloudflare Turnstile) only if spam materializes. Registration at confirmation stays the final gate. | Owner concern 2026-09-26: prevent mass guest orders (DoS/DB spam) while keeping the start easy |
 | D17  | **Google sign-in (OAuth 2.0/OIDC) = core feature, ships post release 1** (together with email/notifications) so release 1 proves the core loop first. On first sign-in, guest orders/threads with a matching email are merged into the account (user-confirmed). | Owner 2026-09-26: “very very important… maybe not for the first release” |
 | D18  | **Notifications for all roles (customer, employee, admin) ship in the same release as email support**: in-app notification center (realtime via SignalR) + localized email; event catalog covers order lifecycle, chat, hiring, ratings. Release 1 keeps chat unread badges only. | Owner 2026-09-26 |
+| D19  | **Smart search/filtering (plan 04)**: OData-compatible query layer via an **allowlist** — hand-rolled query-spec/param binder first (allowlisted fields, eq/gt/lt/contains, sort, paging); real OData endpoint only if needs outgrow it. Single low-power box, no EDM overhead, allowlist keeps OData's RBAC caveat manageable. | Owner 2026-09-26 + research (Microsoft OData docs; ODataQuery) |
+| D20  | **Works list is a separate page** (`/works`): category filter + pagination-ready grid; home shows the limited "most loved" grid (category chips, Show more) + "See all works" → `/works`. Future: many categories. | Owner 2026-09-26 |
+| D21  | **Chat is a destination page** (`/chat`): ChatGPT-style, **full width** (home stays a centered showcase). Products live **in the chat**: in-chat search picker AND a product rail (tap or drag-and-drop a work into the thread); picked works become product messages with in-place expandable details (`/chat?work=<id>` deep link). **No chat UI on the home page**; home closes with a "didn't find your liking? we can do custom" CTA → chat. How-it-works section and top nav menu removed. | Owner 2026-09-26 ("very important") |
+| D22  | **Order page** (plans 05/06): orders rail (side list) + **full-width middle stage** where the customer toggles **chat ⇄ order stages** (status timeline, receipt, delivery) with no page change. Admin sees the same stage + the full trace (who did what, how long). Mobile: two views + toggle. | Owner 2026-09-26 |
+| D23  | **Employee main page** (plan 06): ChatGPT-style workspace — conversation rail + ChatGPT thread + the order middle stage; thread UI identical to the customer's chat (one design, every role). | Owner 2026-09-26 |
 
 ## Risks / open questions
 

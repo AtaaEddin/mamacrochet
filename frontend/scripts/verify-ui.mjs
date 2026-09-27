@@ -31,8 +31,12 @@ const SHOTS = [
   ["home-ar-desktop-light", "/ar", 1280, 800, "light", 1],
   ["home-tr-mobile-light", "/tr", 390, 844, "light", 2],
   ["notfound-en-mobile-light", "/en/this-page-does-not-exist", 390, 844, "light", 2],
-  ["widget-open-en-desktop-light", "/en", 1280, 800, "light", 1, "chat"],
-  ["widget-open-ar-mobile-dark", "/ar", 390, 844, "dark", 2, "chat"],
+  ["home-en-desktop-full-light", "/en", 1280, 800, "light", 1, "full"],
+  ["showmore-en-mobile-light", "/en", 390, 844, "light", 2, "showmore"],
+  ["chat-en-desktop-light", "/en/chat", 1280, 800, "light", 1, "pick"],
+  ["chat-ar-mobile-dark", "/ar/chat", 390, 844, "dark", 2],
+  ["works-en-mobile-light", "/en/works", 390, 844, "light", 2, "full"],
+  ["works-ar-desktop-light", "/ar/works", 1280, 800, "light", 1],
 ];
 
 const browser = await chromium.launch({
@@ -57,12 +61,20 @@ for (const [name, path, width, height, colorScheme, dpr, action] of SHOTS) {
   try {
     const res = await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(900); // let fonts + settle animations finish
-    if (action === "chat") {
-      await page.click('[data-testid="chat-toggle"]');
-      await page.waitForTimeout(600);
+    if (action === "pick") {
+      // Chat page: pick the first work from the product rail.
+      const first = page.locator('aside[aria-label] ul button').first();
+      if (await first.count()) {
+        await first.click();
+        await page.waitForTimeout(600);
+      }
+    } else if (action === "showmore") {
+      // The last button in the #works section is the "show more" control.
+      await page.locator("#works button").last().click();
+      await page.waitForTimeout(500);
     }
     const file = `${OUT}/${name}.png`;
-    await page.screenshot({ path: file, fullPage: !action });
+    await page.screenshot({ path: file, fullPage: action === "full" });
     const status = res ? res.status() : "?";
     const errNote = errors.length ? ` ⚠ ${errors.length} page error(s)` : "";
     console.log(`${status === 404 && name.startsWith("notfound") ? "OK " : status === 200 || status === 404 ? "OK " : "?? "}${name} (${status})${errNote} -> ${file}`);

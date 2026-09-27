@@ -1,15 +1,21 @@
-import { HowItWorks } from "@/components/home/how-it-works";
-import { Hero } from "@/components/home/hero";
-import { ShopTeaser } from "@/components/home/shop-teaser";
-import { ValueProps } from "@/components/home/value-props";
+import { CustomOffer } from "@/components/home/custom-offer";
+import { FeaturedWorks } from "@/components/home/featured-works";
+import { IntroBar } from "@/components/home/intro-bar";
 
+/**
+ * Home (brand v2 — chat-first):
+ * thin intro bar → works made so far (most loved, category filter,
+ * "see all") → "didn't find your liking?" custom offer → chat.
+ * No chat UI on the home page itself (owner 2026-09-26): chat is a page.
+ */
 export default function HomePage() {
   return (
     <>
-      <Hero />
-      <ValueProps />
-      <HowItWorks />
-      <ShopTeaser />
+      <IntroBar />
+      <div className="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-6">
+        <FeaturedWorks />
+      </div>
+      <CustomOffer />
     </>
   );
 }

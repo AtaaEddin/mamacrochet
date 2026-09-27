@@ -4,100 +4,127 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ---------------------------------- */
-/* mamacrochet brand tokens           */
-/* Plan 11 — warm cream + rose (light)*/
-/* deep plum + muted pastels (dark)   */
-/* ---------------------------------- */
+/* ------------------------------------ */
+/* mamacrochet brand tokens             */
+/* Plan 11 v2 — traditional Turkish /   */
+/* old-World-Arabic: warm sand base,    */
+/* Iznik red + teal + gold (light);     */
+/* deep coffee night (dark)             */
+/* ------------------------------------ */
 
 :root {
-  --background: oklch(0.985 0.007 85);
-  --foreground: oklch(0.3 0.024 30);
-  --card: oklch(0.994 0.005 85);
-  --card-foreground: oklch(0.3 0.024 30);
-  --popover: oklch(0.994 0.005 85);
-  --popover-foreground: oklch(0.3 0.024 30);
-  --primary: oklch(0.53 0.19 25);
-  --primary-foreground: oklch(0.985 0.004 85);
-  --secondary: oklch(0.947 0.03 90);
-  --secondary-foreground: oklch(0.38 0.06 65);
-  --muted: oklch(0.955 0.014 80);
-  --muted-foreground: oklch(0.48 0.028 45);
-  --accent: oklch(0.94 0.035 300);
-  --accent-foreground: oklch(0.33 0.07 315);
-  --destructive: oklch(0.55 0.21 25);
-  --border: oklch(0.915 0.018 75);
-  --input: oklch(0.905 0.02 75);
-  --ring: oklch(0.62 0.16 32);
+  --background: oklch(0.976 0.013 85);
+  --foreground: oklch(0.3 0.024 50);
+  --card: oklch(0.99 0.007 85);
+  --card-foreground: oklch(0.3 0.024 50);
+  --popover: oklch(0.99 0.007 85);
+  --popover-foreground: oklch(0.3 0.024 50);
+  --primary: oklch(0.46 0.18 25);
+  --primary-foreground: oklch(0.985 0.006 85);
+  --secondary: oklch(0.45 0.07 195);
+  --secondary-foreground: oklch(0.98 0.01 85);
+  --muted: oklch(0.942 0.018 80);
+  --muted-foreground: oklch(0.44 0.02 55);
+  --accent: oklch(0.885 0.07 90);
+  --accent-foreground: oklch(0.36 0.06 70);
+  --destructive: oklch(0.46 0.19 20);
+  --destructive-foreground: oklch(0.98 0.006 85);
+  --border: oklch(0.885 0.02 80);
+  --input: oklch(0.875 0.022 80);
+  --ring: oklch(0.58 0.13 30);
 
   /* Brand accent palette (illustrations, ambient washes, badges) */
-  --brand-rose: oklch(0.85 0.09 350);
-  --brand-butter: oklch(0.9 0.09 95);
-  --brand-sage: oklch(0.86 0.06 155);
-  --brand-lavender: oklch(0.87 0.06 300);
-  --brand-cream: oklch(0.99 0.015 80);
-  --brand-ink: oklch(0.32 0.05 320);
+  --brand-pomegranate: oklch(0.6 0.19 22);
+  --brand-teal: oklch(0.7 0.085 195);
+  --brand-gold: oklch(0.86 0.09 90);
+  --brand-terracotta: oklch(0.72 0.11 55);
+  --brand-olive: oklch(0.76 0.07 120);
+  --brand-cream: oklch(0.988 0.008 85);
+  --brand-ink: oklch(0.32 0.024 50);
 
-  --chart-1: oklch(0.85 0.09 350);
-  --chart-2: oklch(0.9 0.09 95);
-  --chart-3: oklch(0.86 0.06 155);
-  --chart-4: oklch(0.87 0.06 300);
-  --chart-5: oklch(0.85 0.09 50);
+  /* Mama mascot (tile = gold in light) */
+  --brand-mama-tile: oklch(0.86 0.09 90);
+  --brand-mama-skin: oklch(0.74 0.1 62);
+  --brand-mama-blush: oklch(0.78 0.13 40);
+  --brand-mama-scarf: oklch(0.58 0.185 22);
+  --brand-mama-scarf-deep: oklch(0.5 0.17 22);
+  --brand-mama-scarf-flower: oklch(0.82 0.07 200);
+  --brand-mama-gold: oklch(0.82 0.11 85);
+
+  --chart-1: oklch(0.6 0.19 22);
+  --chart-2: oklch(0.7 0.085 195);
+  --chart-3: oklch(0.86 0.09 90);
+  --chart-4: oklch(0.72 0.11 55);
+  --chart-5: oklch(0.76 0.07 120);
 
   --radius: 0.875rem;
 
-  --sidebar: oklch(0.985 0.007 85);
-  --sidebar-foreground: oklch(0.3 0.024 30);
-  --sidebar-primary: oklch(0.53 0.19 25);
-  --sidebar-primary-foreground: oklch(0.985 0.004 85);
-  --sidebar-accent: oklch(0.94 0.035 300);
-  --sidebar-accent-foreground: oklch(0.33 0.07 315);
-  --sidebar-border: oklch(0.915 0.018 75);
-  --sidebar-ring: oklch(0.62 0.16 32);
+  --sidebar: oklch(0.976 0.013 85);
+  --sidebar-foreground: oklch(0.3 0.024 50);
+  --sidebar-primary: oklch(0.46 0.18 25);
+  --sidebar-primary-foreground: oklch(0.985 0.006 85);
+  --sidebar-accent: oklch(0.885 0.07 90);
+  --sidebar-accent-foreground: oklch(0.36 0.06 70);
+  --sidebar-border: oklch(0.885 0.02 80);
+  --sidebar-ring: oklch(0.58 0.13 30);
 }
 
 .dark {
-  --background: oklch(0.3 0.028 330);
-  --foreground: oklch(0.93 0.01 80);
-  --card: oklch(0.345 0.03 330);
-  --card-foreground: oklch(0.93 0.01 80);
-  --popover: oklch(0.345 0.03 330);
-  --popover-foreground: oklch(0.93 0.01 80);
-  --primary: oklch(0.74 0.13 35);
-  --primary-foreground: oklch(0.23 0.05 30);
-  --secondary: oklch(0.33 0.035 85);
-  --secondary-foreground: oklch(0.9 0.04 90);
-  --muted: oklch(0.38 0.026 330);
-  --muted-foreground: oklch(0.77 0.015 60);
-  --accent: oklch(0.4 0.045 310);
-  --accent-foreground: oklch(0.9 0.03 320);
-  --destructive: oklch(0.64 0.19 25);
-  --border: oklch(0.93 0.01 80 / 14%);
-  --input: oklch(0.93 0.01 80 / 18%);
-  --ring: oklch(0.72 0.11 35);
+  /* Soft warm coffee night — cozy, never near-black (owner: v1 dark felt
+     harsh; the glowing Mama looked "scary" — her colors are muted here) */
+  --background: oklch(0.315 0.026 55);
+  --foreground: oklch(0.93 0.012 85);
+  --card: oklch(0.355 0.028 55);
+  --card-foreground: oklch(0.93 0.012 85);
+  --popover: oklch(0.355 0.028 55);
+  --popover-foreground: oklch(0.93 0.012 85);
+  --primary: oklch(0.64 0.14 25);
+  --primary-foreground: oklch(0.18 0.04 25);
+  --secondary: oklch(0.7 0.065 195);
+  --secondary-foreground: oklch(0.2 0.04 200);
+  --muted: oklch(0.395 0.028 55);
+  --muted-foreground: oklch(0.79 0.015 75);
+  --accent: oklch(0.68 0.09 90);
+  --accent-foreground: oklch(0.22 0.05 80);
+  --destructive: oklch(0.64 0.15 20);
+  --destructive-foreground: oklch(0.18 0.04 25);
+  --border: oklch(0.93 0.012 85 / 14%);
+  --input: oklch(0.93 0.012 85 / 18%);
+  --ring: oklch(0.68 0.09 30);
 
-  /* Muted pastels on deep plum — calmer, same mood */
-  --brand-rose: oklch(0.45 0.08 350);
-  --brand-butter: oklch(0.4 0.06 90);
-  --brand-sage: oklch(0.42 0.05 155);
-  --brand-lavender: oklch(0.44 0.06 300);
-  --brand-cream: oklch(0.34 0.035 330);
-  --brand-ink: oklch(0.8 0.03 320);
+  /* Muted brass + turquoise on coffee — calm, not glowing */
+  --brand-pomegranate: oklch(0.6 0.13 22);
+  --brand-teal: oklch(0.68 0.06 195);
+  --brand-gold: oklch(0.76 0.08 88);
+  --brand-terracotta: oklch(0.66 0.08 55);
+  --brand-olive: oklch(0.68 0.05 120);
+  --brand-cream: oklch(0.38 0.03 55);
+  /* Warm parchment ink — a glowing cream outline made art look mask-like */
+  --brand-ink: oklch(0.8 0.02 75);
 
-  --chart-1: oklch(0.62 0.11 350);
-  --chart-2: oklch(0.66 0.1 95);
-  --chart-3: oklch(0.6 0.08 155);
-  --chart-4: oklch(0.62 0.08 300);
-  --chart-5: oklch(0.64 0.1 50);
+  /* Mama — calmer in the dark: deeper skin, muted scarf, deep brass tile */
+  --brand-mama-tile: oklch(0.6 0.08 78);
+  --brand-mama-skin: oklch(0.68 0.085 60);
+  --brand-mama-blush: oklch(0.7 0.09 40);
+  --brand-mama-scarf: oklch(0.58 0.13 22);
+  --brand-mama-scarf-deep: oklch(0.5 0.12 22);
+  --brand-mama-scarf-flower: oklch(0.72 0.05 200);
+  --brand-mama-gold: oklch(0.78 0.09 85);
 
-  --sidebar: oklch(0.345 0.03 330);
-  --sidebar-foreground: oklch(0.93 0.01 80);
-  --sidebar-primary: oklch(0.74 0.13 35);
-  --sidebar-primary-foreground: oklch(0.23 0.05 30);
-  --sidebar-accent: oklch(0.32 0.045 310);
-  --sidebar-accent-foreground: oklch(0.9 0.03 320);
-  --sidebar-border: oklch(0.93 0.01 80 / 14%);
-  --sidebar-ring: oklch(0.72 0.11 35);
+  --chart-1: oklch(0.66 0.17 22);
+  --chart-2: oklch(0.74 0.08 195);
+  --chart-3: oklch(0.82 0.09 90);
+  --chart-4: oklch(0.72 0.1 55);
+  --chart-5: oklch(0.72 0.06 120);
+
+  --sidebar: oklch(0.325 0.028 55);
+  --sidebar-foreground: oklch(0.93 0.012 85);
+  --sidebar-primary: oklch(0.68 0.16 25);
+  --sidebar-primary-foreground: oklch(0.18 0.04 25);
+  --sidebar-accent: oklch(0.72 0.1 90);
+  --sidebar-accent-foreground: oklch(0.22 0.05 80);
+  --sidebar-border: oklch(0.93 0.012 85 / 16%);
+  --sidebar-ring: oklch(0.72 0.1 30);
 }
 
 @theme inline {
@@ -137,12 +164,20 @@
   --color-card: var(--card);
 
   /* Brand accent colors (tokens only — no raw values in components) */
-  --color-brand-rose: var(--brand-rose);
-  --color-brand-butter: var(--brand-butter);
-  --color-brand-sage: var(--brand-sage);
-  --color-brand-lavender: var(--brand-lavender);
+  --color-brand-pomegranate: var(--brand-pomegranate);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-terracotta: var(--brand-terracotta);
+  --color-brand-olive: var(--brand-olive);
   --color-brand-cream: var(--brand-cream);
   --color-brand-ink: var(--brand-ink);
+  --color-brand-mama-tile: var(--brand-mama-tile);
+  --color-brand-mama-skin: var(--brand-mama-skin);
+  --color-brand-mama-blush: var(--brand-mama-blush);
+  --color-brand-mama-scarf: var(--brand-mama-scarf);
+  --color-brand-mama-scarf-deep: var(--brand-mama-scarf-deep);
+  --color-brand-mama-scarf-flower: var(--brand-mama-scarf-flower);
+  --color-brand-mama-gold: var(--brand-mama-gold);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

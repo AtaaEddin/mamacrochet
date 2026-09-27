@@ -77,3 +77,13 @@ customer + employee, full admin trace, assignment, and per-order customer rating
   (name + phone) → register at confirmation → order appears in “My orders”.
 - Admin trace shows actor + timestamp for every event; metrics panel returns correct
   numbers for the test data.
+
+## Design input (owner, 2026-09-26 — brand v2)
+
+**Order page layout**: side list of orders (navigation rail) + a full-width
+middle stage where the user (customer OR employee) goes **back and forth
+between the chat and the order stages** — chat view and stage/timeline view
+share the same central screen (tab/toggle), not cramped columns. Mobile:
+same two views stacked with a toggle; order list collapses to a drawer.
+The admin sees the same stage, with the full trace. (Recorded in
+`20260926-2309_mama-identity-chat-first-home` + `doc/references/brand.md`.)

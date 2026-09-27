@@ -44,7 +44,7 @@ export function ApiStatus() {
     >
       {state.health ? (
         <span
-          className={`size-2 rounded-full ${online ? "bg-brand-sage" : "bg-destructive"}`}
+          className={`size-2 rounded-full ${online ? "bg-brand-olive" : "bg-destructive"}`}
           aria-hidden="true"
         />
       ) : state.error ? (

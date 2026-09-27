@@ -5,8 +5,6 @@
     "description": "Handmade crochet bags and cozy little pieces, crafted one stitch at a time. Dreaming of something specific? Chat with us and we'll make it — no account needed to start."
   },
   "Nav": {
-    "howItWorks": "How it works",
-    "shop": "Shop",
     "hello": "Say hi"
   },
   "Theme": {
@@ -21,48 +19,70 @@
     "ar": "العربية",
     "tr": "Türkçe"
   },
-  "Hero": {
-    "badge": "Handmade in every stitch",
-    "title": "Soft, cozy crochet — made just for you",
-    "subtitle": "Every piece is handcrafted by mama, one stitch at a time. Tell us your idea in chat — no account needed to start.",
-    "primaryCta": "Say hi 👋",
-    "secondaryCta": "How it works"
+  "IntroBar": {
+    "title": "Every piece is handmade, to order",
+    "body": "start in chat — no account needed, pay only when it's ready",
+    "cta": "Chat with us"
   },
-  "Values": {
-    "title": "Why mamacrochet",
-    "customTitle": "Made to order",
-    "customBody": "Nothing mass-produced. Every piece is started the moment you order it — yours from the very first stitch.",
-    "ideasTitle": "Your ideas, welcome",
-    "ideasBody": "Dreaming of something specific? Send a photo or a sketch in chat and we'll crochet it just for you.",
-    "liveTitle": "Follow every step",
-    "liveBody": "Your order has a live status board — see when it's in the works, ready for payment, and on its way to you."
+  "Works": {
+    "title": "Works made with love",
+    "subtitle": "Our most-loved pieces — the ones ordered most and rated highest",
+    "allTitle": "All our works",
+    "allSubtitle": "Everything mama has made — filter by category, then take your favorite into the chat",
+    "categories": {
+      "all": "All",
+      "bags": "Bags",
+      "dolls": "Dolls",
+      "small": "Small pieces"
+    },
+    "seeAll": "See all works",
+    "orders": "{count, plural, one {# order} other {# orders}}",
+    "ask": "Ask in chat",
+    "showMore": "Show more",
+    "items": {
+      "sunflowerTote": "Sunflower tote bag",
+      "owlBag": "Owl messenger bag",
+      "pumpkin": "Pumpkin friend",
+      "strawberry": "Strawberry hair clip",
+      "bird": "Little gold bird",
+      "teacup": "Tulip teacup & saucer"
+    }
   },
-  "HowItWorks": {
-    "title": "How it works",
-    "step1Title": "Say hi",
-    "step1Body": "Tell us what you're dreaming of — a bag, a doll, a custom piece — right in chat, no account needed.",
-    "step2Title": "We craft it",
-    "step2Body": "Mama gets to work, stitch by stitch, and you follow the progress live from your own status board.",
-    "step3Title": "Receive it",
-    "step3Body": "We agree on payment with a receipt, then your piece travels to you — and the loop is closed."
+  "CustomOffer": {
+    "title": "Didn't find your liking?",
+    "body": "Send Mama an idea, a sketch or a photo — she crochets almost anything, just for you. No account needed to start.",
+    "cta": "Chat about a custom piece"
   },
-  "Shop": {
-    "comingSoon": "Our shelves are getting fluffy…",
-    "body": "The first handmade pieces are on their way to the little shop. In the meantime, request the piece you've been dreaming of.",
-    "cta": "Request a custom piece"
+  "ChatPanel": {
+    "label": "Chat with Mama",
+    "title": "Mama",
+    "status": "online — usually replies in a few minutes",
+    "comingSoon": "Coming soon",
+    "opener": "Hi, sweetheart! 👋 I'm Mama. What shall we make together today?",
+    "photoHint": "Send a photo of your idea — I can crochet almost anything 🧶",
+    "chipCustom": "Custom order",
+    "chipTrack": "Track my order",
+    "chipDelivery": "Payment & delivery",
+    "placeholder": "Write a message…",
+    "send": "Send message",
+    "attach": "Attach a photo or file",
+    "reply": "I've got it! Let me take a look — I'll be right back with you 💛",
+    "replyAlt": "Aww, I love this idea! Let me ask the yarn for a moment 😄",
+    "pickerLabel": "Search works",
+    "pickerSearch": "Search a work…",
+    "pickerClose": "Close product search",
+    "pickerEmpty": "No works match — tell Mama your idea, she can make it!",
+    "productShow": "Details",
+    "productHide": "Hide details",
+    "productDetail1": "Tell Mama what you'd like changed — color, size, shape, a name for it.",
+    "productDetail2": "If it's the one, it becomes your order — the price stays.",
+    "railTitle": "Works you can add",
+    "railHint": "Tap to add to the chat — or drag a card in.",
+    "railFoot": "Or browse the full list — every piece can be yours."
   },
   "Footer": {
     "tagline": "Handmade with love, one stitch at a time.",
     "rights": "All rights reserved."
-  },
-  "Widget": {
-    "ariaOpen": "Open chat",
-    "ariaClose": "Close chat",
-    "title": "Chat with mama",
-    "opener": "Hi! 👋 Ask me anything — about pieces, custom ideas, or delivery.",
-    "placeholder": "Your message…",
-    "send": "Send",
-    "comingSoon": "Chat is being stitched together — it opens soon 🐰"
   },
   "NotFound": {
     "title": "This page got tangled in the yarn",

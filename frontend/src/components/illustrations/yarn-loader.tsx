@@ -11,13 +11,13 @@ export function YarnLoader({ className }: { className?: string }) {
         cy="20"
         r="13"
         fill="none"
-        stroke="var(--color-brand-rose)"
+        stroke="var(--color-brand-pomegranate)"
         strokeWidth="5"
         strokeLinecap="round"
         strokeDasharray="40 42"
         className="origin-center animate-spin motion-reduce:animate-none"
       />
-      <circle cx="20" cy="20" r="4" fill="var(--color-brand-lavender)" />
+      <circle cx="20" cy="20" r="4" fill="var(--color-brand-teal)" />
     </svg>
   );
 }
