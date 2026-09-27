@@ -54,11 +54,11 @@ builder.Services.AddOpenApi(options =>
     // 403 forbidden, 404 not found, 409 conflict, 423 locked, 429 rate limited,
     // 500 server error). Declaring them on every operation makes the generated
     // client type `error` as ApiError on every call. Success bodies are declared
-    // per endpoint with WithResults. (files.getAvatar is excluded: its 404 is an
-    // empty body, handled by the transformer below.)
+    // per endpoint with WithResults. (The binary file endpoints are excluded:
+    // their 404 is an empty body, handled by the transformer below.)
     options.AddOperationTransformer(async (operation, context, ct) =>
     {
-        if (operation.OperationId is "Health" or "files.getAvatar")
+        if (operation.OperationId is "Health" or "files.getAvatar" or "files.getProductImage")
         {
             return;
         }
@@ -83,11 +83,12 @@ builder.Services.AddOpenApi(options =>
         }
     });
 
-    // Binary avatar file: 200 = the image bytes, 404 = empty (no JSON envelope).
-    // Rate limiting and server errors still return the ApiError JSON envelope.
+    // Binary image files (avatar + product images): 200 = the bytes,
+    // 404 = empty (no JSON envelope). Rate limiting and server errors still
+    // return the ApiError JSON envelope.
     options.AddOperationTransformer(async (operation, context, ct) =>
     {
-        if (operation.OperationId != "files.getAvatar")
+        if (operation.OperationId is not ("files.getAvatar" or "files.getProductImage"))
         {
             return;
         }
@@ -205,7 +206,8 @@ builder.Services
     })
     .AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>()
     .AddScoped<UserAdministrationService>()
-    .AddScoped<GuestLinkService>();
+    .AddScoped<GuestLinkService>()
+    .AddScoped<ProductAdministrationService>();
 
 builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection(UploadsOptions.SectionName));
 
@@ -324,6 +326,13 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Built-in antiforgery middleware: required by endpoints that receive form
+// data (e.g. product image uploads) — the framework marks those endpoints
+// with anti-forgery metadata and refuses to run them without it. It only
+// validates metadata-marked (form) endpoints; JSON mutations are covered by
+// the path-scoped middleware below (plan 03).
+app.UseAntiforgery();
+
 // CSRF validation must run AFTER authentication: .NET 10 antiforgery tokens
 // are scoped to the authenticated principal, so validation has to see the
 // same HttpContext.User that issued the token (plan 03).
@@ -331,6 +340,8 @@ app.UseApiAntiforgery();
 
 IdentityEndpoints.MapIdentityEndpoints(app);
 AdminUserEndpoints.MapAdminUserEndpoints(app);
+CatalogEndpoints.MapCatalogEndpoints(app);
+StaffProductEndpoints.MapStaffProductEndpoints(app);
 FileEndpoints.MapFileEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 
 app.MapGet("/health", (AppDbContext db) =>
@@ -357,6 +368,10 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Plan 04: starter catalog (4 categories + 6 sample pieces). Idempotent —
+    // a no-op once seeded.
+    await CatalogSeeder.SeedAsync(db);
 }
 
 app.Run();
@@ -364,8 +379,8 @@ app.Run();
 /// <summary>
 /// CSRF check for cookie-auth state-changing API requests (plan 03). The
 /// frontend fetches a token from GET /antiforgery and sends it in the
-/// X-CSRF-TOKEN header; GETs and everything outside /identity + /admin are
-/// untouched (SignalR paths join the exclusion list in plan 06).
+/// X-CSRF-TOKEN header; GETs and everything outside /identity, /admin and
+/// /staff are untouched (SignalR paths join the exclusion list in plan 06).
 /// </summary>
 public static class AntiforgeryMiddleware
 {
@@ -374,7 +389,9 @@ public static class AntiforgeryMiddleware
         return app.Use(async (context, next) =>
         {
             var request = context.Request;
-            if ((request.Path.StartsWithSegments("/identity") || request.Path.StartsWithSegments("/admin"))
+            if ((request.Path.StartsWithSegments("/identity")
+                || request.Path.StartsWithSegments("/admin")
+                || request.Path.StartsWithSegments("/staff"))
                 && (HttpMethods.IsPost(request.Method)
                     || HttpMethods.IsPut(request.Method)
                     || HttpMethods.IsDelete(request.Method)

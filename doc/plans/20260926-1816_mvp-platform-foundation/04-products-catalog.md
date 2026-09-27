@@ -1,6 +1,6 @@
 # 04 — Products & Catalog
 
-status: proposed
+status: in-progress
 parent: main.md
 
 ## Goal
@@ -22,8 +22,8 @@ Product management (admin + employee) and a public, mobile-first catalog.
 - In-stock purchase: "Add to order" → simple order checkout (no gateway; payment details
   happen in chat afterwards — plan 07).
 - Image uploads: multiple per product; server-side processing (ImageSharp: resize to
-  max 1600px, webp/avif where supported, thumbnails); strict size/type limits (jpg, png,
-  webp, avif; ~10 MB max per file).
+  max 1600px, WebP output, thumbnails); strict size/type limits (jpg, png, webp in;
+  ~10 MB max per file; AVIF excluded in release 1 — see decisions).
 
 ## Decisions
 
@@ -34,15 +34,119 @@ Product management (admin + employee) and a public, mobile-first catalog.
   served by the API; public for catalog images, **auth-protected** for receipts/samples (plan 07).
 - Soft delete only (admin); hidden ≠ deleted.
 
+### Implementation decisions (recorded 2026-09-27, web-verified)
+
+- **Areas**: staff management under `/staff/*` (policy **Employee** — employees manage
+  products too, plan scope) and public catalog under `/catalog/*`. The typed CSRF
+  middleware gains `/staff` to its protected prefixes; `/catalog` is read-only GETs.
+  `DELETE` of a product or category = **Admin only**.
+- **Query layer (D19)**: hand-rolled OData-compatible binder, OData v4.01 parameter
+  names (`$filter`, `$orderby`, `$top`, `$skip`). Supported subset: comparisons
+  `eq ne lt le gt ge`, functions `contains/startswith/endswith`, logical `and or not`,
+  parentheses, string/number/boolean/null/ISO-date literals; fields + operators per
+  endpoint via an **allowlist** (unknown field/operator → 400 `invalid`). No EDM
+  runtime. Reusable in plans 05/09.
+  Sources: OData v4.01 Part 2 URL Conventions §5.1
+  (docs.oasis-open.org/odata/odata/v4.01/...), learn.microsoft.com/en-us/odata/concepts/queryoptions-usage.
+  - staff products filter: `id, categoryId, inStock, isListed, price, stockUnits, createdAt, title` (title = localized search).
+  - public catalog filter: `category, inStock, title`.
+  - order-by allowlist per endpoint; defaults: `-createdAt` (staff), `-createdAt` (public).
+- **Image pipeline**: `SixLabors.ImageSharp` **3.1.12** (latest 3.x; .NET 8+ baseline →
+  net10.0 OK). Inputs: **jpg, png, webp** (magic-byte validated, 10 MB max, 10 per request,
+  ≤ 10 000 px sides). Output: normalized **WebP** — main ≤ 1600 px (q82) + thumbnail ≤ 480 px
+  (q80). **AVIF is NOT accepted in release 1**: no built-in decoder/encoder in ImageSharp
+  core (needs native third-party `HeyRed.ImageSharp.Heif`/libheif — against the low-power,
+  4-container goal); WebP read+write IS built in. Owner uploads phone photos (jpg) / browser
+  shots (png, webp) — no practical loss.
+  Sources: nuget.org/packages/SixLabors.ImageSharp,
+  sixlabors.com/posts/announcing-imagesharp-410, docs.sixlabors.com/articles/imagesharp/imageformats.
+- **ImageSharp pinned to 3.1.12, NOT 4.1.2** (recorded 2026-09-28, verified by downloading
+  both nupkgs and inspecting their MSBuild targets):
+  - 4.1.2 ships a split license: the package embeds `SixLabors.ImageSharp.targets` with a
+    `ValidateLicenseTask` that runs at **build time** and fails/warns unless a license key
+    is provided — its "free" tier applies only to specific org types (non-profit, OSS
+    product, transitive dependency, for-profit < $1M gross revenue). Our commercial posture
+    is ambiguous (self-hosted store that may charge) and the repo is
+    **warnings-as-errors**, so a Debug-time license warning is a build break.
+  - 3.1.12 is plain **Apache-2.0** with no license-validation target, and has the same
+    built-in WebP/JPEG/PNG support we need (3.x has no 4.x features we require: no AVIF/HEIC
+    in either). Cost: the 3.x processing API is processor-based (`ApplyProcessor(new
+    ResizeProcessor(...))`) instead of instance mutation — used via `ProductImages.cs`.
+  Sources: nuget.org/packages/SixLabors.ImageSharp/4.1.2 (nupkg inspected:
+  `tools/build/SixLabors.ImageSharp.targets` → `ValidateLicenseTask`),
+  sixlabors.com/pricing (split-license terms), sixlabors.com/articles/imagesharp/license.
+- **Storage paths** (deterministic, D8): `uploads/products/{productId}/{imageId}.webp` +
+  `.thumb.webp`; served `GET /files/products/{productId}/{fileName}` (public,
+  `Cache-Control: public, max-age=31536000, immutable`; names opaque-validated).
+- **Cover image = first in the stored order** (no separate flag): reorder endpoint rewrites
+  `SortOrder`; `CoverImage` in the DTO = `Images[0]`. Uploads append at the end; the first
+  image of a product is auto-cover.
+- **No slugs** — product detail is `/works/{id}` (id = 32-hex, URL-safe). Category filter
+  param = category id.
+- **Identity columns**: `Id` = 32-hex string (`Guid.ToString("N")`) on Category/Product/
+  ProductImage; translation rows have composite keys `(ProductId|CategoryId, Language)`.
+  Timestamps = `DateTime` (UTC). FKs: Product→Category **SetNull** (re-categorize or
+  uncategorized when a category row vanishes), Product.CreatedById/UpdatedById→AppUser
+  **SetNull**, translations/images **Cascade** from product.
+- **Seeding**: idempotent `CatalogSeeder` after `Migrate()` in Program.cs (fixed GUIDs):
+  4 categories (en/ar/tr names) + the 6 sample pieces the site already shows (stock 0,
+  USD). **No images in the seed** — the owner's photos are not in the repo yet; they get
+  uploaded from the staff image manager.
+- **Catalog CTAs** (plans 05/06 not built yet): in-stock → "Ask in chat" and out-of-stock
+  → "Ask about this / request a custom one" both deep-link **`/chat?work={id}`**
+  (brand v2). Order creation (kind=custom referencing the product) + the in-chat product
+  picker land with plans 05/06; the button targets are unchanged.
+- **Frontend data**: Next 16 server components `fetch` the API directly (uncached by
+  default in Next 16; the catalog is small + DB-indexed — no cache layer). File URLs are
+  API paths; SSR resolves them against the request origin + `/api` base (prod, Caddy)
+  or `NEXT_PUBLIC_API_URL` (dev, absolute). Staff pages gate on the signed-in user's
+  roles (same pattern as plan 03's client).
+- **Staff entry point**: header gets a staff chip (employees see it, admins too) once
+  plan 03's frontend lands — this plan ships `/staff/products` behind it.
+
 ## Tasks
 
-- [ ] Entities + migrations: Product, ProductImage, Category, ProductTranslation
-- [ ] API CRUD (Employee+Admin), visibility toggle, search/filter, image upload endpoints
-- [ ] File pipeline: validation, resize/thumbnail, storage path scheme
+- [x] Entities + migrations: Product, ProductImage, Category, ProductTranslation (+ CategoryTranslation) — `20260927210749_Catalog`
+- [x] API CRUD (Employee+Admin), visibility toggle, search/filter ($filter/$orderby/$top/$skip), image upload endpoints — curl-verified end-to-end (staff login, CRUD, upload/reorder/delete, category CRUD, public query spec)
+- [x] File pipeline: validation, resize/thumbnail, storage path scheme — verified on disk (WebP, ≤1600/≤480, no upscaling)
 - [ ] Frontend: admin/employee products pages (list, editor, image manager)
-- [ ] Frontend: public catalog (home, category, search, product detail) mobile-first,
-      stock badge, "request custom" CTA
-- [ ] Seed: create categories + first sample products (stock 0) with the owner's photos
+- [ ] Frontend: public catalog (home, category, search, product detail) mobile-first, stock badge, "request custom" CTA
+- [x] Seed: create categories + first sample products (stock 0) — photos: owner uploads from UI (not in repo) — verified via API (4 categories + 6 products)
+
+### Framework findings (recorded 2026-09-28 — verified against .NET 10 / EF Core 10 sources & reflection)
+
+- **EF Core 10 has no `EF.Functions.ILike` in the base assembly** — `ILike(DbFunctions,
+  string, string[, escape])` is provided by the **Npgsql provider**
+  (`NpgsqlDbFunctionsExtensions`). The binder builds the call via `LikeExpressions`.
+  (Base assembly only has `Like` + `Random`.)
+  Source: reflection probe over Microsoft.EntityFrameworkCore 10 + Npgsql.EntityFrameworkCore.PostgreSQL 10.
+- **.NET 10 removed `MethodInfo.IsGeneric` / `IsGenericDefinition`** — use
+  `GetGenericArguments().Length` for generic-method detection.
+  Source: refactoring a reflection helper against net10.0 (CS0117).
+- **C# 13 (net10 default) makes `and`/`or`/`not` contextual keywords** — pattern
+  variables with those names break in expression positions (renamed in FilterParser).
+- **`Enumerable.Any<TSource>(IEnumerable<TSource>, Predicate)`** must be built in
+  expression trees with `Expression.Call(null, method, args)` (static extension) and the
+  2-parameter overload selected explicitly, or EF picks `Any<TSource>(TSource[])`.
+- **ImageSharp 3.x API**: processor-based (`ApplyProcessor(new ResizeProcessor(new
+  ResizeOptions { Mode = ResizeMode.Max, Size = (N, N) }, image.Size))`); WebP encoder =
+  `SixLabors.ImageSharp.Formats.Webp.WebpEncoder`.
+- **Minimal-API multipart**: `IFormFile[]` binds `null` (unsupported shape); use
+  **`IFormFileCollection`** for multi-file. Form endpoints carry anti-forgery metadata and
+  require `app.UseAntiforgery()` in the pipeline (the built-in middleware sets the sentinel
+  the framework checks; it validates tokens only on form endpoints — JSON mutations stay
+  on the path-scoped plan-03 middleware).
+  Source: aspnetcore/src/Antiforgery/src/AntiforgeryMiddleware.cs (main).
+- **EF unique-index swap cycle**: reordering under `UNIQUE(ProductId, SortOrder)` throws
+  `circular dependency` on a direct swap — fixed with two-phase save (shift all keys off,
+  then apply target order).
+- **EF untracked navigation trap**: replacing a translation collection on an entity loaded
+  **without** `.Include(n => n.Translations)` leaves old DB rows untracked → Clear()+Add()
+  becomes a bare INSERT on the composite PK → `23505 duplicate key`. All product/category
+  loads now include `Translations` (and `Category.Translations` via `ThenInclude`).
+- **Query-spec `SortField` concept**: a field can be registered sort-only (accepted by
+  `$orderby`, rejected in `$filter` with `Field 'x' cannot be filtered.`) — used for
+  `createdAt` on the public catalog.
 
 ## Acceptance
 

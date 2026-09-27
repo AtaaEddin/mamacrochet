@@ -45,3 +45,42 @@ public sealed record UpdateUserRequest(
     IReadOnlyList<string> Roles,
     string? AssignedEmployeeId,
     bool IsActive);
+
+// ---- Plan 04: products & catalog ----------------------------------------
+
+/// <summary>One localized category name input (en required).</summary>
+public sealed record LocalizedNameInput(string Language, string Name);
+
+/// <summary>
+/// One localized product content input. Title required for the given
+/// language; Description optional. en must be present in the list.
+/// </summary>
+public sealed record LocalizedContentInput(string Language, string? Title, string? Description);
+
+public sealed record CreateProductRequest(
+    IReadOnlyList<LocalizedContentInput> Localizations,
+    string? CategoryId,
+    decimal Price,
+    string? Currency,
+    int StockUnits);
+
+public sealed record UpdateProductRequest(
+    IReadOnlyList<LocalizedContentInput> Localizations,
+    string? CategoryId,
+    decimal Price,
+    string? Currency,
+    int StockUnits,
+    bool IsListed);
+
+/// <summary>Full new image order (cover = first).</summary>
+public sealed record ImageOrderRequest(IReadOnlyList<string> ImageIds);
+
+public sealed record CreateCategoryRequest(
+    IReadOnlyList<LocalizedNameInput> Names,
+    int SortOrder,
+    bool IsListed);
+
+public sealed record UpdateCategoryRequest(
+    IReadOnlyList<LocalizedNameInput> Names,
+    int SortOrder,
+    bool IsListed);

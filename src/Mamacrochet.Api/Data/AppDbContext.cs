@@ -11,10 +11,92 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public DbSet<GuestAccountLink> GuestAccountLinks => Set<GuestAccountLink>();
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ProductTranslation> ProductTranslations => Set<ProductTranslation>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<CategoryTranslation> CategoryTranslations => Set<CategoryTranslation>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Plan 04: catalog (products, categories, localized content, images).
+        builder.Entity<Category>(category =>
+        {
+            category.Property(c => c.Id).HasMaxLength(32);
+            category.Property(c => c.SortOrder).HasDefaultValue(0);
+            category.Property(c => c.CreatedAt).IsRequired();
+            category.HasIndex(c => c.SortOrder);
+            category.HasIndex(c => c.DeletedAt);
+        });
+
+        builder.Entity<CategoryTranslation>(translation =>
+        {
+            translation.HasKey(t => new { t.CategoryId, t.Language });
+            translation.Property(t => t.CategoryId).HasMaxLength(32);
+            translation.Property(t => t.Language).HasMaxLength(3);
+            translation.Property(t => t.Name).HasMaxLength(80).IsRequired();
+            translation.HasOne(t => t.Category)
+                .WithMany(c => c.Translations)
+                .HasForeignKey(t => t.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Product>(product =>
+        {
+            product.Property(p => p.Id).HasMaxLength(32);
+            product.Property(p => p.CategoryId).HasMaxLength(32);
+            product.Property(p => p.Price).HasPrecision(10, 2);
+            product.Property(p => p.Currency).HasMaxLength(3).IsRequired();
+            product.Property(p => p.StockUnits).HasDefaultValue(0);
+            product.Property(p => p.CreatedAt).IsRequired();
+            product.HasIndex(p => p.CategoryId);
+            product.HasIndex(p => p.DeletedAt);
+            product.HasIndex(p => p.CreatedAt);
+            product.HasIndex(p => p.Price);
+            product.HasOne(p => p.Category)
+                .WithMany()
+                .HasForeignKey(p => p.CategoryId)
+                // A category row only vanishes via the (rare) hard path —
+                // keep the product, just uncategorized.
+                .OnDelete(DeleteBehavior.SetNull);
+            // Created/edited by (audit): users are only soft-deleted, but
+            // SetNull keeps the catalog writable in every hard-delete case.
+            product.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(p => p.CreatedById)
+                .OnDelete(DeleteBehavior.SetNull);
+            product.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(p => p.UpdatedById)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ProductTranslation>(translation =>
+        {
+            translation.HasKey(t => new { t.ProductId, t.Language });
+            translation.Property(t => t.ProductId).HasMaxLength(32);
+            translation.Property(t => t.Language).HasMaxLength(3);
+            translation.Property(t => t.Title).HasMaxLength(120).IsRequired();
+            translation.Property(t => t.Description).HasMaxLength(2000);
+            translation.HasOne(t => t.Product)
+                .WithMany(p => p.Translations)
+                .HasForeignKey(t => t.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ProductImage>(image =>
+        {
+            image.Property(i => i.Id).HasMaxLength(32);
+            image.Property(i => i.ProductId).HasMaxLength(32);
+            // One display order per product — the order list is the UI source.
+            image.HasIndex(i => new { i.ProductId, i.SortOrder }).IsUnique();
+            image.HasOne(i => i.Product)
+                .WithMany(p => p.Images)
+                .HasForeignKey(i => i.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<AppUser>(user =>
         {
