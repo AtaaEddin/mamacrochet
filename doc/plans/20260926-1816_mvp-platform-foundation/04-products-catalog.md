@@ -115,6 +115,36 @@ Product management (admin + employee) and a public, mobile-first catalog.
   the typed JSON. Server components fetch the API directly with a 2.5 s hard timeout
   (returns `null` → fallback); prod SSR base = `API_SERVER_URL` (docker-compose), dev
   reuses the absolute `NEXT_PUBLIC_API_URL`.
+- **Staff frontend** (recorded 2026-09-28): `/staff/products` is a thin server page
+  rendering one `"use client"` `StaffProductsView` that gates on the signed-in user
+  (`/identity/me` + `isStaff`) and routes between three modes — product **list**
+  (debounced title search + category filter + listed-only switch + "load more"
+  pagination, `$orderby=createdAt desc`), **editor** (create/edit form + image
+  manager), and **categories** (inline CRUD). The editor remounts per product via a
+  React `key` (fresh form per id); after create it keeps the editor open so the maker
+  can add photos. The **image manager is parent-controlled**: it receives the
+  `images` array and reports changes up (single source of truth in the editor) so
+  upload/reorder/delete all reconcile against one list; cover = `images[0]`. Category
+  select uses an explicit `__none__` sentinel (Base UI Select treats `value=""` as
+  unselected). **Role gate**: `isAdmin = me.roles.includes("admin")` hides the
+  destructive product/category delete buttons from employees (create/edit/reorder/
+  visibility stay available). Destructive confirms use the plan-03 `AlertDialog`
+  pattern (action button runs the async delete; dialog closes only on success).
+- **Base UI (shadcn) primitives** (recorded 2026-09-28): the `Button` is
+  `@base-ui/react/button` — **no `asChild`**; a button-styled link applies
+  `buttonVariants(...)` to a `<Link>`. `Select` is controlled via `value` +
+  `onValueChange(v, e)` (null-guard with `v && …`); `SelectValue` renders the chosen
+  label. `Switch` is `checked` + `onCheckedChange(c) => c === true`. `AlertDialogAction`
+  is a plain `Button` (does **not** auto-close); `AlertDialogCancel`/`Close` auto-close —
+  so destructive deletes render `<AlertDialog open onOpenChange={o => !o && setConfirm(false)}>`
+  and let success (parent unmount / navigate) close it.
+- **Browser QA note** (recorded 2026-09-28): this environment's headless Chromium reads
+  files injected by Playwright `setInputFiles` **by path** as size 0 (`arrayBuffer()`
+  → `NotFoundError`), which aborts the multipart body (`net::ERR_ALPN_NEGOTIATION_FAILED`).
+  Passing the file **buffer** to `setInputFiles` (`{name,mimeType,buffer}`) supplies real
+  bytes and the upload works end-to-end. The app upload path is correct (in-memory `File`
+  uploads and curl both succeed); the size-0 file is a test-harness artifact, not a bug.
+
 - **Staff entry point**: header gets a staff chip (employees see it, admins too) once
   plan 03's frontend lands — this plan ships `/staff/products` behind it.
 
@@ -123,7 +153,7 @@ Product management (admin + employee) and a public, mobile-first catalog.
 - [x] Entities + migrations: Product, ProductImage, Category, ProductTranslation (+ CategoryTranslation) — `20260927210749_Catalog`
 - [x] API CRUD (Employee+Admin), visibility toggle, search/filter ($filter/$orderby/$top/$skip), image upload endpoints — curl-verified end-to-end (staff login, CRUD, upload/reorder/delete, category CRUD, public query spec)
 - [x] File pipeline: validation, resize/thumbnail, storage path scheme — verified on disk (WebP, ≤1600/≤480, no upscaling)
-- [ ] Frontend: staff products pages (list, editor, image manager, category CRUD)
+- [x] Frontend: staff products pages (list, editor, image manager, category CRUD) — verified in-browser (en, Arabic RTL, light+dark, mobile+desktop): anonymous sign-in gate, staff login, product list + search + category filter, create/edit product, image upload (cover badge), reorder (move up/down), image delete, admin-only product delete, category create/edit + admin-only category delete; employee (non-admin) sees the management UI with the admin-only delete buttons hidden
 - [x] Frontend: public catalog (home featured, category chips, title search, product detail) mobile-first, stock badge, "request custom" CTA — verified in-browser (en/ar/tr, Arabic RTL, light+dark, mobile+desktop; search + category filter + detail navigation + made-to-order CTA) and in a prod `next build`
 - [x] Seed: create categories + first sample products (stock 0) — photos: owner uploads from UI (not in repo) — verified via API (4 categories + 6 products)
 

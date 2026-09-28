@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Users } from "lucide-react";
+import { Scissors, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { api, avatarSrc } from "@/lib/api/client";
 import type { User } from "@/lib/auth";
@@ -62,11 +62,23 @@ export function AuthBadge() {
   }
 
   const isAdmin = me.roles.includes("admin");
+  const isStaff =
+    me.roles.includes("employee") || me.roles.includes("admin");
   const src = avatarSrc(me.avatarUrl);
   const initial = me.displayName.slice(0, 1).toUpperCase();
 
   return (
     <div className="flex items-center gap-2">
+      {isStaff ? (
+        <Link
+          href="/staff/products"
+          aria-label={t("staffProducts")}
+          title={t("staffProducts")}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <Scissors className="size-5" aria-hidden="true" />
+        </Link>
+      ) : null}
       {isAdmin ? (
         <Link
           href="/admin/users"

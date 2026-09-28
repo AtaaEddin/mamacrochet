@@ -28,6 +28,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost
 type ApiError = components["schemas"]["ApiError"];
 type UserDto = components["schemas"]["UserDto"];
 type CsrfTokenBody = components["schemas"]["CsrfToken"];
+type ProductImageDto = components["schemas"]["ProductImageDto"];
 
 let csrfToken: Promise<string | null> | null = null;
 
@@ -87,7 +88,9 @@ function needsCsrf(url: string, method: string): boolean {
     p === "/identity" ||
     p.startsWith("/identity/") ||
     p === "/admin" ||
-    p.startsWith("/admin/")
+    p.startsWith("/admin/") ||
+    p === "/staff" ||
+    p.startsWith("/staff/")
   );
 }
 
@@ -169,6 +172,41 @@ export async function uploadAvatar(file: File): Promise<
   }
   const user = (await response.json()) as UserDto;
   return { ok: true, user };
+}
+
+/**
+ * Product image upload (plan 04, multipart). Files go under the form key
+ * `files` (the API binds an `IFormFileCollection`). Same cookie + CSRF wiring
+ * as the avatar upload: the built-in antiforgery middleware validates the
+ * X-CSRF-TOKEN header on form endpoints. Returns the product's full image
+ * list (re-fetch, not a patch).
+ */
+export async function uploadProductImages(
+  productId: string,
+  files: File[] | FileList,
+): Promise<{ ok: true; images: ProductImageDto[] } | { ok: false; error: ApiError }> {
+  const form = new FormData();
+  for (const file of Array.from(files)) form.append("files", file);
+  const token = await ensureCsrfToken();
+  const headers = new Headers();
+  if (token) headers.set("X-CSRF-TOKEN", token);
+  const request = new Request(
+    `${API_BASE_URL}/staff/products/${encodeURIComponent(productId)}/images`,
+    { method: "POST", credentials: "include", body: form, headers },
+  );
+  const response = await withCsrfRetry(request, false);
+  if (!response.ok) {
+    let error: ApiError = { code: "server_error", message: response.statusText };
+    try {
+      const parsed = (await response.json()) as ApiError;
+      if (typeof parsed.code === "string") error = parsed;
+    } catch {
+      // Keep the fallback envelope.
+    }
+    return { ok: false, error };
+  }
+  const images = (await response.json()) as ProductImageDto[];
+  return { ok: true, images };
 }
 
 /**
