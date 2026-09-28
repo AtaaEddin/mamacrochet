@@ -63,6 +63,12 @@ services:
         NEXT_PUBLIC_SITE_URL: ${MM_SITE_URL:-}
     image: mamacrochet-web:latest
     restart: unless-stopped
+    environment:
+      # Server-side catalog fetch base (plan 04 SSR). The web container reaches
+      # the api container on the compose network; /api is the browser-facing
+      # Caddy route (build-arg NEXT_PUBLIC_API_URL) and is not resolvable
+      # from Node.
+      API_SERVER_URL: http://api:8085
     healthcheck:
       # / redirects to the locale root; busybox wget follows it.
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
