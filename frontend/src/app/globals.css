@@ -42,7 +42,7 @@
   --brand-cream: oklch(0.988 0.008 85);
   --brand-ink: oklch(0.32 0.024 50);
 
-  /* Mama mascot (tile = gold in light) */
+  /* Hanadi mascot (tile = gold in light) */
   --brand-hanadi-tile: oklch(0.86 0.09 90);
   --brand-hanadi-skin: oklch(0.74 0.1 62);
   --brand-hanadi-blush: oklch(0.78 0.13 40);
@@ -71,7 +71,7 @@
 
 .dark {
   /* Soft warm coffee night — cozy, never near-black (owner: v1 dark felt
-     harsh; the glowing Mama looked "scary" — her colors are muted here) */
+     harsh; the glowing Hanadi looked "scary" — her colors are muted here) */
   --background: oklch(0.315 0.026 55);
   --foreground: oklch(0.93 0.012 85);
   --card: oklch(0.355 0.028 55);
@@ -102,7 +102,7 @@
   /* Warm parchment ink — a glowing cream outline made art look mask-like */
   --brand-ink: oklch(0.8 0.02 75);
 
-  /* Mama — calmer in the dark: deeper skin, muted scarf, deep brass tile */
+  /* Hanadi — calmer in the dark: deeper skin, muted scarf, deep brass tile */
   --brand-hanadi-tile: oklch(0.6 0.08 78);
   --brand-hanadi-skin: oklch(0.68 0.085 60);
   --brand-hanadi-blush: oklch(0.7 0.09 40);
