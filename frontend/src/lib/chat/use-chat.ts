@@ -39,6 +39,11 @@ export interface SendInput {
   text: string;
   productId?: string | null;
   files: File[];
+  /**
+   * Retry of a failed send: its already-uploaded attachments (reused by id —
+   * the files are on the server, no re-upload).
+   */
+  attachments?: chat.ChatAttachment[];
   /** Retry of a failed send keeps its original clientId (one row, no dupes). */
   clientId?: string;
 }
@@ -119,6 +124,25 @@ export function useChat(options: {
     [],
   );
 
+  /**
+   * One local upsert for every message path (send echo, socket broadcast,
+   * poll fallback): replace the pending row by clientId, else append unless
+   * the server row is already known.
+   */
+  const upsertMessage = useCallback((clientId: string, m: chat.ChatMessage) => {
+    setMessages((prev) => {
+      if (clientId) {
+        const i = prev.findIndex((p) => p.clientId === clientId);
+        if (i >= 0) {
+          const copy = [...prev];
+          copy[i] = toUiMessage(m);
+          return copy;
+        }
+      }
+      return prev.some((p) => p.id === m.id) ? prev : [...prev, toUiMessage(m)];
+    });
+  }, []);
+
   // ---- Guest bootstrap (idempotent per device) ------------------------------
 
   useEffect(() => {
@@ -173,21 +197,6 @@ export function useChat(options: {
       return null;
     };
 
-    const upsert = (m: chat.ChatMessage) => {
-      setMessages((prev) => {
-        if (m.clientId) {
-          const i = prev.findIndex((p) => p.clientId === m.clientId);
-          if (i >= 0) {
-            const copy = [...prev];
-            copy[i] = toUiMessage(m);
-            return copy;
-          }
-        }
-        if (prev.some((p) => p.id === m.id)) return prev;
-        return [...prev, toUiMessage(m)];
-      });
-    };
-
     const stopPolling = () => {
       if (pollRef.current !== null) {
         clearInterval(pollRef.current);
@@ -205,7 +214,7 @@ export function useChat(options: {
           { after: after ?? undefined, limit: 50 },
         );
         if (result.ok) {
-          for (const m of result.data.messages) upsert(m);
+          for (const m of result.data.messages) upsertMessage(m.clientId ?? "", m);
           setHasOlder(result.data.hasOlder);
         }
       }, POLL_MS);
@@ -255,7 +264,7 @@ export function useChat(options: {
     connRef.current = conn;
 
     conn.on("newMessage", (m: chat.ChatMessage) => {
-      upsert(m);
+      upsertMessage(m.clientId ?? "", m);
       maybeMarkRead();
     });
     conn.on("threadUpdated", (t: chat.ChatThread) => {
@@ -306,7 +315,7 @@ export function useChat(options: {
       connRef.current = null;
       conn.stop().catch(() => {});
     };
-  }, [activeThreadId, auth, mode, runKey]);
+  }, [activeThreadId, auth, mode, runKey, upsertMessage]);
 
   // ---- Composer ---------------------------------------------------------------
 
@@ -328,26 +337,17 @@ export function useChat(options: {
     setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const upsertLocal = useCallback((clientId: string, m: chat.ChatMessage) => {
-    setMessages((prev) => {
-      const i = prev.findIndex((p) => p.clientId === clientId);
-      if (i >= 0) {
-        const copy = [...prev];
-        copy[i] = toUiMessage(m);
-        return copy;
-      }
-      return prev.some((p) => p.id === m.id) ? prev : [...prev, toUiMessage(m)];
-    });
-  }, []);
-
   const send = useCallback(
     async (input: SendInput) => {
       if (!activeThreadId) return false;
       const text = input.text.trim();
-      if (text.length === 0 && input.files.length === 0 && !input.productId) return false;
+      if (text.length === 0 && input.files.length === 0 && !input.productId
+        && !(input.attachments?.length ?? 0)) return false;
       setError(null);
 
-      // Uploads first — a failed upload never sends a half message.
+      // Uploads first — a failed upload never sends a half message. A retry
+      // reuses the failed message's already-uploaded attachments (they are
+      // on the server, keyed by id — no re-upload).
       let attachments: chat.ChatAttachment[] = [];
       if (input.files.length > 0) {
         const upload = await chat.uploadThreadAttachments(
@@ -360,6 +360,8 @@ export function useChat(options: {
           return false;
         }
         attachments = upload.data;
+      } else if (input.attachments) {
+        attachments = input.attachments;
       }
 
       const clientId = input.clientId ?? newClientId();
@@ -414,7 +416,7 @@ export function useChat(options: {
           },
         );
         if (result.ok) {
-          upsertLocal(clientId, result.data);
+          upsertMessage(clientId, result.data);
         } else {
           setMessages((prev) =>
             prev.map((m) =>
@@ -437,7 +439,7 @@ export function useChat(options: {
       setPendingFiles([]);
       return true;
     },
-    [activeThreadId, auth, mode, upsertLocal],
+    [activeThreadId, auth, mode, upsertMessage],
   );
 
   const retry = useCallback(
@@ -448,6 +450,7 @@ export function useChat(options: {
         text: failed.body,
         productId: failed.productId,
         files: [],
+        attachments: failed.attachments,
         clientId: failedClientId,
       });
     },
