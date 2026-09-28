@@ -14,7 +14,7 @@ try {
   console.log("PILL TEXT:", JSON.stringify(pill));
   const ok = /API online/.test(pill);
   console.log(ok ? "E2E PASS: browser -> CORS -> API -> Postgres via Aspire" : "E2E FAIL: API not reachable from browser");
-  await page.locator("footer").screenshot({ path: "/tmp/mamacrochet-shots/footer-e2e-pill.png" });
+  await page.locator("footer").screenshot({ path: "/tmp/hanadicrochet-shots/footer-e2e-pill.png" });
   process.exit(ok ? 0 : 1);
 } catch {
   const pill = await page.locator("span[role='status']").textContent().catch(() => "(no pill)");

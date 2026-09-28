@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Programmatic visual QA for mamacrochet (no vision model available in this env).
+ * Programmatic visual QA for hanadicrochet (no vision model available in this env).
  *
  * Measures against a running server (dev or prod):
  *  - fonts: Baloo Bhaijaan 2 / Cairo actually loaded + applied (h1 = display, body = sans)

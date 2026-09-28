@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Visual verification for mamacrochet (plan 08 DoD: browser check).
+ * Visual verification for hanadicrochet (plan 08 DoD: browser check).
  *
  * Screenshots key screens across viewports, themes and locales using
  * playwright-core against the system Chromium (no bundled browser —
@@ -10,14 +10,14 @@
  *   BASE_URL     default http://localhost:3000
  *   CHROMIUM_PATH default /snap/bin/chromium
  *
- * Output: /tmp/mamacrochet-shots/*.png
+ * Output: /tmp/hanadicrochet-shots/*.png
  */
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright-core";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const CHROMIUM = process.argv[3] ?? "/snap/bin/chromium";
-const OUT = "/tmp/mamacrochet-shots";
+const OUT = "/tmp/hanadicrochet-shots";
 mkdirSync(OUT, { recursive: true });
 
 const SHOTS = [

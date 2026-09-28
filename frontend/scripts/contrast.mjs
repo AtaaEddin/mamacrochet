@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * WCAG AA contrast check for the mamacrochet brand tokens.
+ * WCAG AA contrast check for the hanadicrochet brand tokens.
  *
  * Parses the `:root` (light) and `.dark` blocks of `src/app/globals.css`,
  * converts OKLCH values to sRGB relative luminance, and verifies that every

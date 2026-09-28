@@ -3,7 +3,7 @@
  * Regenerates the typed API client from the live API's OpenAPI spec.
  *
  * The dev stack must be running first:
- *   dotnet run --project src/Mamacrochet.AppHost
+ *   dotnet run --project src/Hanadicrochet.AppHost
  *
  * Outputs (both committed, so builds work without the API):
  *   src/lib/api/schema.json  — the bundled spec
