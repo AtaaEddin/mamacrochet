@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hanadicrochet.Api/Hanadicrochet.Api.csproj" />
+    <Project Path="src/Hanadicrochet.AppHost/Hanadicrochet.AppHost.csproj" />
+    <Project Path="src/Hanadicrochet.ServiceDefaults/Hanadicrochet.ServiceDefaults.csproj" />
+  </Folder>
+</Solution>

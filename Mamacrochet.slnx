@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Mamacrochet.Api/Mamacrochet.Api.csproj" />
-    <Project Path="src/Mamacrochet.AppHost/Mamacrochet.AppHost.csproj" />
-    <Project Path="src/Mamacrochet.ServiceDefaults/Mamacrochet.ServiceDefaults.csproj" />
-  </Folder>
-</Solution>
