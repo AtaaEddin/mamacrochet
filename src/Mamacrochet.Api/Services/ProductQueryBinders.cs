@@ -21,7 +21,7 @@ public static class ProductQueryBinders
 
     public static QueryBinder Public()
     {
-        return new QueryBinder(typeof(Product))
+        return new QueryBinder()
             .Field("category", typeof(string), root => Expression.Property(root, nameof(Product.CategoryId)))
             .Field("inStock", typeof(bool), InStockExpression)
             .TextField("title", TitleTextExpression)
@@ -31,7 +31,7 @@ public static class ProductQueryBinders
 
     public static QueryBinder Staff()
     {
-        return new QueryBinder(typeof(Product))
+        return new QueryBinder()
             .Field("id", typeof(string), root => Expression.Property(root, nameof(Product.Id)))
             .Field("categoryId", typeof(string), root => Expression.Property(root, nameof(Product.CategoryId)))
             .Field("inStock", typeof(bool), InStockExpression)

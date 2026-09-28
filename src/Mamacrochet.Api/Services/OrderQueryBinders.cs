@@ -13,7 +13,7 @@ public static class OrderQueryBinders
 {
     public static QueryBinder Customer()
     {
-        return new QueryBinder(typeof(Order))
+        return new QueryBinder()
             .Field("status", typeof(string), root => Expression.Property(root, nameof(Order.Status)))
             .SortField("createdAt", typeof(DateTime), root => Expression.Property(root, nameof(Order.CreatedAt)))
             .DefaultOrder("createdAt desc");
@@ -21,7 +21,7 @@ public static class OrderQueryBinders
 
     public static QueryBinder Staff()
     {
-        return new QueryBinder(typeof(Order))
+        return new QueryBinder()
             .Field("status", typeof(string), root => Expression.Property(root, nameof(Order.Status)))
             .TextField("contactName", (root, fn, value) => LikeExpressions.Call(
                 Expression.Property(root, nameof(Order.ContactName)), value, fn))
@@ -31,7 +31,7 @@ public static class OrderQueryBinders
 
     public static QueryBinder Admin()
     {
-        return new QueryBinder(typeof(Order))
+        return new QueryBinder()
             .Field("status", typeof(string), root => Expression.Property(root, nameof(Order.Status)))
             .Field("customerId", typeof(string), root => Expression.Property(root, nameof(Order.CustomerId)))
             .Field("employeeId", typeof(string), root => Expression.Property(root, nameof(Order.AssignedEmployeeId)))

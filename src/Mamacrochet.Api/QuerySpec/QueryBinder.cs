@@ -26,10 +26,11 @@ public sealed class QueryBinder
     private string _defaultOrder = "id asc";
 
     /// <summary>
-    /// The root entity type is fixed by the caller's parameter expression;
-    /// the binder only stores the allowlist.
+    /// The root entity type is fixed by the caller's parameter expression
+    /// (the bind call takes <c>Expression&lt;Func&lt;T, bool&gt;&gt;</c>), so the
+    /// binder only stores the allowlist.
     /// </summary>
-    public QueryBinder(Type rootType)
+    public QueryBinder()
     {
     }
 
