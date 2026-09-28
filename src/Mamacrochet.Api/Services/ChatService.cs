@@ -1,4 +1,5 @@
 using Mamacrochet.Api.Data;
+using Mamacrochet.Api.Endpoints;
 using Mamacrochet.Api.Hubs;
 using Mamacrochet.Api.Models;
 using Microsoft.AspNetCore.SignalR;
@@ -924,8 +925,9 @@ public sealed class ChatService(
 
                 await using var buffer = new MemoryStream((int)file.Length);
                 await file.CopyToAsync(buffer, ct);
-                var kind = DetectChatFileKind(buffer.GetBuffer()!, (int)buffer.Length);
-                if (kind is null)
+                var fileKind = FileSignatures.DetectAccepted(
+                    buffer.GetBuffer()!, (int)buffer.Length, FileSignatures.AllowedKinds.ImagesGifAndPdf);
+                if (fileKind is null)
                 {
                     return FailUpload(
                         written,
@@ -933,7 +935,7 @@ public sealed class ChatService(
                             "Only images (JPG, PNG, WebP, GIF) and PDF files are allowed."));
                 }
 
-                var (extension, contentType) = kind.Value;
+                var (extension, contentType) = FileSignatures.Info(fileKind.Value);
                 var attachment = new ChatAttachment
                 {
                     ThreadId = threadId,
@@ -988,49 +990,6 @@ public sealed class ChatService(
 
             return new ChatAttachmentListResult(error, null);
         }
-    }
-
-    /// <summary>
-    /// Magic-byte gate for chat files (images + PDF; stored as-is — no
-    /// re-encoding: customer photos and screenshots, kept cheap on the
-    /// low-power target).
-    /// </summary>
-    private static (string Extension, string ContentType)? DetectChatFileKind(
-        byte[] buffer, int length)
-    {
-        if (length >= 3
-            && buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF)
-        {
-            return (".jpg", "image/jpeg");
-        }
-
-        if (length >= 8
-            && buffer[0] == 0x89 && buffer[1] == 0x50 && buffer[2] == 0x4E && buffer[3] == 0x47
-            && buffer[4] == 0x0D && buffer[5] == 0x0A && buffer[6] == 0x1A && buffer[7] == 0x0A)
-        {
-            return (".png", "image/png");
-        }
-
-        if (length >= 12
-            && buffer[0] == 0x52 && buffer[1] == 0x49 && buffer[2] == 0x46 && buffer[3] == 0x46
-            && buffer[8] == 0x57 && buffer[9] == 0x45 && buffer[10] == 0x42 && buffer[11] == 0x50)
-        {
-            return (".webp", "image/webp");
-        }
-
-        if (length >= 4
-            && buffer[0] == 0x47 && buffer[1] == 0x49 && buffer[2] == 0x46 && buffer[3] == 0x38)
-        {
-            return (".gif", "image/gif");
-        }
-
-        if (length >= 4
-            && buffer[0] == 0x25 && buffer[1] == 0x50 && buffer[2] == 0x44 && buffer[3] == 0x46)
-        {
-            return (".pdf", "application/pdf");
-        }
-
-        return null;
     }
 
     // ---- Sweeps (lazy + 24 h, D9: no busy workers) -----------------------------

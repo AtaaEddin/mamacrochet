@@ -479,9 +479,8 @@ public static class OrderEndpoints
                 id, kind ?? "", uploaded, user.Id, ct);
             if (result.Error is not null)
             {
-                return result.Error.Code is "attachment_too_many" or "file_too_big" or "file_invalid"
-                    ? Results.BadRequest(result.Error)
-                    : Results.BadRequest(result.Error);
+                // All attachment failures are client errors.
+                return Results.BadRequest(result.Error);
             }
 
             var fresh = await LoadDetailAsync(db, id, ct);
@@ -964,8 +963,6 @@ public static class OrderEndpoints
 /// </summary>
 public static class OrderFiles
 {
-    public const int MaxBytes = 10_485_760; // 10 MB
-
     private static readonly Regex IdPattern = new(
         "^[0-9a-f]{32}$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);

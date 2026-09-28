@@ -86,6 +86,8 @@ public sealed class HiringService(UserManager<AppUser> userManager, AppDbContext
                 new ApiError("too_many_files", $"You can attach up to {HiringFiles.MaxFiles} files."), null, false, false);
         }
 
+        // Validate once per file; the detected extension drives the stored name.
+        var detected = new List<(UploadFile File, string Extension)>(files.Count);
         foreach (var file in files)
         {
             if (file.Bytes.Length == 0)
@@ -93,11 +95,14 @@ public sealed class HiringService(UserManager<AppUser> userManager, AppDbContext
                 return new SubmitHiringResult(new ApiError("invalid", "Check the values and try again."), null, false, false);
             }
 
-            if (HiringFiles.DetectExtension(file.Bytes) is null)
+            var kind = FileSignatures.DetectAccepted(file.Bytes, FileSignatures.AllowedKinds.ImagesAndPdf);
+            if (kind is null)
             {
                 return new SubmitHiringResult(
                     new ApiError("unsupported_file_type", "Use a JPG, PNG or WEBP photo, or a PDF."), null, false, false);
             }
+
+            detected.Add((file, FileSignatures.Info(kind.Value).Extension));
         }
 
         var now = DateTime.UtcNow;
@@ -149,11 +154,11 @@ public sealed class HiringService(UserManager<AppUser> userManager, AppDbContext
             DeleteStored(directory, old.StoredName);
         }
 
-        for (var index = 0; index < files.Count; index++)
+        for (var index = 0; index < detected.Count; index++)
         {
-            var file = files[index];
+            var (file, extension) = detected[index];
             var id = Guid.NewGuid().ToString("N");
-            var storedName = $"{id}{HiringFiles.DetectExtension(file.Bytes)}";
+            var storedName = $"{id}{extension}";
             await File.WriteAllBytesAsync(Path.Combine(directory, storedName), file.Bytes);
             application.Files.Add(new HiringApplicationFile
             {

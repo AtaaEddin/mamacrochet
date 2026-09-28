@@ -290,8 +290,8 @@ public static class IdentityEndpoints
                 bytes = buffer.ToArray();
             }
 
-            var extension = AvatarImages.DetectExtension(bytes);
-            if (extension is null)
+            var kind = FileSignatures.DetectAccepted(bytes, FileSignatures.AllowedKinds.Images);
+            if (kind is null)
             {
                 return Results.BadRequest(new ApiError("unsupported_image", "Use a JPG, PNG or WEBP photo."));
             }
@@ -299,7 +299,7 @@ public static class IdentityEndpoints
             var directory = Path.Combine(uploads.Value.Root, "avatars");
             Directory.CreateDirectory(directory);
 
-            var fileName = $"{user.Id}-{Guid.NewGuid():N}{extension}";
+            var fileName = $"{user.Id}-{Guid.NewGuid():N}{FileSignatures.Info(kind.Value).Extension}";
             await File.WriteAllBytesAsync(Path.Combine(directory, fileName), bytes);
 
             if (user.AvatarUrl is not null)

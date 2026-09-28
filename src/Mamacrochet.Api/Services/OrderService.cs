@@ -1,8 +1,6 @@
-using System.Linq.Expressions;
 using Mamacrochet.Api.Data;
 using Mamacrochet.Api.Endpoints;
 using Mamacrochet.Api.Models;
-using Mamacrochet.Api.QuerySpec;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -116,7 +114,11 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
         }
 
         // D16 caps (guests only — signed-in callers are confirmed): 3 open
-        // unowned guest orders per device AND per phone.
+        // unowned guest orders per device AND per phone. `Paid` counts on
+        // purpose: a paid-but-unregistered order means staff is chasing the
+        // customer (by the phone number on file) to confirm — it is NOT
+        // auto-cancelled by the sweep (cancelling a paid order would be
+        // wrong), so it stays against the cap until it is linked/closed.
         if (actor is null)
         {
             IQueryable<Order> openUnlinked = db.Orders.AsQueryable().Where(o =>
@@ -160,21 +162,21 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
         if (actor is not null)
         {
             order.CustomerId = actor.Id;
-        var byUser = await db.GuestAccountLinks.AnyAsync(g => g.UserId == actor.Id);
-        if (!byUser)
-        {
-            db.GuestAccountLinks.Add(new GuestAccountLink(order.GuestId!, actor.Id, now));
-        }
+            var byUser = await db.GuestAccountLinks.AnyAsync(g => g.UserId == actor.Id);
+            if (!byUser)
+            {
+                db.GuestAccountLinks.Add(new GuestAccountLink(order.GuestId!, actor.Id, now));
+            }
 
-        // D14 backfill: attribute the device's earlier unowned orders.
-        var unowned = await db.Orders
-            .Where(o => o.GuestId == order.GuestId && o.CustomerId == null)
-            .ToListAsync(ct);
-        foreach (var old in unowned)
-        {
-            old.CustomerId = actor.Id;
-            old.UpdatedAt = now;
-        }
+            // D14 backfill: attribute the device's earlier unowned orders.
+            var unowned = await db.Orders
+                .Where(o => o.GuestId == order.GuestId && o.CustomerId == null)
+                .ToListAsync(ct);
+            foreach (var old in unowned)
+            {
+                old.CustomerId = actor.Id;
+                old.UpdatedAt = now;
+            }
         }
 
         order.Timeline.Add(new OrderEvent
@@ -788,6 +790,7 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
         return new TransitionResult(null, order);
     }
 
+    /// <summary>Sample images / WIP photos (images only).</summary>
     private async Task<ApiError?> SaveAttachmentsAsync(
         Order order,
         string kind,
@@ -800,9 +803,6 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
             return new ApiError("attachment_too_many", $"At most {MaxSampleFiles} files.");
         }
 
-        var directory = Path.Combine(uploads.Value.Root, "orders", order.Id);
-        Directory.CreateDirectory(directory);
-
         foreach (var file in files)
         {
             if (file.Bytes.Length > MaxFileBytes)
@@ -810,26 +810,13 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
                 return new ApiError("file_too_big", "Each file must be under 10 MB.");
             }
 
-            var extension = AvatarImages.DetectExtension(file.Bytes);
-            if (extension is null)
+            var fileKind = FileSignatures.DetectAccepted(file.Bytes, FileSignatures.AllowedKinds.Images);
+            if (fileKind is null)
             {
                 return new ApiError("file_invalid", "Files must be jpg, png or webp images.");
             }
 
-            var attachment = new OrderAttachment
-            {
-                OrderId = order.Id,
-                Kind = kind,
-                OriginalName = TruncateName(file.OriginalName),
-                ContentType = AvatarImages.ContentType(extension),
-                Bytes = file.Bytes.Length,
-                UploadedById = actorId,
-                CreatedAt = DateTime.UtcNow,
-            };
-            attachment.StoredName = $"{attachment.Id}{extension}";
-            await File.WriteAllBytesAsync(
-                Path.Combine(directory, attachment.StoredName), file.Bytes, ct);
-            order.Attachments.Add(attachment);
+            await WriteOrderFileAsync(order, kind, file, fileKind.Value, actorId, ct);
         }
 
         return null;
@@ -853,31 +840,48 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
             return (null, new ApiError("file_too_big", "The file must be under 10 MB."));
         }
 
-        var extension = HiringFiles.DetectExtension(file.Bytes);
-        if (extension is null)
+        var fileKind = FileSignatures.DetectAccepted(file.Bytes, FileSignatures.AllowedKinds.ImagesAndPdf);
+        if (fileKind is null)
         {
             return (null, new ApiError("file_invalid", "The file must be a PDF or an image (jpg, png, webp)."));
         }
 
-        var directory = Path.Combine(uploads.Value.Root, "orders", order.Id);
-        Directory.CreateDirectory(directory);
+        return (await WriteOrderFileAsync(order, kind, file, fileKind.Value, actorId, ct), null);
+    }
 
+    /// <summary>
+    /// Shared writer for every order file: bytes go to
+    /// {root}/orders/{OrderId}/{rowId}{ext} — the extension comes from the
+    /// magic-byte detection, never from the client — and the attachment row
+    /// is registered on the order aggregate.
+    /// </summary>
+    private async Task<OrderAttachment> WriteOrderFileAsync(
+        Order order,
+        string kind,
+        UploadFile file,
+        FileSignatures.FileKind fileKind,
+        string? actorId,
+        CancellationToken ct)
+    {
+        var (extension, contentType) = FileSignatures.Info(fileKind);
         var attachment = new OrderAttachment
         {
             OrderId = order.Id,
             Kind = kind,
             OriginalName = TruncateName(file.OriginalName),
-            ContentType = HiringFiles.ContentType(extension),
+            ContentType = contentType,
             Bytes = file.Bytes.Length,
             UploadedById = actorId,
             CreatedAt = DateTime.UtcNow,
         };
         attachment.StoredName = $"{attachment.Id}{extension}";
+
+        var directory = Path.Combine(uploads.Value.Root, "orders", order.Id);
+        Directory.CreateDirectory(directory);
         await File.WriteAllBytesAsync(
             Path.Combine(directory, attachment.StoredName), file.Bytes, ct);
         order.Attachments.Add(attachment);
-
-        return (attachment, null);
+        return attachment;
     }
 
     // ---- Auto-cancel (D16) ------------------------------------------------
