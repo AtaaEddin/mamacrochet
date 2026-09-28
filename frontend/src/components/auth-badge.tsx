@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { HeartHandshake, Scissors, Users } from "lucide-react";
+import { ClipboardList, Gauge, HeartHandshake, Package, Scissors, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { api, avatarSrc } from "@/lib/api/client";
 import type { User } from "@/lib/auth";
@@ -70,7 +70,24 @@ export function AuthBadge() {
 
   return (
     <div className="flex items-center gap-2">
+      <Link
+        href="/orders"
+        aria-label={t("myOrders")}
+        title={t("myOrders")}
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <Package className="size-5" aria-hidden="true" />
+      </Link>
       {isStaff ? (
+        <>
+        <Link
+          href="/staff/orders"
+          aria-label={t("staffOrders")}
+          title={t("staffOrders")}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <ClipboardList className="size-5" aria-hidden="true" />
+        </Link>
         <Link
           href="/staff/products"
           aria-label={t("staffProducts")}
@@ -79,9 +96,18 @@ export function AuthBadge() {
         >
           <Scissors className="size-5" aria-hidden="true" />
         </Link>
+        </>
       ) : null}
       {isAdmin ? (
         <>
+          <Link
+            href="/admin/orders"
+            aria-label={t("adminOrders")}
+            title={t("adminOrders")}
+            className="hidden size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
+          >
+            <Gauge className="size-5" aria-hidden="true" />
+          </Link>
           <Link
             href="/admin/users"
             aria-label={t("teamDesk")}

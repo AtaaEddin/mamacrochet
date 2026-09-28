@@ -3,6 +3,7 @@ using System;
 using Mamacrochet.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Mamacrochet.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260928100503_AddOrders")]
+    partial class AddOrders
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -227,193 +230,6 @@ namespace Mamacrochet.Api.Migrations
                     b.ToTable("CategoryTranslations");
                 });
 
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatAttachment", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<long>("Bytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MessageId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("OriginalName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("StoredName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<string>("ThreadId")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MessageId");
-
-                    b.HasIndex("ThreadId", "MessageId");
-
-                    b.ToTable("ChatAttachments");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatMessage", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("At")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ProductId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("ProductName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("SenderGuestId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("SenderId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("SenderName")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
-
-                    b.Property<string>("SenderRole")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("ThreadId")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SenderId");
-
-                    b.HasIndex("ThreadId", "At");
-
-                    b.ToTable("ChatMessages");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatThread", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("AssignedEmployeeId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ClosedReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CustomerId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("GuestId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<bool>("IsClosed")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<DateTime?>("LastMessageAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OrderId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Subject")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedEmployeeId");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("GuestId", "Kind")
-                        .IsUnique()
-                        .HasFilter("\"Kind\" = 'visitor' AND NOT \"IsClosed\"");
-
-                    b.HasIndex("Kind", "IsClosed", "LastMessageAt");
-
-                    b.ToTable("ChatThreads");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatThreadRead", b =>
-                {
-                    b.Property<string>("ThreadId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("LastReadAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("ThreadId", "UserId");
-
-                    b.ToTable("ChatThreadReads");
-                });
-
             modelBuilder.Entity("Mamacrochet.Api.Data.GuestAccountLink", b =>
                 {
                     b.Property<string>("GuestId")
@@ -428,7 +244,8 @@ namespace Mamacrochet.Api.Migrations
 
                     b.HasKey("GuestId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.ToTable("GuestAccountLinks");
                 });
@@ -715,7 +532,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(40)");
 
                     b.Property<string>("UploadedById")
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.HasKey("Id");
 
@@ -733,7 +551,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<string>("ActorId")
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ActorName")
                         .IsRequired()
@@ -1045,66 +864,6 @@ namespace Mamacrochet.Api.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatAttachment", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.ChatMessage", "Message")
-                        .WithMany("Attachments")
-                        .HasForeignKey("MessageId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("Mamacrochet.Api.Data.ChatThread", "Thread")
-                        .WithMany()
-                        .HasForeignKey("ThreadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Message");
-
-                    b.Navigation("Thread");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatMessage", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.AppUser", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Mamacrochet.Api.Data.ChatThread", "Thread")
-                        .WithMany("Messages")
-                        .HasForeignKey("ThreadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Sender");
-
-                    b.Navigation("Thread");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatThread", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.AppUser", "AssignedEmployee")
-                        .WithMany()
-                        .HasForeignKey("AssignedEmployeeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Mamacrochet.Api.Data.AppUser", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Mamacrochet.Api.Data.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("AssignedEmployee");
-
-                    b.Navigation("Customer");
-
-                    b.Navigation("Order");
-                });
-
             modelBuilder.Entity("Mamacrochet.Api.Data.GuestAccountLink", b =>
                 {
                     b.HasOne("Mamacrochet.Api.Data.AppUser", "User")
@@ -1297,16 +1056,6 @@ namespace Mamacrochet.Api.Migrations
             modelBuilder.Entity("Mamacrochet.Api.Data.Category", b =>
                 {
                     b.Navigation("Translations");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatMessage", b =>
-                {
-                    b.Navigation("Attachments");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ChatThread", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("Mamacrochet.Api.Data.HiringApplication", b =>

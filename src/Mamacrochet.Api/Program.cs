@@ -58,7 +58,7 @@ builder.Services.AddOpenApi(options =>
     // their 404 is an empty body, handled by the transformer below.)
     options.AddOperationTransformer(async (operation, context, ct) =>
     {
-        if (operation.OperationId is "Health" or "files.getAvatar" or "files.getProductImage")
+        if (operation.OperationId is "Health" or "files.getAvatar" or "files.getProductImage" or "files.getOrderFile" or "files.getChatFile")
         {
             return;
         }
@@ -89,7 +89,7 @@ builder.Services.AddOpenApi(options =>
     options.AddOperationTransformer(async (operation, context, ct) =>
     {
         if (operation.OperationId is not
-            ("files.getAvatar" or "files.getProductImage" or "files.getHiringFile"))
+            ("files.getAvatar" or "files.getProductImage" or "files.getHiringFile" or "files.getOrderFile" or "files.getChatFile"))
         {
             return;
         }
@@ -216,11 +216,21 @@ builder.Services
     .AddScoped<UserAdministrationService>()
     .AddScoped<GuestLinkService>()
     .AddScoped<ProductAdministrationService>()
-    .AddScoped<HiringService>();
+    .AddScoped<HiringService>()
+    .AddScoped<OrderService>()
+    .AddScoped<ChatService>()
+    .AddSingleton<ChatTokenService>();
+
+builder.Services.Configure<ChatTokenOptions>(builder.Configuration.GetSection("Chat"));
+builder.Services.AddHostedService<OrderSweepService>();
+builder.Services.AddHostedService<ChatSweepService>();
 
 builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection(UploadsOptions.SectionName));
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+
+// Plan 06: chat realtime (D7) — the /hubs/chat SignalR hub.
+builder.Services.AddSignalR();
 
 // Rate limits (D16 step 1 — guest caps land in plans 05/06): a tight budget
 // on auth/admin flows, a generous default. Partitioned per client IP.
@@ -240,11 +250,13 @@ builder.Services.AddRateLimiter(options =>
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var path = context.Request.Path;
-        var inAuthArea = path.StartsWithSegments("/identity")
-            || path.StartsWithSegments("/admin")
-            // Public hiring submit (plan 09) is a guest-mutable action — it
-            // gets the strict guest budget, not the default one (D16).
+        // Public guest submits (hiring, order creation — plan 09/05) are
+        // guest-mutable actions: the strict guest budget, not the default.
+        var isGuestSubmit = (path == "/orders" && context.Request.Method == HttpMethods.Post)
+            || (path == "/chat/visitor" && context.Request.Method == HttpMethods.Post)
             || path.StartsWithSegments("/hiring");
+        var inAuthArea = path.StartsWithSegments("/identity")
+            || path.StartsWithSegments("/admin");
         // The strict budget is for auth/admin ACTIONS (login, register,
         // mutations). Reading one's own profile is part of every page load
         // (header badge + account pages) and belongs to the default budget,
@@ -252,9 +264,13 @@ builder.Services.AddRateLimiter(options =>
         var isOwnProfileRead = context.Request.Method == HttpMethods.Get
             && path == "/identity/me";
         var isAuthAction = inAuthArea && !isOwnProfileRead;
-        var permitLimit = isAuthAction ? 30 : 300;
+        (var bucket, var permitLimit) = isGuestSubmit
+            ? ("guest", 5)
+            : isAuthAction
+                ? ("auth", 30)
+                : ("default", 300);
         return RateLimitPartition.GetFixedWindowLimiter(
-            $"{ip}:{isAuthAction}",
+            $"{ip}:{bucket}",
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permitLimit,
@@ -355,6 +371,11 @@ AdminUserEndpoints.MapAdminUserEndpoints(app);
 CatalogEndpoints.MapCatalogEndpoints(app);
 StaffProductEndpoints.MapStaffProductEndpoints(app);
 HiringEndpoints.MapHiringEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
+OrderEndpoints.MapOrderEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
+ChatEndpoints.MapChatEndpoints(app);
+// Plan 06: chat realtime (D7) — cookie auth for users, thread tokens (D14)
+// via the negotiate query string for visitor threads.
+app.MapHub<Mamacrochet.Api.Hubs.ChatHub>("/hubs/chat");
 FileEndpoints.MapFileEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 
 app.MapGet("/health", (AppDbContext db) =>
@@ -392,8 +413,10 @@ app.Run();
 /// <summary>
 /// CSRF check for cookie-auth state-changing API requests (plan 03). The
 /// frontend fetches a token from GET /antiforgery and sends it in the
-/// X-CSRF-TOKEN header; GETs and everything outside /identity, /admin and
-/// /staff are untouched (SignalR paths join the exclusion list in plan 06).
+/// X-CSRF-TOKEN header; GETs and everything outside /identity, /admin,
+/// /staff and /orders are untouched. The public POST /orders guest submit
+/// and /hiring are exempt (rate limit + honeypot + caps). SignalR paths
+/// join the exclusion list in plan 06.
 /// </summary>
 public static class AntiforgeryMiddleware
 {
@@ -402,9 +425,24 @@ public static class AntiforgeryMiddleware
         return app.Use(async (context, next) =>
         {
             var request = context.Request;
-            if ((request.Path.StartsWithSegments("/identity")
+            // /orders joins the CSRF area (customer cancel/rating), EXCEPT
+            // the public POST /orders guest submit: rate-limited + honeypot
+            // + D16 caps instead (same precedent as /hiring).
+            var inCsrfArea = request.Path.StartsWithSegments("/identity")
                 || request.Path.StartsWithSegments("/admin")
-                || request.Path.StartsWithSegments("/staff"))
+                || request.Path.StartsWithSegments("/staff")
+                || request.Path.StartsWithSegments("/orders")
+                || request.Path.StartsWithSegments("/chat");
+            // Exemptions: the public guest submit (rate limit + honeypot +
+            // per-device caps instead) and every X-Chat-Token request (the
+            // endpoint requires a valid, unforgeable-by-CSRF-attackers
+            // thread token — the guest has no cookie identity to ride).
+            var isGuestOrderSubmit = request.Path == "/orders"
+                && HttpMethods.IsPost(request.Method);
+            var isGuestChatBootstrap = request.Path == "/chat/visitor"
+                && HttpMethods.IsPost(request.Method);
+            var hasChatToken = request.Headers.ContainsKey("X-Chat-Token");
+            if (inCsrfArea && !isGuestOrderSubmit && !isGuestChatBootstrap && !hasChatToken
                 && (HttpMethods.IsPost(request.Method)
                     || HttpMethods.IsPut(request.Method)
                     || HttpMethods.IsDelete(request.Method)

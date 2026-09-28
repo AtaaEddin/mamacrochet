@@ -21,6 +21,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<HiringApplication> HiringApplications => Set<HiringApplication>();
     public DbSet<HiringApplicationFile> HiringApplicationFiles => Set<HiringApplicationFile>();
     public DbSet<HiringApplicationEvent> HiringApplicationEvents => Set<HiringApplicationEvent>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderEvent> OrderEvents => Set<OrderEvent>();
+    public DbSet<OrderAttachment> OrderAttachments => Set<OrderAttachment>();
+    public DbSet<ChatThread> ChatThreads => Set<ChatThread>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatAttachment> ChatAttachments => Set<ChatAttachment>();
+    public DbSet<ChatThreadRead> ChatThreadReads => Set<ChatThreadRead>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -127,8 +134,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         builder.Entity<GuestAccountLink>(link =>
         {
             link.HasKey(g => g.GuestId);
-            // One account per guest device — first link wins (D14).
-            link.HasIndex(g => g.UserId).IsUnique();
+            // One account per guest device (GuestId key) — first link wins
+            // (D14). An account may link many devices (phone + desktop).
+            link.HasIndex(g => g.UserId);
             link.HasOne(g => g.User)
                 .WithMany()
                 .HasForeignKey(g => g.UserId)
@@ -194,6 +202,168 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                 .HasForeignKey(e => e.ApplicationId)
                 .OnDelete(DeleteBehavior.Cascade);
             evt.HasIndex(e => new { e.ApplicationId, e.At });
+        });
+
+        // Plan 05: orders & status board.
+        builder.Entity<Order>(order =>
+        {
+            order.HasKey(o => o.Id);
+            order.Property(o => o.Id).HasMaxLength(32);
+            order.Property(o => o.Kind).HasMaxLength(16).IsRequired();
+            order.Property(o => o.Status).HasMaxLength(24).IsRequired();
+            order.Property(o => o.GuestId).HasMaxLength(36);
+            order.Property(o => o.ContactName).HasMaxLength(80).IsRequired();
+            order.Property(o => o.ContactPhone).HasMaxLength(20).IsRequired();
+            order.Property(o => o.ContactEmail).HasMaxLength(320);
+            order.Property(o => o.Spec).HasMaxLength(4000);
+            order.Property(o => o.EstimatedPrice).HasPrecision(10, 2);
+            order.Property(o => o.FinalPrice).HasPrecision(10, 2);
+            order.Property(o => o.Currency).HasMaxLength(3).IsRequired();
+            order.Property(o => o.RatingComment).HasMaxLength(500);
+            order.Property(o => o.CreatedAt).IsRequired();
+            order.Property(o => o.UpdatedAt).IsRequired();
+            order.HasIndex(o => o.Status);
+            order.HasIndex(o => o.CreatedAt);
+            order.HasOne(o => o.Customer)
+                .WithMany()
+                .HasForeignKey(o => o.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+            order.HasOne(o => o.Product)
+                .WithMany()
+                .HasForeignKey(o => o.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
+            order.HasOne(o => o.AssignedEmployee)
+                .WithMany()
+                .HasForeignKey(o => o.AssignedEmployeeId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<OrderEvent>(evt =>
+        {
+            evt.HasKey(e => e.Id);
+            evt.Property(e => e.Id).HasMaxLength(32);
+            evt.Property(e => e.Kind).HasMaxLength(16).IsRequired();
+            evt.Property(e => e.Status).HasMaxLength(24);
+            evt.Property(e => e.Note).HasMaxLength(1000);
+            // User ids are 36-char GUIDs (Identity) — no length cap.
+            evt.Property(e => e.ActorName).HasMaxLength(80).IsRequired();
+            evt.Property(e => e.ActorRole).HasMaxLength(16).IsRequired();
+            evt.Property(e => e.At).IsRequired();
+            evt.HasOne(e => e.Order)
+                .WithMany(o => o.Timeline)
+                .HasForeignKey(e => e.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            evt.HasIndex(e => new { e.OrderId, e.At });
+        });
+
+        builder.Entity<OrderAttachment>(file =>
+        {
+            file.HasKey(f => f.Id);
+            file.Property(f => f.Id).HasMaxLength(32);
+            file.Property(f => f.Kind).HasMaxLength(16).IsRequired();
+            file.Property(f => f.StoredName).HasMaxLength(40).IsRequired();
+            file.Property(f => f.OriginalName).HasMaxLength(200).IsRequired();
+            file.Property(f => f.ContentType).HasMaxLength(64).IsRequired();
+            file.Property(f => f.CreatedAt).IsRequired();
+            file.HasOne(f => f.UploadedBy)
+                .WithMany()
+                .HasForeignKey(f => f.UploadedById)
+                .OnDelete(DeleteBehavior.SetNull);
+            file.HasOne(f => f.Order)
+                .WithMany(o => o.Attachments)
+                .HasForeignKey(f => f.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Plan 06: chat (visitor threads, order threads, messages, files,
+        // read markers).
+        builder.Entity<ChatThread>(thread =>
+        {
+            thread.HasKey(t => t.Id);
+            thread.Property(t => t.Id).HasMaxLength(32);
+            thread.Property(t => t.Kind).HasMaxLength(16).IsRequired();
+            thread.Property(t => t.OrderId).HasMaxLength(32);
+            thread.Property(t => t.CustomerId).HasMaxLength(32);
+            thread.Property(t => t.GuestId).HasMaxLength(36);
+            thread.Property(t => t.AssignedEmployeeId).HasMaxLength(32);
+            thread.Property(t => t.Subject).HasMaxLength(200);
+            thread.Property(t => t.ClosedReason).HasMaxLength(500);
+            thread.Property(t => t.CreatedAt).IsRequired();
+            thread.Property(t => t.UpdatedAt).IsRequired();
+            thread.HasIndex(t => new { t.Kind, t.IsClosed, t.LastMessageAt });
+            thread.HasIndex(t => t.CustomerId);
+            thread.HasIndex(t => t.AssignedEmployeeId);
+            thread.HasIndex(t => t.OrderId);
+            // D16: one ACTIVE visitor thread per device (closed history is
+            // allowed). Filtered unique — backstop for the bootstrap race.
+            thread.HasIndex(t => new { t.GuestId, t.Kind })
+                .HasFilter("\"Kind\" = 'visitor' AND NOT \"IsClosed\"")
+                .IsUnique();
+            thread.HasOne(t => t.Order)
+                .WithMany()
+                .HasForeignKey(t => t.OrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+            thread.HasOne(t => t.Customer)
+                .WithMany()
+                .HasForeignKey(t => t.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+            thread.HasOne(t => t.AssignedEmployee)
+                .WithMany()
+                .HasForeignKey(t => t.AssignedEmployeeId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ChatMessage>(msg =>
+        {
+            msg.HasKey(m => m.Id);
+            msg.Property(m => m.Id).HasMaxLength(32);
+            msg.Property(m => m.ThreadId).HasMaxLength(32).IsRequired();
+            msg.Property(m => m.SenderId).HasMaxLength(32);
+            msg.Property(m => m.SenderGuestId).HasMaxLength(36);
+            msg.Property(m => m.SenderName).HasMaxLength(80).IsRequired();
+            msg.Property(m => m.SenderRole).HasMaxLength(16).IsRequired();
+            msg.Property(m => m.Body).HasMaxLength(4000).IsRequired();
+            msg.Property(m => m.ProductId).HasMaxLength(32);
+            msg.Property(m => m.ProductName).HasMaxLength(200);
+            msg.Property(m => m.At).IsRequired();
+            msg.HasOne(m => m.Thread)
+                .WithMany(t => t.Messages)
+                .HasForeignKey(m => m.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            msg.HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.SetNull);
+            msg.HasIndex(m => new { m.ThreadId, m.At });
+        });
+
+        builder.Entity<ChatAttachment>(file =>
+        {
+            file.HasKey(f => f.Id);
+            file.Property(f => f.Id).HasMaxLength(32);
+            file.Property(f => f.ThreadId).HasMaxLength(32).IsRequired();
+            file.Property(f => f.MessageId).HasMaxLength(32);
+            file.Property(f => f.StoredName).HasMaxLength(40).IsRequired();
+            file.Property(f => f.OriginalName).HasMaxLength(200).IsRequired();
+            file.Property(f => f.ContentType).HasMaxLength(64).IsRequired();
+            file.Property(f => f.CreatedAt).IsRequired();
+            file.HasOne(f => f.Thread)
+                .WithMany()
+                .HasForeignKey(f => f.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            file.HasOne(f => f.Message)
+                .WithMany(m => m.Attachments)
+                .HasForeignKey(f => f.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            file.HasIndex(f => new { f.ThreadId, f.MessageId });
+        });
+
+        builder.Entity<ChatThreadRead>(read =>
+        {
+            read.HasKey(r => new { r.ThreadId, r.UserId });
+            read.Property(r => r.ThreadId).HasMaxLength(32).IsRequired();
+            read.Property(r => r.UserId).HasMaxLength(32).IsRequired();
+            read.Property(r => r.LastReadAt).IsRequired();
         });
     }
 }

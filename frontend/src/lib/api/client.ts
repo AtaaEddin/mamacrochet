@@ -58,6 +58,40 @@ async function fetchWithTimeout(
 
 const CSRF_FETCH_TIMEOUT_MS = 10_000;
 
+/**
+ * POST a FormData body with the full cookie + CSRF wiring (multipart
+ * uploads). The generated client can't express FormData, so these calls
+ * build a Request by hand; the response is parsed to `T`, or the ApiError
+ * envelope is returned on failure.
+ */
+export async function postForm<T = unknown>(
+  url: string,
+  form: FormData,
+): Promise<{ ok: true; data: T } | { ok: false; error: ApiError }> {
+  const token = await ensureCsrfToken();
+  const headers = new Headers();
+  if (token) headers.set("X-CSRF-TOKEN", token);
+  const request = new Request(url, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+    headers,
+  });
+  const response = await withCsrfRetry(request, false);
+  if (!response.ok) {
+    let error: ApiError = { code: "server_error", message: response.statusText };
+    try {
+      const parsed = (await response.json()) as ApiError;
+      if (typeof parsed.code === "string") error = parsed;
+    } catch {
+      // Keep the fallback envelope.
+    }
+    return { ok: false, error };
+  }
+  const data = (await response.json()) as T;
+  return { ok: true, data };
+}
+
 function ensureCsrfToken(): Promise<string | null> {
   csrfToken ??= fetchWithTimeout(
     `${API_BASE_URL}/antiforgery`,
@@ -84,13 +118,24 @@ function requestPathname(url: string): string {
 function needsCsrf(url: string, method: string): boolean {
   if (!/^(POST|PUT|PATCH|DELETE)$/.test(method)) return false;
   const p = requestPathname(url);
+  // /orders joins the CSRF area (customer cancel/rating) except the public
+  // POST /orders guest submit — it is rate-limited + honeypot + D16-capped,
+  // not CSRF-protected (same precedent as /hiring on the API side).
+  // /chat joins the CSRF area (plan 06) for cookie-auth thread calls; the
+  // public POST /chat/visitor guest bootstrap is exempt (rate limit +
+  // honeypot, same precedent as POST /orders) — guest token calls carry
+  // X-Chat-Token instead and are exempt server-side.
   return (
     p === "/identity" ||
     p.startsWith("/identity/") ||
     p === "/admin" ||
     p.startsWith("/admin/") ||
     p === "/staff" ||
-    p.startsWith("/staff/")
+    p.startsWith("/staff/") ||
+    (p === "/orders" && method !== "POST") ||
+    p.startsWith("/orders/") ||
+    (p === "/chat" && method !== "POST") ||
+    (p.startsWith("/chat/") && !(p === "/chat/visitor" && method === "POST"))
   );
 }
 
