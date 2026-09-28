@@ -1,6 +1,6 @@
 # 04 — Products & Catalog
 
-status: in-progress
+status: done
 parent: main.md
 
 ## Goal

@@ -84,8 +84,8 @@ hardware.
 |----|-------------------------------------|--------------------------------------------------|-------------|
 | 01 | 01-agent-and-skills-setup.md        | Agent skills tree + prompts for Pi               | done        |
 | 02 | 02-repo-scaffold.md                 | Aspire 13 + .NET 10 + Next.js 16 skeleton        | done        |
-| 03 | 03-identity-and-roles.md            | Accounts, auth, RBAC, user management            | proposed    |
-| 04 | 04-products-catalog.md              | Products, categories, images, stock, public shop | proposed    |
+| 03 | 03-identity-and-roles.md            | Accounts, auth, RBAC, user management            | done        |
+| 04 | 04-products-catalog.md              | Products, categories, images, stock, public shop | done        |
 | 05 | 05-orders-and-status.md             | Order model, lifecycle, status board, assignment | proposed    |
 | 06 | 06-chat.md                          | Realtime chat per order + attachments            | proposed    |
 | 07 | 07-payments-receipts-delivery.md    | Receipt-gated payment, delivery, close rules     | proposed    |
