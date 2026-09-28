@@ -87,7 +87,7 @@ hardware.
 | 03 | 03-identity-and-roles.md            | Accounts, auth, RBAC, user management            | done        |
 | 04 | 04-products-catalog.md              | Products, categories, images, stock, public shop | done        |
 | 05 | 05-orders-and-status.md             | Order model, lifecycle, status board, assignment | done        |
-| 06 | 06-chat.md                          | Realtime chat per order + attachments            | proposed    |
+| 06 | 06-chat.md                          | Realtime chat per order + attachments            | done        |
 | 07 | 07-payments-receipts-delivery.md    | Receipt-gated payment, delivery, close rules     | proposed    |
 | 08 | 08-localization-and-themes.md       | en/ar/tr i18n (RTL) + light/dark themes          | in-progress (foundation done 2026-09-26) |
 | 09 | 09-hiring.md                        | Public hiring page + admin review                | done        |
