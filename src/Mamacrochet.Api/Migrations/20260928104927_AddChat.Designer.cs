@@ -3,6 +3,7 @@ using System;
 using Mamacrochet.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Mamacrochet.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260928104927_AddChat")]
+    partial class AddChat
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -302,8 +305,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(36)");
 
                     b.Property<string>("SenderId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("SenderName")
                         .IsRequired()
@@ -336,8 +339,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<string>("AssignedEmployeeId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime?>("ClosedAt")
                         .HasColumnType("timestamp with time zone");
@@ -350,8 +353,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CustomerId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("GuestId")
                         .HasMaxLength(36)
@@ -403,8 +406,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<string>("UserId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime>("LastReadAt")
                         .HasColumnType("timestamp with time zone");
@@ -428,7 +431,8 @@ namespace Mamacrochet.Api.Migrations
 
                     b.HasKey("GuestId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.ToTable("GuestAccountLinks");
                 });
@@ -715,7 +719,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(40)");
 
                     b.Property<string>("UploadedById")
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.HasKey("Id");
 
@@ -733,7 +738,8 @@ namespace Mamacrochet.Api.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<string>("ActorId")
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ActorName")
                         .IsRequired()

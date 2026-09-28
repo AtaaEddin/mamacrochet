@@ -380,7 +380,8 @@
     "vNoSubject": "Misafir",
     "vErrorTitle": "Sohbetler yüklenemedi.",
     "vErrorBody": "Bağlantıyı kontrol edip tekrar dene.",
-    "working": "Bir an…"
+    "working": "Bir an…",
+    "vActionFailed": "İşlem başarısız oldu — tekrar dene."
   },
   "ApiError": {
     "generic": "Bir şeyler ters gitti. Bir an sonra tekrar dene.",

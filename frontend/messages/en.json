@@ -380,7 +380,8 @@
     "vNoSubject": "Visitor",
     "vErrorTitle": "Couldn't load the conversations.",
     "vErrorBody": "Check the connection and try again.",
-    "working": "One moment…"
+    "working": "One moment…",
+    "vActionFailed": "That didn't work — please try again."
   },
   "ApiError": {
     "generic": "Something went wrong. Please try again in a moment.",

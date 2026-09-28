@@ -283,9 +283,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             thread.Property(t => t.Id).HasMaxLength(32);
             thread.Property(t => t.Kind).HasMaxLength(16).IsRequired();
             thread.Property(t => t.OrderId).HasMaxLength(32);
-            thread.Property(t => t.CustomerId).HasMaxLength(32);
+            // User ids are GUIDs (36) — not the 32-char short ids used by
+            // the domain aggregates above.
+            thread.Property(t => t.CustomerId).HasMaxLength(36);
             thread.Property(t => t.GuestId).HasMaxLength(36);
-            thread.Property(t => t.AssignedEmployeeId).HasMaxLength(32);
+            thread.Property(t => t.AssignedEmployeeId).HasMaxLength(36);
             thread.Property(t => t.Subject).HasMaxLength(200);
             thread.Property(t => t.ClosedReason).HasMaxLength(500);
             thread.Property(t => t.CreatedAt).IsRequired();
@@ -318,7 +320,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             msg.HasKey(m => m.Id);
             msg.Property(m => m.Id).HasMaxLength(32);
             msg.Property(m => m.ThreadId).HasMaxLength(32).IsRequired();
-            msg.Property(m => m.SenderId).HasMaxLength(32);
+            msg.Property(m => m.SenderId).HasMaxLength(36);
             msg.Property(m => m.SenderGuestId).HasMaxLength(36);
             msg.Property(m => m.SenderName).HasMaxLength(80).IsRequired();
             msg.Property(m => m.SenderRole).HasMaxLength(16).IsRequired();
@@ -362,7 +364,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         {
             read.HasKey(r => new { r.ThreadId, r.UserId });
             read.Property(r => r.ThreadId).HasMaxLength(32).IsRequired();
-            read.Property(r => r.UserId).HasMaxLength(32).IsRequired();
+            read.Property(r => r.UserId).HasMaxLength(36).IsRequired();
             read.Property(r => r.LastReadAt).IsRequired();
         });
     }
