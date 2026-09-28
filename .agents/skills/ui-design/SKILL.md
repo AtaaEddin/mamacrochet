@@ -1,9 +1,9 @@
 ---
 name: ui-design
-description: mamacrochet UI design rules — brand (feminine, soft, fluffy, joyful), shadcn/ui + Tailwind v4 tokens, mobile-first, light/dark, Arabic RTL, accessibility. Use when designing or building any screen, component, or visual change in frontend/.
+description: hanadicrochet UI design rules — brand (feminine, soft, fluffy, joyful), shadcn/ui + Tailwind v4 tokens, mobile-first, light/dark, Arabic RTL, accessibility. Use when designing or building any screen, component, or visual change in frontend/.
 ---
 
-# UI Design (mamacrochet)
+# UI Design (hanadicrochet)
 
 Full brand spec: `doc/plans/20260926-1816_mvp-platform-foundation/11-visual-identity.md`.
 

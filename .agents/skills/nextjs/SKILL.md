@@ -1,9 +1,9 @@
 ---
 name: nextjs
-description: Next.js 16 App Router conventions for mamacrochet. Use when creating or changing pages, layouts, server/client components, data fetching, caching, navigation, or anything Next.js-specific in frontend/.
+description: Next.js 16 App Router conventions for hanadicrochet. Use when creating or changing pages, layouts, server/client components, data fetching, caching, navigation, or anything Next.js-specific in frontend/.
 ---
 
-# Next.js (mamacrochet)
+# Next.js (hanadicrochet)
 
 **Never guess APIs.** Version-matched docs ship inside the `next` package — read them
 before using anything you are not 100% sure about:

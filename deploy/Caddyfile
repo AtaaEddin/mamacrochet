@@ -1,9 +1,9 @@
-# mamacrochet reverse proxy (plan 10) — the ONLY public surface.
+# hanadicrochet reverse proxy (plan 10) — the ONLY public surface.
 #
 # Site address comes from the CADDY_SITE env var (set in docker-compose.yml
 # from .env):
 #   - "http://"                      → plain HTTP on every host (LAN / IP)
-#   - "mamacrochet.example.com"      → automatic HTTPS (Let's Encrypt) +
+#   - "hanadicrochet.example.com"      → automatic HTTPS (Let's Encrypt) +
 #                                      HTTP→HTTPS redirect
 #
 # Routing: /api/* → api:8085 (prefix stripped) | everything else → web:3000.

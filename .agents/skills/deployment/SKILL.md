@@ -1,9 +1,9 @@
 ---
 name: deployment
-description: mamacrochet self-hosted deployment — Docker Compose on a Raspberry Pi / old PC (4 containers, low power). Use when touching deploy/, Dockerfiles, docker-compose, Caddyfile, scripts/, or production configuration.
+description: hanadicrochet self-hosted deployment — Docker Compose on a Raspberry Pi / old PC (4 containers, low power). Use when touching deploy/, Dockerfiles, docker-compose, Caddyfile, scripts/, or production configuration.
 ---
 
-# Deployment (mamacrochet)
+# Deployment (hanadicrochet)
 
 ## Target
 

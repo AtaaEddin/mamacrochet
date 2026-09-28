@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# mamacrochet backup (plan 10): pg_dump + uploads tar → ./backups/YYYYMMDD/
+# hanadicrochet backup (plan 10): pg_dump + uploads tar → ./backups/YYYYMMDD/
 # Keeps the newest KEEP_BACKUPS (default 7, set in .env) and deletes older.
 #
 # Cron example (daily at 03:00, adjust the path):
-#   0 3 * * * /path/to/mamacrochet/deploy/backup.sh >> /var/log/mamacrochet-backup.log 2>&1
+#   0 3 * * * /path/to/hanadicrochet/deploy/backup.sh >> /var/log/hanadicrochet-backup.log 2>&1
 set -euo pipefail
 cd "$(dirname "$0")"
 

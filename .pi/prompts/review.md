@@ -1,5 +1,5 @@
 ---
-description: Review changes against mamacrochet rules (correctness, domain rules, security, plan scope)
+description: Review changes against hanadicrochet rules (correctness, domain rules, security, plan scope)
 argument-hint: "[focus]"
 ---
 Review the current changes against this repo's rules (AGENTS.md + active plan in

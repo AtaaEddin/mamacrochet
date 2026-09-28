@@ -1,14 +1,14 @@
 ---
 name: dotnet
-description: .NET 10 / ASP.NET Core conventions for the Mamacrochet.Api backend. Use when writing C# code, EF Core models/migrations, SignalR hubs, API endpoints, or upload handling in src/.
+description: .NET 10 / ASP.NET Core conventions for the Hanadicrochet.Api backend. Use when writing C# code, EF Core models/migrations, SignalR hubs, API endpoints, or upload handling in src/.
 ---
 
-# .NET 10 (mamacrochet backend)
+# .NET 10 (hanadicrochet backend)
 
 ## Layout
 
-- `src/Mamacrochet.Api` — Web API + SignalR + EF Core (Npgsql). The single deployable.
-- `src/Mamacrochet.AppHost` — Aspire 13, **dev only**; never referenced by Api.
+- `src/Hanadicrochet.Api` — Web API + SignalR + EF Core (Npgsql). The single deployable.
+- `src/Hanadicrochet.AppHost` — Aspire 13, **dev only**; never referenced by Api.
 
 ## Non-negotiables
 

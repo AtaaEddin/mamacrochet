@@ -21,7 +21,7 @@ internet ──► caddy (:80/:443) ──► web (:3000, Next standalone)
 | `backup.sh`          | pg_dump + uploads tar, keeps newest `KEEP_BACKUPS`   |
 | `restore.md`         | restore procedure (db + uploads)                     |
 
-Images: `../src/Mamacrochet.Api/Dockerfile` (multi-stage .NET 10) and
+Images: `../src/Hanadicrochet.Api/Dockerfile` (multi-stage .NET 10) and
 `../frontend/Dockerfile` (Next standalone, `node:22-alpine`). Both build from
 the **repo root** context (the `.dockerignore` at the root keeps them small).
 All base images are multi-arch — building on the Pi produces ARM64 images.
@@ -58,9 +58,9 @@ Build on the dev machine for the target platform, ship the tars:
 
 ```bash
 # dev machine (x64 → use --platform linux/arm64 for a Pi; native for an x64 box)
-docker buildx build --platform linux/arm64 -f src/Mamacrochet.Api/Dockerfile -t mamacrochet-api:latest --load .
-docker buildx build --platform linux/arm64 -f frontend/Dockerfile -t mamacrochet-web:latest --load .
-docker save mamacrochet-api:latest mamacrochet-web:latest > images.tar
+docker buildx build --platform linux/arm64 -f src/Hanadicrochet.Api/Dockerfile -t hanadicrochet-api:latest --load .
+docker buildx build --platform linux/arm64 -f frontend/Dockerfile -t hanadicrochet-web:latest --load .
+docker save hanadicrochet-api:latest hanadicrochet-web:latest > images.tar
 # copy images.tar + repo to the host, then:
 mkdir -p deploy/images && cp images.tar deploy/images/
 ./deploy/deploy.sh     # loads images/*.tar instead of building
@@ -76,7 +76,7 @@ Hub on first start. Fully offline: `docker pull` + `docker save` them too
 newest `KEEP_BACKUPS` (default 7). Daily cron:
 
 ```cron
-0 3 * * * /path/to/mamacrochet/deploy/backup.sh >> /var/log/mamacrochet-backup.log 2>&1
+0 3 * * * /path/to/hanadicrochet/deploy/backup.sh >> /var/log/hanadicrochet-backup.log 2>&1
 ```
 
 Restore: [`restore.md`](restore.md). Ship at least one backup off-machine

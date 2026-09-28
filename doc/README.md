@@ -1,6 +1,6 @@
 # doc/
 
-Documentation home for mamacrochet.
+Documentation home for hanadicrochet.
 
 ## plans/
 

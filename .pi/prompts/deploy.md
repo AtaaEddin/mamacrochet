@@ -1,5 +1,5 @@
 ---
-description: Walk through the mamacrochet production deployment checklist
+description: Walk through the hanadicrochet production deployment checklist
 argument-hint: "[target: pi|pc]"
 ---
 Run the deployment checklist for ${1:-pi} (see the deployment skill and plan 10).

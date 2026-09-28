@@ -1,4 +1,4 @@
-# AGENTS.md — mamacrochet
+# AGENTS.md — hanadicrochet
 
 Read this first. Deep task-specific knowledge lives in `.agents/skills/` (loaded on
 demand) and in the active plan under `doc/plans/`. Keep this file small.
@@ -14,7 +14,7 @@ Brand feel: soft, feminine, cozy, joyful (plan 11).
 ## Stack (verified 2026-09-26 — re-verify online before upgrading anything)
 
 - Backend: .NET 10 (LTS, to Nov 2028) · ASP.NET Core Web API · EF Core (Npgsql) · SignalR · OpenAPI (dev spec → generated TS client)
-- Dev orchestration: Aspire 13.x (dev only, never shipped) — runs the WHOLE dev stack (Postgres + API :8085 + Next dev :3000); dev = `dotnet run --project src/Mamacrochet.AppHost`
+- Dev orchestration: Aspire 13.x (dev only, never shipped) — runs the WHOLE dev stack (Postgres + API :8085 + Next dev :3000); dev = `dotnet run --project src/Hanadicrochet.AppHost`
 - Frontend: Next.js 16.x stable (App Router) · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui · pnpm
 - Data: PostgreSQL · files on local disk (volume) · email: **not in release 1** (future: Google SMTP, plan D13)
 - Deploy: Docker Compose on Raspberry Pi / old PC (low-power, single machine)
@@ -22,11 +22,11 @@ Brand feel: soft, feminine, cozy, joyful (plan 11).
 ## Repo layout (planned until scaffolded)
 
 ```
-Mamacrochet.slnx           src/Mamacrochet.AppHost   (Aspire 13, dev only)
-src/Mamacrochet.Api        (API + EF Core; SignalR w/ plan 06)   frontend/  (Next.js 16, src/)
+Hanadicrochet.slnx           src/Hanadicrochet.AppHost   (Aspire 13, dev only)
+src/Hanadicrochet.Api        (API + EF Core; SignalR w/ plan 06)   frontend/  (Next.js 16, src/)
 .agents/skills/            (agent skills)             .pi/prompts/  (prompt templates)
 doc/plans/                 (plans, one folder each)   doc/references/ (saved material)
-src/Mamacrochet.ServiceDefaults (OTel/health/resilience defaults)
+src/Hanadicrochet.ServiceDefaults (OTel/health/resilience defaults)
 frontend/scripts/gen-api.mjs (OpenAPI spec -> TS types)  deploy/  (plan 10: compose, Caddy)
 ```
 

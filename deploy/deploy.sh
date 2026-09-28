@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot deploy for the mamacrochet host (plan 10) — run from anywhere:
+# One-shot deploy for the hanadicrochet host (plan 10) — run from anywhere:
 #   ./deploy.sh
 #
 # Steps: .env check → load prebuilt images (images/*.tar, air-gapped path)

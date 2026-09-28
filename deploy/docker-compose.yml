@@ -1,4 +1,4 @@
-# mamacrochet production stack — exactly 4 containers (plan 10).
+# hanadicrochet production stack — exactly 4 containers (plan 10).
 #
 #   cd deploy && docker compose up -d     (or: ./deploy.sh)
 #
@@ -6,7 +6,7 @@
 # .env.example). .env is gitignored — never commit it. Data lives in
 # ./data/ (postgres, uploads, caddy TLS) and backups in ./backups/.
 
-name: mamacrochet
+name: hanadicrochet
 
 services:
   postgres:
@@ -30,11 +30,11 @@ services:
   api:
     build:
       context: ..
-      dockerfile: src/Mamacrochet.Api/Dockerfile
-    image: mamacrochet-api:latest
+      dockerfile: src/Hanadicrochet.Api/Dockerfile
+    image: hanadicrochet-api:latest
     restart: unless-stopped
     environment:
-      ConnectionStrings__mamacrochet: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__hanadicrochet: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       Uploads__Root: /data/uploads
     volumes:
       - ./data/uploads:/data/uploads
@@ -61,7 +61,7 @@ services:
         NEXT_PUBLIC_API_URL: /api
         # Full public URL for metadata; empty for plain-HTTP local use.
         NEXT_PUBLIC_SITE_URL: ${MM_SITE_URL:-}
-    image: mamacrochet-web:latest
+    image: hanadicrochet-web:latest
     restart: unless-stopped
     environment:
       # Server-side catalog fetch base (plan 04 SSR). The web container reaches
@@ -84,7 +84,7 @@ services:
     restart: unless-stopped
     environment:
       # Site address: plain "http://" for LAN/IP use, or a bare domain
-      # (e.g. mamacrochet.example.com) for automatic Let's Encrypt HTTPS.
+      # (e.g. hanadicrochet.example.com) for automatic Let's Encrypt HTTPS.
       CADDY_SITE: ${CADDY_SITE:-http://}
     ports:
       - "${HTTP_PORT:-80}:80"

@@ -1,4 +1,4 @@
-# mamacrochet
+# hanadicrochet
 
 Self-hosted store + commission platform for handmade crochet products (bags & more).
 Even without an account, visitors can chat with the maker, buy in-stock pieces, or
@@ -30,7 +30,7 @@ mobile-first.
 ## Development
 
 - Prereqs: .NET 10 SDK, Node 22+, pnpm, Docker
-- One command: `dotnet run --project src/Mamacrochet.AppHost` → Aspire runs the
+- One command: `dotnet run --project src/Hanadicrochet.AppHost` → Aspire runs the
   whole dev stack: Postgres + API on :8085 + Next dev on :3000 (see the Aspire
   dashboard in the terminal output)
 - Site at http://localhost:3000 (default locale `en`), API health at
