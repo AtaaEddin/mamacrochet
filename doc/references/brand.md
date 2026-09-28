@@ -1,4 +1,4 @@
-# mamacrochet — Brand Mini-Guide
+# hanadicrochet — Brand Mini-Guide
 
 Status: **v2** (2026-09-26, owner-directed pivot — plan
 `20260926-2309_mama-identity-chat-first-home`). Supersedes the v1
@@ -18,7 +18,7 @@ Research: Iznik pottery palette (Wikipedia / ku crees), Istanbul palette
 reslisdence) — links in the plan file. (Owner also floated a Russian
 headscarf + Russian colors variant — a future token set, not built.)
 
-## The mascot — Mama
+## The mascot — Hanadi
 
 A warm grandmother in a **headscarf that only wraps and binds her hair** —
 face and neck fully visible. Explicitly **not a hijab** and not the
@@ -26,8 +26,8 @@ neck-covering başörtüsü: the classic European working-women's hair scarf
 of the early 1900s, as worn by many Turkish/Arabic grandmothers.
 Pomegranate scarf with a turquoise-flower pattern, knot at the side of
 the head, gold earrings, rosy cheeks, happy closed eyes, warm smile.
-SVG (flat, 2–2.4 ink outlines, token fills): `mama-pieces.tsx` (raw
-pieces), `mama-mark.tsx` (logo/avatar on gold tile), `mama-scene.tsx`
+SVG (flat, 2–2.4 ink outlines, token fills): `hanadi-pieces.tsx` (raw
+pieces), `hanadi-mark.tsx` (logo/avatar on gold tile), `hanadi-scene.tsx`
 (bust). Replaces the rabbit everywhere: logo, chat avatar, 404, empty
 states.
 
@@ -52,8 +52,8 @@ pass at `0.28` with glowing cream outlines read as a scary mask; the
 owner kept it light-theme-first and asked for a calmer night), card
 `0.355`, text warm parchment `oklch(0.82 0.02 78)`, primary a softened
 Turkish red with deep-brown text, muted teal + **deep brass** gold.
-**Mama is muted in dark** (`--brand-mama-skin 0.55`, scarf `0.5`,
-tile = deep brass `--brand-mama-tile`) so she stays warm, never
+**Hanadi is muted in dark** (`--brand-hanadi-skin 0.55`, scarf `0.5`,
+tile = deep brass `--brand-hanadi-tile`) so she stays warm, never
 high-contrast.
 
 **Contrast rule**: every text/surface pair passes WCAG AA 4.5:1 in both
@@ -82,7 +82,7 @@ header (logo + chat CTA; language/theme row on mobile) → thin intro bar
 for you" → `/chat`).
 
 **Chat page `/chat`** (ChatGPT-style, **full width & height**):
-Mama avatar + plain-text messages, visitor bubbles, one rounded composer
+Hanadi avatar + plain-text messages, visitor bubbles, one rounded composer
 with quick-topic chips. **Products live in the chat** — two entry points:
 (a) **in-chat search**: the composer's search icon opens a picker over
 the catalog; (b) **product rail**: the free space next to the thread is a
@@ -116,7 +116,7 @@ hairlines. Gentle CSS-only motion (fade/rise/pop/float, 200–500 ms);
 
 ## Voice
 
-Warm, feminine, second person — Mama's voice: "Hi, sweetheart! 👋".
+Warm, feminine, second person — Hanadi's voice: "Hi, sweetheart! 👋".
 Arabic is natural Arabic, not word-for-word. States get microcopy
 (loading / empty / error / one-moment success).
 

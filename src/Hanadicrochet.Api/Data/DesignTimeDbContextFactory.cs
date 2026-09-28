@@ -6,7 +6,7 @@ namespace Hanadicrochet.Api.Data;
 
 /// <summary>
 /// Design-time context for the EF CLI (migrations, database update).
-/// Connection string: MAMACROCHET_CONNECTIONSTRING env var first (so
+/// Connection string: HANADICROCHET_CONNECTIONSTRING env var first (so
 /// Aspire-injected values win when running from the stack), then the
 /// appsettings.json copied to the build output, then a localhost default.
 /// </summary>
@@ -14,7 +14,7 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<App
 {
     public AppDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("MAMACROCHET_CONNECTIONSTRING");
+        var connectionString = Environment.GetEnvironmentVariable("HANADICROCHET_CONNECTIONSTRING");
 
         if (string.IsNullOrEmpty(connectionString))
         {

@@ -1,0 +1,6 @@
+@Hanadicrochet.Api_HostAddress = http://localhost:5058
+
+GET {{Hanadicrochet.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
