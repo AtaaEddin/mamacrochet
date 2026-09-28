@@ -369,10 +369,25 @@ public sealed class ChatService(
             .GroupBy(m => m.ThreadId)
             .ToDictionary(g => g.Key, g => g.First());
 
-        // Unread per thread (last-read markers; indexed scalar counts).
-        var readMarkers = await db.ChatThreadReads
-            .Where(r => r.UserId == user.Id && ids.Contains(r.ThreadId))
-            .ToListAsync(ct);
+        // Unread per thread — one grouped query, not one count per thread:
+        // the last-read marker (one row per (user, thread)) is left-joined
+        // onto the non-deleted messages sent by someone else; a missing
+        // marker counts as "never read" (the old per-thread behaviour).
+        var unreadCounts = (await db.ChatMessages
+            .AsNoTracking()
+            .Where(m => ids.Contains(m.ThreadId)
+                && !m.IsDeleted
+                && m.SenderId != user.Id)
+            .GroupJoin(
+                db.ChatThreadReads.AsNoTracking().Where(r => r.UserId == user.Id),
+                m => m.ThreadId,
+                r => r.ThreadId,
+                (m, read) => new { m, Read = read.FirstOrDefault() })
+            .Where(x => x.Read == null || x.m.At > x.Read.LastReadAt)
+            .GroupBy(x => x.m.ThreadId)
+            .Select(g => new { ThreadId = g.Key, Count = g.Count() })
+            .ToListAsync(ct))
+            .ToDictionary(x => x.ThreadId, x => x.Count);
 
         var orderIds = threads
             .Where(t => t.OrderId is not null)
@@ -395,11 +410,6 @@ public sealed class ChatService(
         var items = new List<ThreadListItemDto>(threads.Count);
         foreach (var thread in threads)
         {
-            var readAt = readMarkers.FirstOrDefault(r => r.ThreadId == thread.Id)?.LastReadAt
-                ?? DateTime.MinValue;
-            var unread = await db.ChatMessages.CountAsync(
-                m => m.ThreadId == thread.Id && !m.IsDeleted && m.At > readAt && m.SenderId != user.Id,
-                ct);
             items.Add(new ThreadListItemDto(
                 thread.Id,
                 thread.Kind,
@@ -407,7 +417,7 @@ public sealed class ChatService(
                 thread.IsClosed,
                 thread.LastMessageAt,
                 previews.TryGetValue(thread.Id, out var last) ? PreviewOf(last) : null,
-                unread,
+                unreadCounts.TryGetValue(thread.Id, out var unread) ? unread : 0,
                 thread.OrderId is null || !orderStatuses.TryGetValue(thread.OrderId, out var status)
                     ? null
                     : status,
