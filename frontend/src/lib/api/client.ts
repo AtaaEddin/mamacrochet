@@ -38,6 +38,27 @@ export function refreshCsrfToken(): void {
 }
 
 /**
+ * Parse the ApiError envelope from an error response, falling back to a
+ * generic envelope when the body is not JSON or lacks a `code`. A null
+ * `response` (network failure) yields the fallback directly.
+ */
+async function parseApiError(
+  response: Response | null,
+  fallbackMessage: string = "",
+): Promise<ApiError> {
+  const fallback: ApiError = { code: "server_error", message: fallbackMessage };
+  if (response) {
+    try {
+      const parsed = (await response.json()) as ApiError;
+      if (typeof parsed.code === "string") return parsed;
+    } catch {
+      // Keep the fallback envelope.
+    }
+  }
+  return fallback;
+}
+
+/**
  * Fetch with a hard timeout. A wedged socket must never park a form submit
  * forever: on timeout the caller falls back (e.g. no CSRF header → the API
  * answers 403 `csrf` and the one-shot retry re-fetches a fresh token).
@@ -79,14 +100,7 @@ export async function postForm<T = unknown>(
   });
   const response = await withCsrfRetry(request, false);
   if (!response.ok) {
-    let error: ApiError = { code: "server_error", message: response.statusText };
-    try {
-      const parsed = (await response.json()) as ApiError;
-      if (typeof parsed.code === "string") error = parsed;
-    } catch {
-      // Keep the fallback envelope.
-    }
-    return { ok: false, error };
+    return { ok: false, error: await parseApiError(response, response.statusText) };
   }
   const data = (await response.json()) as T;
   return { ok: true, data };
@@ -210,14 +224,7 @@ export async function uploadAvatar(file: File): Promise<
   });
   const response = await withCsrfRetry(request, false);
   if (!response.ok) {
-    let error: ApiError = { code: "server_error", message: response.statusText };
-    try {
-      const parsed = (await response.json()) as ApiError;
-      if (typeof parsed.code === "string") error = parsed;
-    } catch {
-      // Keep the fallback envelope.
-    }
-    return { ok: false, error };
+    return { ok: false, error: await parseApiError(response, response.statusText) };
   }
   const user = (await response.json()) as UserDto;
   return { ok: true, user };
@@ -245,14 +252,7 @@ export async function uploadProductImages(
   );
   const response = await withCsrfRetry(request, false);
   if (!response.ok) {
-    let error: ApiError = { code: "server_error", message: response.statusText };
-    try {
-      const parsed = (await response.json()) as ApiError;
-      if (typeof parsed.code === "string") error = parsed;
-    } catch {
-      // Keep the fallback envelope.
-    }
-    return { ok: false, error };
+    return { ok: false, error: await parseApiError(response, response.statusText) };
   }
   const images = (await response.json()) as ProductImageDto[];
   return { ok: true, images };
@@ -327,14 +327,7 @@ export async function submitHiringApplication(data: {
   }
 
   if (!response || !response.ok) {
-    let error: ApiError = { code: "server_error", message: "" };
-    try {
-      const parsed = (await response?.json()) as ApiError;
-      if (typeof parsed.code === "string") error = parsed;
-    } catch {
-      // Keep the fallback envelope.
-    }
-    return { ok: false, error };
+    return { ok: false, error: await parseApiError(response) };
   }
   const body = (await response.json()) as components["schemas"]["HiringSubmitted"];
   return { ok: true, id: body.id, reapplied: body.reapplied };
