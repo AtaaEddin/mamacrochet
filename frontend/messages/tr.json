@@ -39,6 +39,28 @@
     "orders": "{count, plural, one {# sipariş} other {# sipariş}}",
     "ask": "Sohbette sor",
     "showMore": "Daha fazla göster",
+    "search": "Eserlerde ara",
+    "searchPlaceholder": "İsme göre ara…",
+    "loading": "Yükleniyor…",
+    "backToWorks": "Tüm eserler",
+    "endOfList": "Bu tüm koleksiyon — her parça sevgiyle işlendi.",
+    "stock": {
+      "in": "Stokta",
+      "madeToOrder": "Sipariş üzerine"
+    },
+    "cta": {
+      "order": "Sohbette sipariş ver",
+      "requestCustom": "Özel parça iste"
+    },
+    "empty": {
+      "title": "Henüz burada bir şey yok",
+      "body": "Eşleşen eser yok. Başka bir kategori dene veya aramayı temizle."
+    },
+    "error": {
+      "title": "Eserler yüklenemedi",
+      "body": "Atölyeye şu an ulaşılamıyor. Bağlantını kontrol edip tekrar dene.",
+      "retry": "Tekrar dene"
+    },
     "items": {
       "sunflowerTote": "Ayçiçeği el çantası",
       "owlBag": "Baykuş çantası",

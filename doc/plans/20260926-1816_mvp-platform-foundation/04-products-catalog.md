@@ -101,6 +101,20 @@ Product management (admin + employee) and a public, mobile-first catalog.
   API paths; SSR resolves them against the request origin + `/api` base (prod, Caddy)
   or `NEXT_PUBLIC_API_URL` (dev, absolute). Staff pages gate on the signed-in user's
   roles (same pattern as plan 03's client).
+- **Public catalog frontend** (recorded 2026-09-28): home featured works = async SSR
+  server component (top-6 products + category chips as links into `/works?category=`);
+  `/works` list = a `"use client"` component that owns the interactive fetching
+  (category chips, debounced title search, "show more" pagination) so filtering/search/
+  paging work without full reloads; product detail `/works/{id}` = async SSR server
+  component (gallery is a client island). A unified `WorkDisplay` card model bridges
+  real products and the sample fallback so the card never branches on the data source.
+  Home degrades to `SAMPLE_WORKS` if the API is unreachable (decorative surface); the
+  works list shows an error + retry instead (never fake data). Query-spec endpoints bind
+  a single `[FromQuery] QuerySpec`, so the generated typed client types the query as
+  `never` — the browser fetch builds `$top/$skip/$filter/$orderby` by hand and parses
+  the typed JSON. Server components fetch the API directly with a 2.5 s hard timeout
+  (returns `null` → fallback); prod SSR base = `API_SERVER_URL` (docker-compose), dev
+  reuses the absolute `NEXT_PUBLIC_API_URL`.
 - **Staff entry point**: header gets a staff chip (employees see it, admins too) once
   plan 03's frontend lands — this plan ships `/staff/products` behind it.
 
@@ -109,8 +123,8 @@ Product management (admin + employee) and a public, mobile-first catalog.
 - [x] Entities + migrations: Product, ProductImage, Category, ProductTranslation (+ CategoryTranslation) — `20260927210749_Catalog`
 - [x] API CRUD (Employee+Admin), visibility toggle, search/filter ($filter/$orderby/$top/$skip), image upload endpoints — curl-verified end-to-end (staff login, CRUD, upload/reorder/delete, category CRUD, public query spec)
 - [x] File pipeline: validation, resize/thumbnail, storage path scheme — verified on disk (WebP, ≤1600/≤480, no upscaling)
-- [ ] Frontend: admin/employee products pages (list, editor, image manager)
-- [ ] Frontend: public catalog (home, category, search, product detail) mobile-first, stock badge, "request custom" CTA
+- [ ] Frontend: staff products pages (list, editor, image manager, category CRUD)
+- [x] Frontend: public catalog (home featured, category chips, title search, product detail) mobile-first, stock badge, "request custom" CTA — verified in-browser (en/ar/tr, Arabic RTL, light+dark, mobile+desktop; search + category filter + detail navigation + made-to-order CTA) and in a prod `next build`
 - [x] Seed: create categories + first sample products (stock 0) — photos: owner uploads from UI (not in repo) — verified via API (4 categories + 6 products)
 
 ### Framework findings (recorded 2026-09-28 — verified against .NET 10 / EF Core 10 sources & reflection)

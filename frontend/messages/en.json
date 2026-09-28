@@ -39,6 +39,28 @@
     "orders": "{count, plural, one {# order} other {# orders}}",
     "ask": "Ask in chat",
     "showMore": "Show more",
+    "search": "Search works",
+    "searchPlaceholder": "Search by name…",
+    "loading": "Loading…",
+    "backToWorks": "All works",
+    "endOfList": "That's the whole collection — every piece made with love.",
+    "stock": {
+      "in": "In stock",
+      "madeToOrder": "Made to order"
+    },
+    "cta": {
+      "order": "Order in chat",
+      "requestCustom": "Request custom"
+    },
+    "empty": {
+      "title": "Nothing here yet",
+      "body": "No works match. Try another category or clear the search."
+    },
+    "error": {
+      "title": "Couldn't load the works",
+      "body": "The workshop is unreachable right now. Check your connection and try again.",
+      "retry": "Try again"
+    },
     "items": {
       "sunflowerTote": "Sunflower tote bag",
       "owlBag": "Owl messenger bag",
