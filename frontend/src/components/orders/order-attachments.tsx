@@ -7,6 +7,8 @@ import { orderFileUrl } from "@/lib/orders/api";
  * Order photo strip (plan 05): sample references (customer uploads) + WIP
  * progress photos (staff uploads). The server already scopes the kinds per
  * role — customers get sample|wip of their own order, staff/admin get all.
+ * Only the photo kinds render here: receipts / delivery proofs (plan 07)
+ * are PDF-or-image files shown through their own cards instead.
  */
 export function OrderAttachments({
   attachments,
@@ -15,13 +17,14 @@ export function OrderAttachments({
   attachments: OrderAttachmentDto[];
   label: string;
 }) {
-  if (attachments.length === 0) return null;
+  const photos = attachments.filter((a) => a.kind === "sample" || a.kind === "wip");
+  if (photos.length === 0) return null;
 
   return (
     <div>
       <p className="font-display text-sm font-bold">{label}</p>
       <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-        {attachments.map((a) => (
+        {photos.map((a) => (
           <a
             key={a.id}
             href={orderFileUrl(a.url)}

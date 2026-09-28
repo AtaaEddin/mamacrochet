@@ -61,6 +61,30 @@ public sealed record OrderAttachmentDto(
 }
 
 /// <summary>
+/// The recorded payment (plan 07). The customer sees the record itself
+/// ("Payment recorded ✓" + amount + method) but never the file URL —
+/// `ReceiptUrl` is staff/admin-only.
+/// </summary>
+public sealed record PaymentDto(
+    decimal Amount,
+    string Currency,
+    string Method,
+    bool HasReceipt,
+    string? ReceiptUrl,
+    string? Note,
+    DateTimeOffset RecordedAt);
+
+/// <summary>
+/// The recorded delivery (plan 07). `ProofUrl` is staff/admin-only.
+/// </summary>
+public sealed record DeliveryDto(
+    string Method,
+    DateTimeOffset ActualAt,
+    string? Description,
+    string? ProofUrl,
+    DateTimeOffset RecordedAt);
+
+/// <summary>
 /// The product behind an order (all localizations — the client picks the
 /// language like the catalog does; null for pure custom orders).
 /// </summary>
@@ -154,8 +178,11 @@ public sealed record OrderDetail(
     DateTimeOffset? RatedAt,
     IReadOnlyList<OrderEventDto> Timeline,
     IReadOnlyList<OrderAttachmentDto> Attachments,
+    PaymentDto? Payment,
+    DeliveryDto? Delivery,
     bool CanCancel,
     bool CanRate,
+    bool CanConfirmDelivery,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 

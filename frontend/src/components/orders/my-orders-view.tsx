@@ -8,6 +8,7 @@ import {
   Loader2,
   LogIn,
   Package,
+  PackageCheck,
   RefreshCw,
   Sparkles,
   Star,
@@ -33,6 +34,7 @@ import { YarnLoader } from "@/components/illustrations/yarn-loader";
 import { getGuestId } from "@/lib/guest-id";
 import {
   cancelOrder,
+  confirmDelivery,
   fetchMyOrders,
   fetchOrderDetail,
   orderProductTitle,
@@ -41,6 +43,7 @@ import {
   type OrderSummary,
 } from "@/lib/orders/api";
 import { OrderAttachments } from "./order-attachments";
+import { OrderDeliveryCard, OrderPaymentCard } from "./payment-delivery";
 import { OrderStatusBadge } from "./order-status-badge";
 import { OrderStatusSteps } from "./order-status-steps";
 import { OrderTimeline } from "./order-timeline";
@@ -105,6 +108,7 @@ export function MyOrdersView() {
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const reqRef = useRef(0);
 
   const t = useTranslations("Orders");
@@ -245,6 +249,19 @@ export function MyOrdersView() {
     }
   };
 
+  const doConfirmDelivery = async () => {
+    if (!selectedId || busy) return;
+    setBusy(true);
+    setConfirmError(null);
+    const res = await confirmDelivery(selectedId);
+    setBusy(false);
+    if (res.ok) {
+      setStage({ status: "ready", order: res.order });
+    } else {
+      setConfirmError(res.error.message);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl">
       {/* Mobile: only one pane at a time. */}
@@ -268,6 +285,8 @@ export function MyOrdersView() {
               setRatingComment={setRatingComment}
               busy={busy}
               onRate={doRate}
+              onConfirm={doConfirmDelivery}
+              confirmError={confirmError}
             />
           </div>
         ) : (
@@ -290,6 +309,8 @@ export function MyOrdersView() {
               setRatingComment={setRatingComment}
               busy={busy}
               onRate={doRate}
+              onConfirm={doConfirmDelivery}
+              confirmError={confirmError}
             />
           ) : (
             <div className="grid h-full min-h-40 place-items-center rounded-3xl border border-dashed border-border/70 bg-card/50 p-6 text-center text-sm font-semibold text-muted-foreground">
@@ -439,6 +460,8 @@ function OrderStage({
   setRatingComment,
   busy,
   onRate,
+  onConfirm,
+  confirmError,
 }: {
   stage: StageState;
   onRetry: () => void;
@@ -449,6 +472,8 @@ function OrderStage({
   setRatingComment: (s: string) => void;
   busy: boolean;
   onRate: () => void;
+  onConfirm: () => void;
+  confirmError: string | null;
 }) {
   const t = useTranslations("Orders");
   const locale = useLocale();
@@ -508,6 +533,33 @@ function OrderStage({
         <p className="mt-4 rounded-2xl border border-brand-gold/30 bg-brand-gold/10 px-4 py-3 text-sm font-semibold leading-relaxed">
           {t("readyHint")}
         </p>
+      ) : null}
+
+      {/* Payment + delivery records (plan 07) */}
+      {order.payment ? (
+        <OrderPaymentCard payment={order.payment} />
+      ) : null}
+      {order.delivery ? (
+        <>
+          <OrderDeliveryCard delivery={order.delivery} />
+          {order.canConfirmDelivery ? (
+            <div className="mt-3">
+              <Button onClick={onConfirm} disabled={busy}>
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <PackageCheck className="size-4" aria-hidden="true" />
+                )}
+                {t("confirmDelivery")}
+              </Button>
+              {confirmError ? (
+                <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
+                  {confirmError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {/* Contact block */}

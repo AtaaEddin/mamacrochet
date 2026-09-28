@@ -26,6 +26,8 @@ export type OrderEventDto = components["schemas"]["OrderEventDto"];
 export type OrderAttachmentDto = components["schemas"]["OrderAttachmentDto"];
 export type OrderProductInfo = components["schemas"]["OrderProductInfo"];
 export type OrderMetrics = components["schemas"]["OrderMetrics"];
+export type PaymentDto = components["schemas"]["PaymentDto"];
+export type DeliveryDto = components["schemas"]["DeliveryDto"];
 export type OrderEmployeeMetric = components["schemas"]["OrderEmployeeMetric"];
 export type ApiError = components["schemas"]["ApiError"];
 export type UserDto = components["schemas"]["UserDto"];
@@ -280,6 +282,65 @@ export async function uploadOrderAttachments(
     form,
   );
   return res.ok ? { ok: true, order: res.data } : { ok: false, error: res.error };
+}
+
+// ---- plan 07: payment, delivery, confirm delivery -------------------------
+
+/**
+ * Record the payment (plan 07, rule 2) — multipart: amount + method + note +
+ * receipt file (staff: required; admin: optional, then the note is the
+ * mandatory written reason). Moves the order to `paid` server-side.
+ */
+export async function recordPayment(
+  id: string,
+  role: "staff" | "admin",
+  data: { amount: string; method: string; note: string; file: File | null },
+): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
+  const form = new FormData();
+  form.append("amount", data.amount);
+  form.append("method", data.method);
+  form.append("note", data.note);
+  if (data.file) form.append("receipt", data.file);
+  const base = role === "admin" ? "/admin/orders" : "/staff/orders";
+  const res = await postForm<OrderDetail>(
+    `${API_BASE}${base}/${encodeURIComponent(id)}/payment`,
+    form,
+  );
+  return res.ok ? { ok: true, order: res.data } : { ok: false, error: res.error };
+}
+
+/**
+ * Record the delivery (plan 07, rule 4) — multipart: method + actualAt (ISO)
+ * + description + optional proof file. Moves the order to `delivered`
+ * server-side.
+ */
+export async function recordDelivery(
+  id: string,
+  role: "staff" | "admin",
+  data: { method: string; actualAt: string; description: string; file: File | null },
+): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
+  const form = new FormData();
+  form.append("method", data.method);
+  form.append("actualAt", data.actualAt);
+  form.append("description", data.description);
+  if (data.file) form.append("proof", data.file);
+  const base = role === "admin" ? "/admin/orders" : "/staff/orders";
+  const res = await postForm<OrderDetail>(
+    `${API_BASE}${base}/${encodeURIComponent(id)}/delivery`,
+    form,
+  );
+  return res.ok ? { ok: true, order: res.data } : { ok: false, error: res.error };
+}
+
+/** The customer's optional "delivered ✓" (rule 5) — once per order. */
+export async function confirmDelivery(
+  id: string,
+): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
+  const res = await api.POST("/orders/{id}/confirm-delivery", {
+    params: { path: { id } },
+  });
+  if (res.error) return { ok: false, error: res.error };
+  return { ok: true, order: res.data as OrderDetail };
 }
 
 // ---- admin mutations ------------------------------------------------------

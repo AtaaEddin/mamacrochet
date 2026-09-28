@@ -2,10 +2,13 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import {
+  Banknote,
   ClipboardCheck,
   MessageSquare,
+  PackageCheck,
   ShieldCheck,
   Star,
+  Truck,
   UserPlus,
 } from "lucide-react";
 import type { OrderEventDto } from "@/lib/orders/api";
@@ -29,6 +32,9 @@ const ICONS = {
   assignment: UserPlus,
   rating: Star,
   auto: ShieldCheck,
+  payment: Banknote,
+  delivery: Truck,
+  confirmation: PackageCheck,
 } as const;
 
 /**
@@ -63,12 +69,17 @@ export function OrderTimeline({ events }: { events: OrderEventDto[] }) {
               <time dateTime={e.at}>{formatWhen(e.at, locale)}</time>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              {e.kind === "status" && e.status ? (
+              {e.status && (e.kind === "status" || e.kind === "payment" || e.kind === "delivery") ? (
                 <OrderStatusBadge status={e.status} />
               ) : e.kind === "rating" ? (
                 <span className="inline-flex items-center gap-1 text-sm font-bold text-brand-gold">
                   <Star className="size-4 fill-brand-gold" aria-hidden="true" />
                   {t("ratedLabel")}
+                </span>
+              ) : e.kind === "confirmation" ? (
+                <span className="inline-flex items-center gap-1 text-sm font-bold text-brand-gold">
+                  <PackageCheck className="size-4" aria-hidden="true" />
+                  {t("confirmDeliveryDone")}
                 </span>
               ) : null}
               {e.note ? (

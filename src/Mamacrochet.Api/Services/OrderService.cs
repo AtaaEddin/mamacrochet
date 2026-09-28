@@ -241,10 +241,60 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
                 Invalid("Admin status changes require a reason note."), null);
         }
 
-        var inMatrix = IsInMatrix(order.Status, trimmedStatus);
-        if (!inMatrix && actorRole != "admin")
+        // Plan 07 gates (rule 2/3/5): staff may only move to paid with a
+        // receipt on file, to delivered with a delivery record, and close
+        // with a receipt on file. Admins may bypass each gate — the bypass
+        // (like every out-of-matrix move) is flagged AdminOnly, so the
+        // mandatory reason stays in the admin trace only.
+        bool inMatrix = false;
+        bool gateBypass = false;
+        string? gateError = null;
+        if (trimmedStatus is OrderStatus.Paid or OrderStatus.Delivered or OrderStatus.Closed)
         {
-            return Conflict("Invalid order status change.");
+            inMatrix = IsInMatrix(order.Status, trimmedStatus);
+            var hasReceipt = await db.Payments.AnyAsync(
+                p => p.OrderId == order.Id && p.ReceiptFileId != null, ct);
+            var hasDelivery = trimmedStatus == OrderStatus.Delivered
+                ? await db.Deliveries.AnyAsync(d => d.OrderId == order.Id, ct)
+                : false;
+            if (actorRole != "admin")
+            {
+                if (!inMatrix)
+                {
+                    gateError = "Invalid order status change.";
+                }
+                else if (trimmedStatus == OrderStatus.Paid && !hasReceipt)
+                {
+                    gateError = "A receipt must be recorded before the order can be paid.";
+                }
+                else if (trimmedStatus == OrderStatus.Delivered && !hasDelivery)
+                {
+                    gateError = "A delivery record is required before the order can be delivered.";
+                }
+                else if (trimmedStatus == OrderStatus.Closed && !hasReceipt)
+                {
+                    gateError = "This order has no receipt on file — an admin can close it with a written reason.";
+                }
+            }
+            else
+            {
+                gateBypass = (trimmedStatus is OrderStatus.Paid or OrderStatus.Closed && !hasReceipt)
+                    || (trimmedStatus == OrderStatus.Delivered && !hasDelivery);
+            }
+        }
+        else
+        {
+            inMatrix = IsInMatrix(order.Status, trimmedStatus);
+            gateBypass = false;
+            if (!inMatrix && actorRole != "admin")
+            {
+                gateError = "Invalid order status change.";
+            }
+        }
+
+        if (gateError is not null)
+        {
+            return Conflict(gateError);
         }
 
         if (trimmedStatus == OrderStatus.Cancelled
@@ -272,14 +322,277 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
             Kind = "status",
             Status = trimmedStatus,
             Note = trimmedNote,
-            // Out-of-matrix moves are admin overrides: the reason stays in
-            // the admin trace only (plan 07 rule 3).
-            AdminOnly = !inMatrix,
+            // Out-of-matrix moves and gate bypasses are admin overrides:
+            // the reason stays in the admin trace only (plan 07 rule 3).
+            AdminOnly = !inMatrix || gateBypass,
             ActorId = actorId,
             ActorName = actorName,
             ActorRole = actorRole,
             At = DateTime.UtcNow,
         });
+
+        await db.SaveChangesAsync(ct);
+        return new TransitionResult(null, order);
+    }
+
+    // ---- Plan 07: payment, delivery, confirm delivery --------------------
+
+    /// <summary>
+    /// Record the payment and move the order to `paid` (rule 2): the
+    /// receipt file is mandatory for staff, optional for admins — then a
+    /// written reason note is mandatory and the event stays in the admin
+    /// trace only (rule 3). One payment per order.
+    /// </summary>
+    public async Task<TransitionResult> RecordPaymentAsync(
+        string orderId,
+        decimal? amount,
+        string? method,
+        string? note,
+        UploadFile? receipt,
+        string? actorId,
+        string actorName,
+        string actorRole, // employee | admin
+        CancellationToken ct)
+    {
+        var order = await db.Orders
+            .Include(o => o.Payment)
+            .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null)
+        {
+            return new TransitionResult(ApiError.NotFound("order_not_found"), null);
+        }
+
+        if (order.Payment is not null)
+        {
+            return Conflict("This order already has a recorded payment.");
+        }
+
+        if (order.Status != OrderStatus.ReadyForPayment)
+        {
+            return Conflict(
+                "Payment can only be recorded when the order is ready for payment.");
+        }
+
+        if (amount is null or <= 0 or > 10_000_000)
+        {
+            return new TransitionResult(Invalid("Enter the paid amount."), null);
+        }
+
+        var trimmedMethod = method?.Trim();
+        if (trimmedMethod is null || trimmedMethod.Length is < 1 or > 100)
+        {
+            return new TransitionResult(Invalid("Enter the payment method."), null);
+        }
+
+        var trimmedNote = note?.Trim();
+        if (trimmedNote is not null && trimmedNote.Length > 500)
+        {
+            return new TransitionResult(Invalid("The note is too long (500 characters max)."), null);
+        }
+
+        OrderAttachment? receiptFile = null;
+        if (receipt is null)
+        {
+            if (actorRole != "admin")
+            {
+                return new TransitionResult(
+                    new ApiError("receipt_required", "A receipt file (PDF or image) is required."),
+                    null);
+            }
+
+            // Admin override without a receipt: the written reason is mandatory.
+            if (trimmedNote is null || trimmedNote.Length == 0)
+            {
+                return new TransitionResult(
+                    Invalid("Recording a payment without a receipt requires a reason note."),
+                    null);
+            }
+        }
+        else
+        {
+            var (file, error) = await SaveProofFileAsync(order, "receipt", receipt, actorId, ct);
+            if (error is not null)
+            {
+                return new TransitionResult(error, null);
+            }
+
+            receiptFile = file;
+        }
+
+        var now = DateTime.UtcNow;
+        var payment = new Payment
+        {
+            OrderId = order.Id,
+            Amount = amount!.Value,
+            Currency = order.Currency,
+            Method = trimmedMethod!,
+            Note = trimmedNote,
+            ReceiptFileId = receiptFile?.Id,
+            RecordedById = actorId,
+            RecordedAt = now,
+        };
+
+        order.Payment = payment;
+        order.Status = OrderStatus.Paid;
+        order.UpdatedAt = now;
+        order.Timeline.Add(new OrderEvent
+        {
+            OrderId = order.Id,
+            Kind = "payment",
+            Status = OrderStatus.Paid,
+            Note = trimmedNote,
+            AdminOnly = receipt is null, // admin override — rule 3
+            ActorId = actorId,
+            ActorName = actorName,
+            ActorRole = actorRole,
+            At = now,
+        });
+
+        await db.SaveChangesAsync(ct);
+        return new TransitionResult(null, order);
+    }
+
+    /// <summary>
+    /// Record the delivery and move the order to `delivered` (rule 4):
+    /// method + actual date/time are mandatory, description + proof file
+    /// optional. One delivery per order.
+    /// </summary>
+    public async Task<TransitionResult> RecordDeliveryAsync(
+        string orderId,
+        string? method,
+        DateTime? actualAt,
+        string? description,
+        UploadFile? proof,
+        string? actorId,
+        string actorName,
+        string actorRole, // employee | admin
+        CancellationToken ct)
+    {
+        var order = await db.Orders
+            .Include(o => o.Delivery)
+            .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null)
+        {
+            return new TransitionResult(ApiError.NotFound("order_not_found"), null);
+        }
+
+        if (order.Delivery is not null)
+        {
+            return Conflict("This order already has a recorded delivery.");
+        }
+
+        if (order.Status != OrderStatus.Paid)
+        {
+            return Conflict("Delivery can only be recorded once the order is paid.");
+        }
+
+        var trimmedMethod = method?.Trim();
+        if (trimmedMethod is null || trimmedMethod.Length is < 1 or > 100)
+        {
+            return new TransitionResult(Invalid("Enter the delivery method."), null);
+        }
+
+        if (actualAt is null)
+        {
+            return new TransitionResult(Invalid("Enter the actual delivery date and time."), null);
+        }
+
+        var actual = actualAt.Value;
+        if (actual > DateTime.UtcNow.AddDays(1) || actual < DateTime.UtcNow.AddYears(-5))
+        {
+            return new TransitionResult(
+                Invalid("The delivery date/time looks wrong — it must be the actual moment the piece was handed over."),
+                null);
+        }
+
+        var trimmedDescription = description?.Trim();
+        if (trimmedDescription is not null && trimmedDescription.Length > 500)
+        {
+            return new TransitionResult(Invalid("The description is too long (500 characters max)."), null);
+        }
+
+        OrderAttachment? proofFile = null;
+        if (proof is not null)
+        {
+            var (file, error) = await SaveProofFileAsync(order, "delivery-proof", proof, actorId, ct);
+            if (error is not null)
+            {
+                return new TransitionResult(error, null);
+            }
+
+            proofFile = file;
+        }
+
+        var now = DateTime.UtcNow;
+        var delivery = new Delivery
+        {
+            OrderId = order.Id,
+            Method = trimmedMethod!,
+            ActualAt = actual,
+            Description = trimmedDescription,
+            ProofFileId = proofFile?.Id,
+            RecordedById = actorId,
+            RecordedAt = now,
+        };
+
+        order.Delivery = delivery;
+        order.Status = OrderStatus.Delivered;
+        order.UpdatedAt = now;
+        order.Timeline.Add(new OrderEvent
+        {
+            OrderId = order.Id,
+            Kind = "delivery",
+            Status = OrderStatus.Delivered,
+            Note = trimmedDescription,
+            ActorId = actorId,
+            ActorName = actorName,
+            ActorRole = actorRole,
+            At = now,
+        });
+
+        await db.SaveChangesAsync(ct);
+        return new TransitionResult(null, order);
+    }
+
+    /// <summary>
+    /// The customer's optional "delivered ✓" (rule 5): input, not a gate —
+    /// the order is already delivered when this is possible. Once per order.
+    /// </summary>
+    public async Task<TransitionResult> ConfirmDeliveryAsync(
+        string orderId,
+        AppUser customer,
+        CancellationToken ct)
+    {
+        var order = await db.Orders
+            .Include(o => o.Timeline)
+            .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null || !await SeeByCustomerAsync(db, customer, order, ct))
+        {
+            return new TransitionResult(ApiError.NotFound("order_not_found"), null);
+        }
+
+        if (order.Status != OrderStatus.Delivered)
+        {
+            return Conflict("You can confirm the delivery once it has been made.");
+        }
+
+        if (order.Timeline.Any(e => e.Kind == "confirmation"))
+        {
+            return new TransitionResult(
+                new ApiError("already_confirmed", "The delivery is already confirmed."), null);
+        }
+
+        order.Timeline.Add(new OrderEvent
+        {
+            OrderId = order.Id,
+            Kind = "confirmation",
+            Note = null,
+            ActorId = customer.Id,
+            ActorName = customer.DisplayName,
+            ActorRole = "customer",
+            At = DateTime.UtcNow,
+        });
+        order.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(ct);
         return new TransitionResult(null, order);
@@ -455,11 +768,14 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
             return new TransitionResult(ApiError.NotFound("order_not_found"), null);
         }
 
-        var existing = await db.OrderAttachments.CountAsync(f => f.OrderId == orderId, ct);
+        // The cap is on photos (sample/wip): receipts and delivery proofs
+        // (plan 07) are single staff files and don't count against it.
+        var existing = await db.OrderAttachments
+            .CountAsync(f => f.OrderId == orderId && (f.Kind == "sample" || f.Kind == "wip"), ct);
         if (existing + files.Count > MaxSampleFiles)
         {
             return new TransitionResult(
-                new ApiError("attachment_too_many", $"An order keeps at most {MaxSampleFiles} files."), null);
+                new ApiError("attachment_too_many", $"An order keeps at most {MaxSampleFiles} photos."), null);
         }
 
         var error = await SaveAttachmentsAsync(order, trimmedKind, files, actorId, ct);
@@ -517,6 +833,51 @@ public sealed class OrderService(AppDbContext db, IOptions<UploadsOptions> uploa
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// A single proof file (plan 07: receipt | delivery-proof) — PDF or
+    /// image, magic-byte-validated like the other uploads (the client's
+    /// Content-Type label is never trusted). Auth-protected: served staff/
+    /// admin only (the file route keeps sample/wip as the customer kinds).
+    /// </summary>
+    private async Task<(OrderAttachment? File, ApiError? Error)> SaveProofFileAsync(
+        Order order,
+        string kind,
+        UploadFile file,
+        string? actorId,
+        CancellationToken ct)
+    {
+        if (file.Bytes.Length > MaxFileBytes)
+        {
+            return (null, new ApiError("file_too_big", "The file must be under 10 MB."));
+        }
+
+        var extension = HiringFiles.DetectExtension(file.Bytes);
+        if (extension is null)
+        {
+            return (null, new ApiError("file_invalid", "The file must be a PDF or an image (jpg, png, webp)."));
+        }
+
+        var directory = Path.Combine(uploads.Value.Root, "orders", order.Id);
+        Directory.CreateDirectory(directory);
+
+        var attachment = new OrderAttachment
+        {
+            OrderId = order.Id,
+            Kind = kind,
+            OriginalName = TruncateName(file.OriginalName),
+            ContentType = HiringFiles.ContentType(extension),
+            Bytes = file.Bytes.Length,
+            UploadedById = actorId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        attachment.StoredName = $"{attachment.Id}{extension}";
+        await File.WriteAllBytesAsync(
+            Path.Combine(directory, attachment.StoredName), file.Bytes, ct);
+        order.Attachments.Add(attachment);
+
+        return (attachment, null);
     }
 
     // ---- Auto-cancel (D16) ------------------------------------------------

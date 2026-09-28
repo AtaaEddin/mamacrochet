@@ -24,6 +24,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderEvent> OrderEvents => Set<OrderEvent>();
     public DbSet<OrderAttachment> OrderAttachments => Set<OrderAttachment>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<ChatThread> ChatThreads => Set<ChatThread>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAttachment> ChatAttachments => Set<ChatAttachment>();
@@ -205,6 +207,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         });
 
         // Plan 05: orders & status board.
+        // (plan 07 adds Payment/Delivery — see below).
         builder.Entity<Order>(order =>
         {
             order.HasKey(o => o.Id);
@@ -273,6 +276,59 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                 .WithMany(o => o.Attachments)
                 .HasForeignKey(f => f.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Plan 07: payment (receipt-gated) + delivery records — one each
+        // per order (the lifecycle has a single payment and a single
+        // delivery; re-recording is an admin data fix, not a UI path).
+        builder.Entity<Payment>(payment =>
+        {
+            payment.HasKey(p => p.Id);
+            payment.Property(p => p.Id).HasMaxLength(32);
+            payment.Property(p => p.OrderId).HasMaxLength(32).IsRequired();
+            payment.Property(p => p.Amount).HasPrecision(10, 2).IsRequired();
+            payment.Property(p => p.Currency).HasMaxLength(3).IsRequired();
+            payment.Property(p => p.Method).HasMaxLength(100).IsRequired();
+            payment.Property(p => p.Note).HasMaxLength(500);
+            payment.Property(p => p.RecordedAt).IsRequired();
+            // User ids are 36-char GUIDs (Identity) — no length cap.
+            payment.HasIndex(p => p.OrderId).IsUnique();
+            payment.HasOne(p => p.Order)
+                .WithOne(o => o.Payment)
+                .HasForeignKey<Payment>(p => p.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            payment.HasOne(p => p.ReceiptFile)
+                .WithMany()
+                .HasForeignKey(p => p.ReceiptFileId)
+                .OnDelete(DeleteBehavior.Restrict);
+            payment.HasOne(p => p.RecordedBy)
+                .WithMany()
+                .HasForeignKey(p => p.RecordedById)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<Delivery>(delivery =>
+        {
+            delivery.HasKey(d => d.Id);
+            delivery.Property(d => d.Id).HasMaxLength(32);
+            delivery.Property(d => d.OrderId).HasMaxLength(32).IsRequired();
+            delivery.Property(d => d.Method).HasMaxLength(100).IsRequired();
+            delivery.Property(d => d.Description).HasMaxLength(500);
+            delivery.Property(d => d.ActualAt).IsRequired();
+            delivery.Property(d => d.RecordedAt).IsRequired();
+            delivery.HasIndex(d => d.OrderId).IsUnique();
+            delivery.HasOne(d => d.Order)
+                .WithOne(o => o.Delivery)
+                .HasForeignKey<Delivery>(d => d.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            delivery.HasOne(d => d.ProofFile)
+                .WithMany()
+                .HasForeignKey(d => d.ProofFileId)
+                .OnDelete(DeleteBehavior.Restrict);
+            delivery.HasOne(d => d.RecordedBy)
+                .WithMany()
+                .HasForeignKey(d => d.RecordedById)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Plan 06: chat (visitor threads, order threads, messages, files,

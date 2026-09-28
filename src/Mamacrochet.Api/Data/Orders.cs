@@ -102,6 +102,81 @@ public class Order
 
     public ICollection<OrderEvent> Timeline { get; set; } = [];
     public ICollection<OrderAttachment> Attachments { get; set; } = [];
+
+    /// <summary>Plan 07: the single payment record (null until recorded).</summary>
+    public Payment? Payment { get; set; }
+
+    /// <summary>Plan 07: the single delivery record (null until recorded).</summary>
+    public Delivery? Delivery { get; set; }
+}
+
+/// <summary>
+/// The recorded payment (plan 07): the paid amount + method + receipt file.
+/// One per order (unique OrderId). `ReceiptFileId` is null only for the
+/// admin override path (rule 3: then `Note` is the mandatory written reason).
+/// </summary>
+public class Payment
+{
+    public string Id { get; set; } = Ids.New();
+    public string OrderId { get; set; } = "";
+
+    /// <summary>Price = amount + currency code (D9); display USD only.</summary>
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "USD";
+
+    /// <summary>Payment method (free text: cash, bank transfer, …).</summary>
+    public string Method { get; set; } = "";
+
+    /// <summary>
+    /// The receipt file (OrderAttachment, kind=receipt) — required for
+    /// staff-recorded payments; null only for admin overrides.
+    /// </summary>
+    public string? ReceiptFileId { get; set; }
+
+    public OrderAttachment? ReceiptFile { get; set; }
+
+    /// <summary>Staff note; the mandatory reason for admin overrides.</summary>
+    public string? Note { get; set; }
+
+    public string? RecordedById { get; set; }
+
+    public AppUser? RecordedBy { get; set; }
+
+    public DateTime RecordedAt { get; set; }
+
+    public Order? Order { get; set; }
+}
+
+/// <summary>
+/// The recorded delivery (plan 07): how the piece reached the customer.
+/// One per order. `ActualAt` is the ACTUAL date/time (not a promise);
+/// `ProofFileId` is an optional delivery-proof file (kind=delivery-proof).
+/// </summary>
+public class Delivery
+{
+    public string Id { get; set; } = Ids.New();
+    public string OrderId { get; set; } = "";
+
+    /// <summary>Delivery method (free text: pickup, courier, in person…).</summary>
+    public string Method { get; set; } = "";
+
+    /// <summary>The actual date/time the piece was handed over.</summary>
+    public DateTime ActualAt { get; set; }
+
+    /// <summary>Optional description (where, what was handed, details…).</summary>
+    public string? Description { get; set; }
+
+    public string? ProofFileId { get; set; }
+
+    public OrderAttachment? ProofFile { get; set; }
+
+    public string? RecordedById { get; set; }
+
+    public AppUser? RecordedBy { get; set; }
+
+    public DateTime RecordedAt { get; set; }
+
+    public Order? Order { get; set; }
 }
 
 /// <summary>
@@ -114,7 +189,11 @@ public class OrderEvent
     public string Id { get; set; } = Ids.New();
     public string OrderId { get; set; } = "";
 
-    /// <summary>status | note | assignment | rating | auto.</summary>
+    /// <summary>
+    /// status | note | assignment | rating | auto | payment | delivery
+    /// | confirmation (plan 07: payment/delivery carry the Status they
+    /// cause; confirmation is the customer's optional "delivered ✓").
+    /// </summary>
     public string Kind { get; set; } = "status";
 
     /// <summary>For status/auto events: the new status.</summary>

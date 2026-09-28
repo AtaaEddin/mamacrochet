@@ -9,7 +9,9 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowLeft,
+  Banknote,
   Camera,
+  CheckCircle2,
   ClipboardCheck,
   Loader2,
   LogIn,
@@ -17,6 +19,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  Truck,
   X,
 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
@@ -58,6 +61,12 @@ import {
 import { OrderAttachments } from "./order-attachments";
 import { OrderStatusBadge } from "./order-status-badge";
 import { OrderTimeline } from "./order-timeline";
+import {
+  OrderDeliveryCard,
+  OrderPaymentCard,
+  RecordDeliveryDialog,
+  RecordPaymentDialog,
+} from "./payment-delivery";
 
 type RailState =
   | { status: "loading" }
@@ -133,6 +142,9 @@ export function StaffOrdersView() {
   const [readyPrice, setReadyPrice] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const reqRef = useRef(0);
 
@@ -304,6 +316,16 @@ export function StaffOrdersView() {
     if (res.ok) refreshStage(res.order);
   };
 
+  const doClose = async () => {
+    if (!order || busy) return;
+    setActionError(null);
+    setBusy(true);
+    const res = await changeOrderStatus(order.id, "closed");
+    setBusy(false);
+    if (res.ok) refreshStage(res.order);
+    else setActionError(res.error.message);
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl">
       {/* Search + filter bar (rail tools) */}
@@ -375,6 +397,14 @@ export function StaffOrdersView() {
               onStart={doStart}
               uploading={uploading}
               onUpload={doUpload}
+              paymentOpen={paymentOpen}
+              setPaymentOpen={setPaymentOpen}
+              deliveryOpen={deliveryOpen}
+              setDeliveryOpen={setDeliveryOpen}
+              actionError={actionError}
+              onClose={doClose}
+              onSuccess={refreshStage}
+              hostDialogs={false}
             />
           </div>
         ) : (
@@ -409,6 +439,14 @@ export function StaffOrdersView() {
               onStart={doStart}
               uploading={uploading}
               onUpload={doUpload}
+              paymentOpen={paymentOpen}
+              setPaymentOpen={setPaymentOpen}
+              deliveryOpen={deliveryOpen}
+              setDeliveryOpen={setDeliveryOpen}
+              actionError={actionError}
+              onClose={doClose}
+              onSuccess={refreshStage}
+              hostDialogs
             />
           ) : (
             <div className="grid h-full min-h-40 place-items-center rounded-3xl border border-dashed border-border/70 bg-card/50 p-6 text-center text-sm font-semibold text-muted-foreground">
@@ -522,6 +560,14 @@ function StaffOrderStage({
   onStart,
   uploading,
   onUpload,
+  paymentOpen,
+  setPaymentOpen,
+  deliveryOpen,
+  setDeliveryOpen,
+  actionError,
+  onClose,
+  onSuccess,
+  hostDialogs,
 }: {
   stage: StageState;
   onRetry: () => void;
@@ -544,6 +590,14 @@ function StaffOrderStage({
   onStart: () => void;
   uploading: boolean;
   onUpload: (files: FileList | null) => void;
+  paymentOpen: boolean;
+  setPaymentOpen: (open: boolean) => void;
+  deliveryOpen: boolean;
+  setDeliveryOpen: (open: boolean) => void;
+  actionError: string | null;
+  onClose: () => void;
+  onSuccess: (order: OrderDetail) => void;
+  hostDialogs: boolean;
 }) {
   const t = useTranslations("Orders");
   const locale = useLocale();
@@ -667,9 +721,38 @@ function StaffOrderStage({
           </Button>
         ) : null}
         {order.status === "ready_for_payment" ? (
-          <p className="flex w-full items-center gap-2 rounded-2xl border border-brand-gold/30 bg-brand-gold/10 px-4 py-3 text-sm font-semibold">
-            <ClipboardCheck className="size-4 text-brand-gold" aria-hidden="true" />
-            {t("staffReadyHint")}
+          <>
+            <Button onClick={() => setPaymentOpen(true)} disabled={busy}>
+              <Banknote className="size-4" aria-hidden="true" />
+              {t("staffRecordPayment")}
+            </Button>
+            <p className="flex w-full items-center gap-2 rounded-2xl border border-brand-gold/30 bg-brand-gold/10 px-4 py-3 text-sm font-semibold">
+              <ClipboardCheck className="size-4 text-brand-gold" aria-hidden="true" />
+              {t("staffReadyHint")}
+            </p>
+          </>
+        ) : null}
+        {order.status === "paid" ? (
+          <Button onClick={() => setDeliveryOpen(true)} disabled={busy}>
+            <Truck className="size-4" aria-hidden="true" />
+            {t("staffRecordDelivery")}
+          </Button>
+        ) : null}
+        {order.status === "delivered" ? (
+          <>
+            <Button onClick={onClose} disabled={busy}>
+              <CheckCircle2 className="size-4" aria-hidden="true" />
+              {t("staffCloseOrder")}
+            </Button>
+            <p className="flex w-full items-center gap-2 rounded-2xl border border-brand-gold/30 bg-brand-gold/10 px-4 py-3 text-sm font-semibold">
+              <ClipboardCheck className="size-4 text-brand-gold" aria-hidden="true" />
+              {t("staffCloseHint")}
+            </p>
+          </>
+        ) : null}
+        {actionError ? (
+          <p role="alert" className="w-full text-sm font-semibold text-destructive">
+            {actionError}
           </p>
         ) : null}
       </div>
@@ -685,6 +768,14 @@ function StaffOrderStage({
         }}
       />
 
+      {/* Payment + delivery records (plan 07) */}
+      {order.payment ? (
+        <OrderPaymentCard payment={order.payment} staff />
+      ) : null}
+      {order.delivery ? (
+        <OrderDeliveryCard delivery={order.delivery} staff />
+      ) : null}
+
       {/* Photos (all kinds for staff) */}
       {order.attachments.length > 0 ? (
         <section className="mt-5">
@@ -697,6 +788,30 @@ function StaffOrderStage({
         <p className="mb-3 font-display text-sm font-bold">{t("timelineTitle")}</p>
         <OrderTimeline events={order.timeline} />
       </section>
+
+      {/* Plan 07 dialogs: rendered once (desktop host); the portal escapes the
+          hidden container so they open on mobile too. */}
+      {hostDialogs && (
+        <>
+          <RecordPaymentDialog
+            open={paymentOpen}
+            onOpenChange={setPaymentOpen}
+            orderId={order.id}
+            suggestedAmount={Number(order.finalPrice ?? order.estimatedPrice)}
+            currency={order.currency}
+            role="staff"
+            onSuccess={onSuccess}
+          />
+
+          <RecordDeliveryDialog
+            open={deliveryOpen}
+            onOpenChange={setDeliveryOpen}
+            orderId={order.id}
+            role="staff"
+            onSuccess={onSuccess}
+          />
+        </>
+      )}
 
       {/* Progress note dialog */}
       <AlertDialog open={noteOpen} onOpenChange={setNoteOpen}>

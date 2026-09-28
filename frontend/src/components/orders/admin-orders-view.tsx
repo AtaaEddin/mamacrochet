@@ -9,12 +9,14 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowLeft,
+  Banknote,
   ClipboardCheck,
   Gauge,
   Loader2,
   LogIn,
   RefreshCw,
   Search,
+  Truck,
   UserCog,
   Users,
 } from "lucide-react";
@@ -58,6 +60,12 @@ import { OrderAttachments } from "./order-attachments";
 import { OrderStatusBadge } from "./order-status-badge";
 import { OrderStatusSteps } from "./order-status-steps";
 import { OrderTimeline } from "./order-timeline";
+import {
+  OrderDeliveryCard,
+  OrderPaymentCard,
+  RecordDeliveryDialog,
+  RecordPaymentDialog,
+} from "./payment-delivery";
 
 type TableState =
   | { status: "loading" }
@@ -133,6 +141,8 @@ export function AdminOrdersView() {
   const [overrideStatus, setOverrideStatus] = useState("");
   const [overrideNote, setOverrideNote] = useState("");
   const [overridePrice, setOverridePrice] = useState("");
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const reqRef = useRef(0);
 
   const t = useTranslations("Orders");
@@ -435,6 +445,12 @@ export function AdminOrdersView() {
               setOverridePrice={setOverridePrice}
               onOverride={doOverride}
               terminal={terminal}
+              paymentOpen={paymentOpen}
+              setPaymentOpen={setPaymentOpen}
+              deliveryOpen={deliveryOpen}
+              setDeliveryOpen={setDeliveryOpen}
+              hostDialogs={false}
+              onSuccess={refreshStage}
             />
           </div>
         ) : (
@@ -556,6 +572,12 @@ export function AdminOrdersView() {
             setOverridePrice={setOverridePrice}
             onOverride={doOverride}
             terminal={terminal}
+            paymentOpen={paymentOpen}
+            setPaymentOpen={setPaymentOpen}
+            deliveryOpen={deliveryOpen}
+            setDeliveryOpen={setDeliveryOpen}
+            hostDialogs
+            onSuccess={refreshStage}
           />
         ) : null}
       </div>
@@ -677,6 +699,12 @@ function AdminOrderStage({
   setOverridePrice,
   onOverride,
   terminal,
+  paymentOpen,
+  hostDialogs,
+  setPaymentOpen,
+  deliveryOpen,
+  setDeliveryOpen,
+  onSuccess,
 }: {
   stage: StageState;
   onRetry: () => void;
@@ -693,6 +721,12 @@ function AdminOrderStage({
   setOverridePrice: (s: string) => void;
   onOverride: () => void;
   terminal: boolean;
+  paymentOpen: boolean;
+  setPaymentOpen: (open: boolean) => void;
+  deliveryOpen: boolean;
+  setDeliveryOpen: (open: boolean) => void;
+  hostDialogs: boolean;
+  onSuccess: (order: OrderDetail) => void;
 }) {
   const t = useTranslations("Orders");
   const locale = useLocale();
@@ -776,7 +810,7 @@ function AdminOrderStage({
         </dl>
       </section>
 
-      {/* Assignment + override */}
+      {/* Assignment + override + plan 07 actions */}
       <section className="mt-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2">
           <UserCog className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -802,6 +836,18 @@ function AdminOrderStage({
             </SelectContent>
           </Select>
         </div>
+        {order.status === "ready_for_payment" ? (
+          <Button size="sm" onClick={() => setPaymentOpen(true)} disabled={busy}>
+            <Banknote className="size-4" aria-hidden="true" />
+            {t("staffRecordPayment")}
+          </Button>
+        ) : null}
+        {order.status === "paid" ? (
+          <Button size="sm" onClick={() => setDeliveryOpen(true)} disabled={busy}>
+            <Truck className="size-4" aria-hidden="true" />
+            {t("staffRecordDelivery")}
+          </Button>
+        ) : null}
         {!terminal ? (
           <Button variant="outline" size="sm" onClick={() => setOverrideOpen(true)}>
             <ClipboardCheck className="size-4" aria-hidden="true" />
@@ -809,6 +855,14 @@ function AdminOrderStage({
           </Button>
         ) : null}
       </section>
+
+      {/* Payment + delivery records (plan 07) */}
+      {order.payment ? (
+        <OrderPaymentCard payment={order.payment} staff />
+      ) : null}
+      {order.delivery ? (
+        <OrderDeliveryCard delivery={order.delivery} staff />
+      ) : null}
 
       {/* Photos */}
       {order.attachments.length > 0 ? (
@@ -886,6 +940,30 @@ function AdminOrderStage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Plan 07 dialogs: rendered once (desktop host); the portal escapes the
+          hidden container so they open on mobile too. */}
+      {hostDialogs && (
+        <>
+          <RecordPaymentDialog
+            open={paymentOpen}
+            onOpenChange={setPaymentOpen}
+            orderId={order.id}
+            suggestedAmount={Number(order.finalPrice ?? order.estimatedPrice)}
+            currency={order.currency}
+            role="admin"
+            onSuccess={onSuccess}
+          />
+
+          <RecordDeliveryDialog
+            open={deliveryOpen}
+            onOpenChange={setDeliveryOpen}
+            orderId={order.id}
+            role="admin"
+            onSuccess={onSuccess}
+          />
+        </>
+      )}
     </article>
   );
 }

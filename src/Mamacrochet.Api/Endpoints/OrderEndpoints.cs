@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -206,6 +207,36 @@ public static class OrderEndpoints
         .Produces<ApiError>(404)
         .Produces<ApiError>(409);
 
+        orders.MapPost("/{id}/confirm-delivery", async (
+            string id,
+            OrderService service,
+            AppDbContext db,
+            ClaimsPrincipal principal,
+            CancellationToken ct) =>
+        {
+            var user = await db.GetCurrentUserAsync(principal);
+            if (user is null)
+            {
+                return Unauthenticated();
+            }
+
+            var result = await service.ConfirmDeliveryAsync(id, user, ct);
+            if (result.Error is not null)
+            {
+                return result.Error.Code == "order_not_found"
+                    ? Results.NotFound(result.Error)
+                    : Results.Conflict(result.Error);
+            }
+
+            var fresh = await LoadDetailAsync(db, id, ct);
+            return Results.Ok(MapDetail(
+                fresh!, user.IsAdmin,
+                owner: true, staff: user.IsEmployee, ct));
+        })
+        .Produces<OrderDetail>(200)
+        .Produces<ApiError>(404)
+        .Produces<ApiError>(409);
+
         orders.MapPost("/{id}/rating", async (
             string id,
             RateOrderRequest request,
@@ -390,6 +421,32 @@ public static class OrderEndpoints
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404);
 
+        orders.MapPost("/{id}/payment", async (
+            string id,
+            [FromForm] string? amount,
+            [FromForm] string? method,
+            [FromForm] string? note,
+            [FromForm] IFormFile? receipt,
+            OrderService service,
+            AppDbContext db,
+            ClaimsPrincipal principal,
+            CancellationToken ct) =>
+            await HandlePaymentAsync(id, amount, method, note, receipt,
+                db, service, principal, false, ct));
+
+        orders.MapPost("/{id}/delivery", async (
+            string id,
+            [FromForm] string? method,
+            [FromForm] string? actualAt,
+            [FromForm] string? description,
+            [FromForm] IFormFile? proof,
+            OrderService service,
+            AppDbContext db,
+            ClaimsPrincipal principal,
+            CancellationToken ct) =>
+            await HandleDeliveryAsync(id, method, actualAt, description, proof,
+                db, service, principal, false, ct));
+
         orders.MapPost("/{id}/attachments", async (
             string id,
             [FromForm] string? kind,
@@ -467,6 +524,129 @@ public static class OrderEndpoints
         .Produces<ApiError>(404);
     }
 
+    // Plan 07: the same payment/delivery handlers serve the admin surface —
+    // an admin may record a receipt-less payment (then a written reason is
+    // mandatory) and a proof-less delivery; the pure status jumps without
+    // either record go through /admin/orders/{id}/status (rule 3).
+    private static async Task<IResult> HandlePaymentAsync(
+        string id,
+        string? amount,
+        string? method,
+        string? note,
+        IFormFile? receipt,
+        AppDbContext db,
+        OrderService service,
+        ClaimsPrincipal principal,
+        bool admin,
+        CancellationToken ct)
+    {
+        var user = await db.GetCurrentUserAsync(principal);
+        if (user is null)
+        {
+            return Unauthenticated();
+        }
+
+        var order = await db.Orders.AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null || !await OrderService.SeeByStaffAsync(db, user, order, ct))
+        {
+            return Results.NotFound(ApiError.NotFound("order_not_found"));
+        }
+
+        UploadFile? file = null;
+        if (receipt is not null && receipt.Length > 0)
+        {
+            await using var buffer = new MemoryStream();
+            await receipt.CopyToAsync(buffer);
+            file = new UploadFile(receipt.FileName, buffer.ToArray());
+        }
+
+        decimal? parsedAmount = null;
+        if (!string.IsNullOrWhiteSpace(amount)
+            && decimal.TryParse(
+                amount.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture,
+                out var value))
+        {
+            parsedAmount = value;
+        }
+
+        var result = await service.RecordPaymentAsync(
+            id, parsedAmount, method, note, file,
+            user.Id, user.DisplayName, user.IsAdmin ? "admin" : "employee", ct);
+        if (result.Error is not null)
+        {
+            return result.Error.Code == "order_not_found"
+                ? Results.NotFound(result.Error)
+                : result.Error.Code == "invalid_status_change"
+                    ? Results.Conflict(result.Error)
+                    : Results.BadRequest(result.Error);
+        }
+
+        var fresh = await LoadDetailAsync(db, id, ct);
+        return Results.Ok(MapDetail(
+            fresh!, admin, owner: false, staff: true, ct));
+    }
+
+    private static async Task<IResult> HandleDeliveryAsync(
+        string id,
+        string? method,
+        string? actualAt,
+        string? description,
+        IFormFile? proof,
+        AppDbContext db,
+        OrderService service,
+        ClaimsPrincipal principal,
+        bool admin,
+        CancellationToken ct)
+    {
+        var user = await db.GetCurrentUserAsync(principal);
+        if (user is null)
+        {
+            return Unauthenticated();
+        }
+
+        var order = await db.Orders.AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null || !await OrderService.SeeByStaffAsync(db, user, order, ct))
+        {
+            return Results.NotFound(ApiError.NotFound("order_not_found"));
+        }
+
+        UploadFile? file = null;
+        if (proof is not null && proof.Length > 0)
+        {
+            await using var buffer = new MemoryStream();
+            await proof.CopyToAsync(buffer);
+            file = new UploadFile(proof.FileName, buffer.ToArray());
+        }
+
+        DateTime? parsedActual = null;
+        if (!string.IsNullOrWhiteSpace(actualAt)
+            && DateTime.TryParse(
+                actualAt.Trim(), CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var value))
+        {
+            parsedActual = value;
+        }
+
+        var result = await service.RecordDeliveryAsync(
+            id, method, parsedActual, description, file,
+            user.Id, user.DisplayName, user.IsAdmin ? "admin" : "employee", ct);
+        if (result.Error is not null)
+        {
+            return result.Error.Code == "order_not_found"
+                ? Results.NotFound(result.Error)
+                : result.Error.Code == "invalid_status_change"
+                    ? Results.Conflict(result.Error)
+                    : Results.BadRequest(result.Error);
+        }
+
+        var fresh = await LoadDetailAsync(db, id, ct);
+        return Results.Ok(MapDetail(
+            fresh!, admin, owner: false, staff: true, ct));
+    }
+
     // ---- /admin/orders — admin surface -----------------------------------
 
     private static void MapAdminOrders(this IEndpointRouteBuilder app)
@@ -531,6 +711,36 @@ public static class OrderEndpoints
         })
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404);
+
+        // Plan 07: admin payment/delivery records (mapped after /metrics and
+        // before /{id} is unreachable — static segments win, and these are
+        // two-segment paths). Admin variant: receipt/proof optional, then
+        // the written reason is mandatory (rule 3).
+        orders.MapPost("/{id}/payment", async (
+            string id,
+            [FromForm] string? amount,
+            [FromForm] string? method,
+            [FromForm] string? note,
+            [FromForm] IFormFile? receipt,
+            OrderService service,
+            AppDbContext db,
+            ClaimsPrincipal principal,
+            CancellationToken ct) =>
+            await HandlePaymentAsync(id, amount, method, note, receipt,
+                db, service, principal, true, ct));
+
+        orders.MapPost("/{id}/delivery", async (
+            string id,
+            [FromForm] string? method,
+            [FromForm] string? actualAt,
+            [FromForm] string? description,
+            [FromForm] IFormFile? proof,
+            OrderService service,
+            AppDbContext db,
+            ClaimsPrincipal principal,
+            CancellationToken ct) =>
+            await HandleDeliveryAsync(id, method, actualAt, description, proof,
+                db, service, principal, true, ct));
 
         orders.MapPost("/{id}/status", async (
             string id,
@@ -638,6 +848,9 @@ public static class OrderEndpoints
             .Include(o => o.Customer)
             .Include(o => o.Timeline)
             .Include(o => o.Attachments).ThenInclude(f => f.UploadedBy)
+            .Include(o => o.Payment).ThenInclude(p => p!.ReceiptFile)
+            .Include(o => o.Payment).ThenInclude(p => p!.RecordedBy)
+            .Include(o => o.Delivery).ThenInclude(d => d!.ProofFile)
             .FirstOrDefaultAsync(o => o.Id == id, ct);
     }
 
@@ -687,8 +900,37 @@ public static class OrderEndpoints
             order.RatedAt,
             timeline,
             attachments,
+            order.Payment is null
+                ? null
+                : new PaymentDto(
+                    order.Payment.Amount,
+                    order.Payment.Currency,
+                    order.Payment.Method,
+                    order.Payment.ReceiptFileId is not null,
+                    staff && order.Payment.ReceiptFile is not null
+                        ? $"/files/orders/{order.Id}/{order.Payment.ReceiptFile.StoredName}"
+                        : null,
+                    // Without a receipt the note is the admin override reason —
+                    // admin trace only (plan 07 rule 3), never the customer card.
+                    staff || order.Payment.ReceiptFileId is not null
+                        ? order.Payment.Note
+                        : null,
+                    order.Payment.RecordedAt),
+            order.Delivery is null
+                ? null
+                : new DeliveryDto(
+                    order.Delivery.Method,
+                    order.Delivery.ActualAt,
+                    order.Delivery.Description,
+                    staff && order.Delivery.ProofFile is not null
+                        ? $"/files/orders/{order.Id}/{order.Delivery.ProofFile.StoredName}"
+                        : null,
+                    order.Delivery.RecordedAt),
             owner && (order.Status == OrderStatus.Open || order.Status == OrderStatus.InProgress),
             owner && order.Status == OrderStatus.Closed && order.Rating is null,
+            owner
+                && order.Status == OrderStatus.Delivered
+                && order.Timeline.All(e => e.Kind != "confirmation"),
             order.CreatedAt,
             order.UpdatedAt);
     }
@@ -729,7 +971,7 @@ public static class OrderFiles
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex NamePattern = new(
-        "^[0-9a-f]{32}\\.(jpg|png|webp)$",
+        "^[0-9a-f]{32}\\.(jpg|png|webp|pdf)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static bool IsValid(string orderId, string fileName) =>
@@ -745,6 +987,11 @@ public static class OrderFiles
         if (fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
         {
             return "image/png";
+        }
+
+        if (fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return "application/pdf";
         }
 
         return "image/webp";
