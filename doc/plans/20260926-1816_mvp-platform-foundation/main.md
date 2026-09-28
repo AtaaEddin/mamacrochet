@@ -86,7 +86,7 @@ hardware.
 | 02 | 02-repo-scaffold.md                 | Aspire 13 + .NET 10 + Next.js 16 skeleton        | done        |
 | 03 | 03-identity-and-roles.md            | Accounts, auth, RBAC, user management            | done        |
 | 04 | 04-products-catalog.md              | Products, categories, images, stock, public shop | done        |
-| 05 | 05-orders-and-status.md             | Order model, lifecycle, status board, assignment | proposed    |
+| 05 | 05-orders-and-status.md             | Order model, lifecycle, status board, assignment | done        |
 | 06 | 06-chat.md                          | Realtime chat per order + attachments            | proposed    |
 | 07 | 07-payments-receipts-delivery.md    | Receipt-gated payment, delivery, close rules     | proposed    |
 | 08 | 08-localization-and-themes.md       | en/ar/tr i18n (RTL) + light/dark themes          | in-progress (foundation done 2026-09-26) |
@@ -142,6 +142,8 @@ notifications for all roles (D18), Google sign-in (D17), self-service password r
 | D21  | **Chat is a destination page** (`/chat`): ChatGPT-style, **full width** (home stays a centered showcase). Products live **in the chat**: in-chat search picker AND a product rail (tap or drag-and-drop a work into the thread); picked works become product messages with in-place expandable details (`/chat?work=<id>` deep link). **No chat UI on the home page**; home closes with a "didn't find your liking? we can do custom" CTA → chat. How-it-works section and top nav menu removed. | Owner 2026-09-26 ("very important") |
 | D22  | **Order page** (plans 05/06): orders rail (side list) + **full-width middle stage** where the customer toggles **chat ⇄ order stages** (status timeline, receipt, delivery) with no page change. Admin sees the same stage + the full trace (who did what, how long). Mobile: two views + toggle. | Owner 2026-09-26 |
 | D23  | **Employee main page** (plan 06): ChatGPT-style workspace — conversation rail + ChatGPT thread + the order middle stage; thread UI identical to the customer's chat (one design, every role). | Owner 2026-09-26 |
+| D24  | **Guest thread tokens (plan 06)**: stateless HMAC tokens (`base64url(payload).base64url(mac)`, payload `{threadId, guestId, exp}`, 2 h) for anonymous SignalR/REST access to visitor threads — no table, no Redis (D9); key via `Chat:TokenKey` (ephemeral per-process in dev). | Plan 06 implementation, 2026-09-28 |
+| D25  | **Chat file serving (plan 06)**: short-lived HMAC read signatures in message DTOs (`/files/chat/{threadId}/{fileName}?sig&exp`, 1 h) — guests have no cookie, the signature is read-only and per-file. | Plan 06 implementation, 2026-09-28 |
 
 ## Risks / open questions
 
