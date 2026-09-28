@@ -6,7 +6,7 @@ import type { components } from "@/lib/api/schema";
  * multipart uploads go through raw fetch (the generated binary schema
  * cannot express a FormData — same precedent as the avatar upload).
  *
- * Auth: the shared client's `mm.auth` cookie (signed-in users, CSRF wired
+ * Auth: the shared client's `hc.auth` cookie (signed-in users, CSRF wired
  * by `browserFetch`) OR a guest thread token sent as the `X-Chat-Token`
  * header (visitor threads — the API exempts those requests from CSRF and
  * verifies the token itself). One `Auth` shape keeps every call site tidy.

@@ -4,7 +4,7 @@ export const routing = defineRouting({
   locales: ["en", "ar", "tr"],
   defaultLocale: "en",
   localeCookie: {
-    name: "mamacrochet-locale",
+    name: "hanadicrochet-locale",
   },
 });
 

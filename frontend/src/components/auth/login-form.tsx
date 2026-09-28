@@ -19,7 +19,7 @@ function nextFromUrl(): string | null {
 
 /**
  * Customer login (staff prop → the /staff/login door). Cookie auth: on
- * success the API sets `mm.auth`; the client refetches its antiforgery
+ * success the API sets `hc.auth`; the client refetches its antiforgery
  * token (principal changed) and routes: temp password → forced change,
  * staff → chat, customer → account (or `?next=` from the confirmation gate).
  */

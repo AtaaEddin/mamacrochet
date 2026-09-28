@@ -16,7 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ConfettiHearts } from "@/components/illustrations/confetti-hearts";
-import { MamaMark } from "@/components/illustrations/mama-mark";
+import { HanadiMark } from "@/components/illustrations/hanadi-mark";
 
 /** Client-side mirror of the server limits (the API re-checks everything). */
 const MAX_FILES = 3;
@@ -173,7 +173,7 @@ export function JoinView() {
     <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
       <header className="text-center">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-          <MamaMark className="size-9" />
+          <HanadiMark className="size-9" />
         </div>
         <h1 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
           {t("title")}

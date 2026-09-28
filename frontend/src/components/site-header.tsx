@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { MessageCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { AuthBadge } from "@/components/auth-badge";
-import { MamaMark } from "@/components/illustrations/mama-mark";
+import { HanadiMark } from "@/components/illustrations/hanadi-mark";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -36,9 +36,9 @@ export async function SiteHeader() {
             href="/"
             className="flex shrink-0 items-center gap-2.5 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            <MamaMark className="size-9" />
+            <HanadiMark className="size-9" />
             <span className="font-display text-xl font-extrabold tracking-tight">
-              mamacrochet
+              hanadicrochet
             </span>
           </Link>
 

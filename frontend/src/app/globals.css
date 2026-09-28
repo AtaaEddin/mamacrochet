@@ -43,13 +43,13 @@
   --brand-ink: oklch(0.32 0.024 50);
 
   /* Mama mascot (tile = gold in light) */
-  --brand-mama-tile: oklch(0.86 0.09 90);
-  --brand-mama-skin: oklch(0.74 0.1 62);
-  --brand-mama-blush: oklch(0.78 0.13 40);
-  --brand-mama-scarf: oklch(0.58 0.185 22);
-  --brand-mama-scarf-deep: oklch(0.5 0.17 22);
-  --brand-mama-scarf-flower: oklch(0.82 0.07 200);
-  --brand-mama-gold: oklch(0.82 0.11 85);
+  --brand-hanadi-tile: oklch(0.86 0.09 90);
+  --brand-hanadi-skin: oklch(0.74 0.1 62);
+  --brand-hanadi-blush: oklch(0.78 0.13 40);
+  --brand-hanadi-scarf: oklch(0.58 0.185 22);
+  --brand-hanadi-scarf-deep: oklch(0.5 0.17 22);
+  --brand-hanadi-scarf-flower: oklch(0.82 0.07 200);
+  --brand-hanadi-gold: oklch(0.82 0.11 85);
 
   --chart-1: oklch(0.6 0.19 22);
   --chart-2: oklch(0.7 0.085 195);
@@ -103,13 +103,13 @@
   --brand-ink: oklch(0.8 0.02 75);
 
   /* Mama — calmer in the dark: deeper skin, muted scarf, deep brass tile */
-  --brand-mama-tile: oklch(0.6 0.08 78);
-  --brand-mama-skin: oklch(0.68 0.085 60);
-  --brand-mama-blush: oklch(0.7 0.09 40);
-  --brand-mama-scarf: oklch(0.58 0.13 22);
-  --brand-mama-scarf-deep: oklch(0.5 0.12 22);
-  --brand-mama-scarf-flower: oklch(0.72 0.05 200);
-  --brand-mama-gold: oklch(0.78 0.09 85);
+  --brand-hanadi-tile: oklch(0.6 0.08 78);
+  --brand-hanadi-skin: oklch(0.68 0.085 60);
+  --brand-hanadi-blush: oklch(0.7 0.09 40);
+  --brand-hanadi-scarf: oklch(0.58 0.13 22);
+  --brand-hanadi-scarf-deep: oklch(0.5 0.12 22);
+  --brand-hanadi-scarf-flower: oklch(0.72 0.05 200);
+  --brand-hanadi-gold: oklch(0.78 0.09 85);
 
   --chart-1: oklch(0.66 0.17 22);
   --chart-2: oklch(0.74 0.08 195);
@@ -171,13 +171,13 @@
   --color-brand-olive: var(--brand-olive);
   --color-brand-cream: var(--brand-cream);
   --color-brand-ink: var(--brand-ink);
-  --color-brand-mama-tile: var(--brand-mama-tile);
-  --color-brand-mama-skin: var(--brand-mama-skin);
-  --color-brand-mama-blush: var(--brand-mama-blush);
-  --color-brand-mama-scarf: var(--brand-mama-scarf);
-  --color-brand-mama-scarf-deep: var(--brand-mama-scarf-deep);
-  --color-brand-mama-scarf-flower: var(--brand-mama-scarf-flower);
-  --color-brand-mama-gold: var(--brand-mama-gold);
+  --color-brand-hanadi-tile: var(--brand-hanadi-tile);
+  --color-brand-hanadi-skin: var(--brand-hanadi-skin);
+  --color-brand-hanadi-blush: var(--brand-hanadi-blush);
+  --color-brand-hanadi-scarf: var(--brand-hanadi-scarf);
+  --color-brand-hanadi-scarf-deep: var(--brand-hanadi-scarf-deep);
+  --color-brand-hanadi-scarf-flower: var(--brand-hanadi-scarf-flower);
+  --color-brand-hanadi-gold: var(--brand-hanadi-gold);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

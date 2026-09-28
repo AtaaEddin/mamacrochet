@@ -13,7 +13,7 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { MamaMark } from "@/components/illustrations/mama-mark";
+import { HanadiMark } from "@/components/illustrations/hanadi-mark";
 import { productTitle, type ProductDto } from "@/lib/catalog/localize";
 import { toWorkDisplay } from "@/lib/catalog/display";
 import { fetchChatProducts } from "@/lib/chat/products";
@@ -22,14 +22,14 @@ import { OrderProductActions } from "@/components/orders/order-product-actions";
 import { cn } from "@/lib/utils";
 
 /** Drag-and-drop payload key (product id) — rail card → conversation. */
-export const WORK_DRAG_TYPE = "text/mamacrochet-work";
+export const WORK_DRAG_TYPE = "text/hanadicrochet-work";
 
 const RAIL_PRODUCT_LIMIT = 12;
 
 /**
- * The big chat surface — mamacrochet is a chat-first platform (brand v2).
+ * The big chat surface — hanadicrochet is a chat-first platform (brand v2).
  *
- * Look: ChatGPT-style thread — centered column (max-w-2xl), Mama's
+ * Look: ChatGPT-style thread — centered column (max-w-2xl), Hanadi's
  * messages as avatar + plain text, visitor messages as soft bubbles, one
  * rounded composer box. With `withProductRail` (the chat page) the free
  * space becomes a **product rail**: browse real works and add one to the
@@ -200,7 +200,7 @@ export function ChatPanel({
     >
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
-        <MamaMark className="size-10 shrink-0" />
+        <HanadiMark className="size-10 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-base font-bold leading-tight">
             {t("title")}
@@ -287,7 +287,7 @@ export function ChatPanel({
 
               {chat.messages.length === 0 && !chat.loadingHistory && (
                 <div className="mt-10 flex flex-col items-center gap-3 text-center">
-                  <MamaMark className="size-14 opacity-80" />
+                  <HanadiMark className="size-14 opacity-80" />
                   <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
                     {mode === "guest" ? t("opener") : t("emptyThread")}
                   </p>
@@ -607,7 +607,7 @@ function MessageRow({
   const name = m.senderName || t("title");
   return (
     <div className={cn("flex gap-3", m.pending && "opacity-60")}>
-      <MamaMark className="mt-0.5 size-8 shrink-0" />
+      <HanadiMark className="mt-0.5 size-8 shrink-0" />
       <div className="min-w-0 flex-1">
         {staff && (
           <p className="mb-0.5 flex flex-wrap items-center gap-1.5 text-xs font-bold text-muted-foreground">

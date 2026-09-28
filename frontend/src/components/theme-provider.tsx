@@ -11,7 +11,7 @@ export function ThemeProvider({ children, ...props }: ComponentProps<typeof Next
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
-      storageKey="mamacrochet-theme"
+      storageKey="hanadicrochet-theme"
     >
       {children}
     </NextThemesProvider>

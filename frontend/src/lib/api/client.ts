@@ -11,7 +11,7 @@ import type { components, paths } from "./schema";
  *   (`handle_path /api/*` strips the prefix) — set NEXT_PUBLIC_API_URL=/api
  *
  * Cookie auth (plan 03):
- * - `credentials: "include"` sends the browser's `mm.auth` + antiforgery
+ * - `credentials: "include"` sends the browser's `hc.auth` + antiforgery
  *   cookies on every call. Dev is cross-origin but same-site
  *   (localhost:3000 → localhost:8085), so SameSite=Lax delivers them.
  * - CSRF: mutations under `/identity` + `/admin` carry `X-CSRF-TOKEN`.

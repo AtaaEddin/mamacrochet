@@ -15,7 +15,7 @@ import { getGuestId } from "@/lib/guest-id"; // plan-05 shared module (D14)
  *
  * - guest mode: bootstraps the device's visitor thread (idempotent, D14)
  *   and authenticates the socket + REST with a short-lived thread token
- *   (D24); user mode: the mm.auth cookie does it all;
+ *   (D24); user mode: the hc.auth cookie does it all;
  * - realtime: a SignalR socket per thread with automatic reconnect;
  *   when the socket is down, a 5 s REST poll (`after=` cursor) carries the
  *   conversation — messages never stall on a flaky mobile network;

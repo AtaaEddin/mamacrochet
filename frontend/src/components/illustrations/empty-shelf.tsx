@@ -1,15 +1,15 @@
-import { MamaBust } from "@/components/illustrations/mama-pieces";
+import { HanadiBust } from "@/components/illustrations/hanadi-pieces";
 
 /**
- * Empty state — Mama behind a nearly-empty shelf (coming soon / no items).
+ * Empty state — Hanadi behind a nearly-empty shelf (coming soon / no items).
  */
 export function EmptyShelf({ className }: { className?: string }) {
   const ink = "var(--color-brand-ink)";
   return (
     <svg viewBox="0 0 220 140" className={className} aria-hidden="true" focusable="false">
-      {/* Mama (behind the shelf) */}
+      {/* Hanadi (behind the shelf) */}
       <g transform="translate(58 12) scale(1.02)">
-        <MamaBust />
+        <HanadiBust />
       </g>
 
       {/* shelf */}

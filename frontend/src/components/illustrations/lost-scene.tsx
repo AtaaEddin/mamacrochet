@@ -1,15 +1,15 @@
-import { MamaBust } from "@/components/illustrations/mama-pieces";
+import { HanadiBust } from "@/components/illustrations/hanadi-pieces";
 
 /**
- * 404 illustration — Mama next to a page tangled in yarn (brand v2).
+ * 404 illustration — Hanadi next to a page tangled in yarn (brand v2).
  */
 export function LostScene({ className }: { className?: string }) {
   const ink = "var(--color-brand-ink)";
   return (
     <svg viewBox="0 0 240 140" className={className} aria-hidden="true" focusable="false">
-      {/* Mama */}
+      {/* Hanadi */}
       <g transform="translate(10 16)">
-        <MamaBust />
+        <HanadiBust />
       </g>
 
       {/* tangled page */}
@@ -34,7 +34,7 @@ export function LostScene({ className }: { className?: string }) {
 
       {/* yarn ball */}
       <circle cx="196" cy="102" r="20" fill="var(--color-brand-pomegranate)" stroke={ink} strokeWidth="2.4" />
-      <g fill="none" stroke="var(--color-brand-mama-scarf-deep)" strokeWidth="1.6" opacity="0.6" strokeLinecap="round">
+      <g fill="none" stroke="var(--color-brand-hanadi-scarf-deep)" strokeWidth="1.6" opacity="0.6" strokeLinecap="round">
         <path d="M 178 96 q 18 8 36 -2" />
         <path d="M 180 108 q 16 6 32 -6" />
         <path d="M 186 88 q 14 10 24 16" />

@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
  * - admin → plus the "Team desk" icon → /admin/users and the
  *   "Join requests" icon → /admin/hiring (plan 09)
  *
- * Cookie auth: the browser sends mm.auth automatically; 401/gone → guest.
+ * Cookie auth: the browser sends hc.auth automatically; 401/gone → guest.
  */
 export function AuthBadge() {
   const t = useTranslations("Auth");

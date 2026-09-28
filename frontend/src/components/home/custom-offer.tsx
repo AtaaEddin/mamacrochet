@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
-import { MamaScene } from "@/components/illustrations/mama-scene";
+import { HanadiScene } from "@/components/illustrations/hanadi-scene";
 
 /**
  * "Didn't find your liking?" — the custom-offer block (brand v2).
@@ -15,7 +15,7 @@ export async function CustomOffer() {
     <section aria-labelledby="custom-offer-title" className="py-10 sm:py-14">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col items-center gap-5 rounded-[2.5rem] border border-border/70 bg-card px-6 py-9 text-center shadow-sm sm:flex-row sm:gap-8 sm:text-start">
-          <MamaScene className="h-auto w-32 shrink-0 sm:w-40" />
+          <HanadiScene className="h-auto w-32 shrink-0 sm:w-40" />
           <div className="min-w-0">
             <h2
               id="custom-offer-title"

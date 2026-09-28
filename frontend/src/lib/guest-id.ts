@@ -7,7 +7,7 @@
  *
  * Browser-only (localStorage); do not call from server components.
  */
-const GUEST_ID_STORAGE_KEY = "mm.guestId";
+const GUEST_ID_STORAGE_KEY = "hc.guestId";
 
 function isValidV4Guid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

@@ -1,4 +1,4 @@
-# mamacrochet web (plan 10) — production image (Next.js standalone output).
+# hanadicrochet web (plan 10) — production image (Next.js standalone output).
 #
 # Build context is the REPO ROOT (see deploy/docker-compose.yml):
 #   docker build -f frontend/Dockerfile --build-arg NEXT_PUBLIC_SITE_URL=https://… .

@@ -52,8 +52,8 @@ export function WorkArt({ kind, className }: { kind: WorkArtKind; className?: st
           {/* face */}
           <path d="M 36.8 58 q 2.6 2.6 5.2 0" fill="none" stroke={ink} strokeWidth="2.2" />
           <path d="M 54 58 q 2.6 2.6 5.2 0" fill="none" stroke={ink} strokeWidth="2.2" />
-          <circle cx="34" cy="64.5" r="3" fill="var(--color-brand-mama-blush)" opacity="0.7" />
-          <circle cx="62" cy="64.5" r="3" fill="var(--color-brand-mama-blush)" opacity="0.7" />
+          <circle cx="34" cy="64.5" r="3" fill="var(--color-brand-hanadi-blush)" opacity="0.7" />
+          <circle cx="62" cy="64.5" r="3" fill="var(--color-brand-hanadi-blush)" opacity="0.7" />
           <path d="M 43 65.5 q 5 4 10 0" fill="none" stroke={ink} strokeWidth="2.2" />
         </g>
       )}

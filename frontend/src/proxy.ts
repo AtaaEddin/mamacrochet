@@ -4,7 +4,7 @@ import { routing } from "./i18n/routing";
 /**
  * Locale negotiation proxy (Next.js 16 renamed `middleware` to `proxy`).
  *
- * Priority: URL prefix → cookie (`mamacrochet-locale`) → `Accept-Language` → `en`.
+ * Priority: URL prefix → cookie (`hanadicrochet-locale`) → `Accept-Language` → `en`.
  */
 export default createIntlProxy(routing);
 

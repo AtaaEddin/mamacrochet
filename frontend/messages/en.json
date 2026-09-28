@@ -1,12 +1,12 @@
 {
   "Metadata": {
-    "name": "mamacrochet",
+    "name": "hanadicrochet",
     "title": "Handmade crochet, made with love — just for you",
     "description": "Handmade crochet bags and cozy little pieces, crafted one stitch at a time. Dreaming of something specific? Chat with us and we'll make it — no account needed to start."
   },
   "Nav": {
     "hello": "Say hi",
-    "launcher": "Chat with Mama"
+    "launcher": "Chat with Hanadi"
   },
   "Theme": {
     "label": "Color theme",
@@ -29,7 +29,7 @@
     "title": "Works made with love",
     "subtitle": "Our most-loved pieces — the ones ordered most and rated highest",
     "allTitle": "All our works",
-    "allSubtitle": "Everything mama has made — filter by category, then take your favorite into the chat",
+    "allSubtitle": "Everything Hanadi has made — filter by category, then take your favorite into the chat",
     "categories": {
       "all": "All",
       "bags": "Bags",
@@ -77,13 +77,13 @@
   },
   "CustomOffer": {
     "title": "Didn't find your liking?",
-    "body": "Send Mama an idea, a sketch or a photo — she crochets almost anything, just for you. No account needed to start.",
+    "body": "Send Hanadi an idea, a sketch or a photo — she crochets almost anything, just for you. No account needed to start.",
     "cta": "Chat about a custom piece"
   },
   "ChatPanel": {
-    "label": "Chat with Mama",
-    "title": "Mama",
-    "opener": "Hi, sweetheart! 👋 I'm Mama. What shall we make together today?",
+    "label": "Chat with Hanadi",
+    "title": "Hanadi",
+    "opener": "Hi, sweetheart! 👋 I'm Hanadi. What shall we make together today?",
     "chipCustom": "Custom order",
     "chipTrack": "Track my order",
     "chipDelivery": "Payment & delivery",
@@ -93,7 +93,7 @@
     "pickerLabel": "Search works",
     "pickerSearch": "Search a work…",
     "pickerClose": "Close product search",
-    "pickerEmpty": "No works match — tell Mama your idea, she can make it!",
+    "pickerEmpty": "No works match — tell Hanadi your idea, she can make it!",
     "railTitle": "Works you can add",
     "railHint": "Tap to add to the chat — or drag a card in.",
     "railFoot": "Or browse the full list — every piece can be yours.",
@@ -114,12 +114,12 @@
     "sendFailed": "Not sent",
     "retrySend": "Retry",
     "removeFile": "Remove file",
-    "emptyThread": "No messages yet — say hi to Mama!"
+    "emptyThread": "No messages yet — say hi to Hanadi!"
   },
   "Chat": {
     "listTitle": "Your conversations",
-    "listHint": "Your chats with Mama live here — one per order, plus your first chat.",
-    "listEmpty": "No conversations yet — start a chat with Mama!",
+    "listHint": "Your chats with Hanadi live here — one per order, plus your first chat.",
+    "listEmpty": "No conversations yet — start a chat with Hanadi!",
     "noSubject": "Chat",
     "closed": "Closed",
     "allConversations": "All conversations"

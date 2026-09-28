@@ -12,7 +12,7 @@ import * as chat from "@/lib/chat/api";
 /**
  * /chat — the home of the platform (chat-first, brand v2).
  *
- * - Visitor: straight into Mama's chat — the device's visitor thread is
+ * - Visitor: straight into Hanadi's chat — the device's visitor thread is
  *   bootstrapped silently by the panel (no account, no friction, D14).
  * - Signed-in customer: their conversations — one per order, plus the
  *   visitor thread once it is linked to their account. ?thread= opens a

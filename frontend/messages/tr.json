@@ -1,12 +1,12 @@
 {
   "Metadata": {
-    "name": "Mama Kroşe",
+    "name": "Hanadi Kroşe",
     "title": "El emeği kroeşe — sevgiyle, sadece senin için",
     "description": "El işi kroeşe çantalar ve sıcacık parçalar, her dikiş özenle işlenir. Belirli bir şey mi hayal ediyorsun? Sohbetten yaz, senin için işleyelim — hesab gerekmez."
   },
   "Nav": {
     "hello": "Merhaba de",
-    "launcher": "Mama'yla sohbet et"
+    "launcher": "Hanadi'yle sohbet et"
   },
   "Theme": {
     "label": "Tema",
@@ -29,7 +29,7 @@
     "title": "Sevgiyle işlenmiş eserler",
     "subtitle": "En çok sevilen parçalar — en çok sipariş edilen ve en yüksek puanlı",
     "allTitle": "Tüm eserlerimiz",
-    "allSubtitle": "Mama'nın işlediği her şey — kategoriye göre filtrela, favorini sohbete taşı",
+    "allSubtitle": "Hanadi'nin işlediği her şey — kategoriye göre filtrela, favorini sohbete taşı",
     "categories": {
       "all": "Tümü",
       "bags": "Çantalar",
@@ -77,13 +77,13 @@
   },
   "CustomOffer": {
     "title": "Beğenini bulamadın mı?",
-    "body": "Mama'ya bir fikir, skiz ya da fotoğraf gönder — neredeyse her şeyi, tam senin için örer. Başlamak için hesaba gerek yok.",
+    "body": "Hanadi'ya bir fikir, skiz ya da fotoğraf gönder — neredeyse her şeyi, tam senin için örer. Başlamak için hesaba gerek yok.",
     "cta": "Özel parça için sohbet et"
   },
   "ChatPanel": {
-    "label": "Mama ile sohbet",
+    "label": "Hanadi ile sohbet",
     "title": "Mama",
-    "opener": "Merhaba tatlım! 👋 Ben Mama. Bugün birlikte ne yapalım?",
+    "opener": "Merhaba tatlım! 👋 Ben Hanadi. Bugün birlikte ne yapalım?",
     "chipCustom": "Özel sipariş",
     "chipTrack": "Siparişimi takip et",
     "chipDelivery": "Ödeme & teslimat",
@@ -93,7 +93,7 @@
     "pickerLabel": "Eserlerde ara",
     "pickerSearch": "Bir eser ara…",
     "pickerClose": "Aramayı kapat",
-    "pickerEmpty": "Sonuç yok — fikrini Mamaya anlat, neredeyse her şeyi örebilir!",
+    "pickerEmpty": "Sonuç yok — fikrini Hanadi'ye anlat, neredeyse her şeyi örebilir!",
     "railTitle": "Ekleyebileceğin eserler",
     "railHint": "Sohbete eklemek için dokun — ya da kartı sürükleyip bırak.",
     "railFoot": "Ya da tam listeye göz at — her parça senin olabilir.",
@@ -114,12 +114,12 @@
     "sendFailed": "Gönderilemedi",
     "retrySend": "Tekrar dene",
     "removeFile": "Dosyayı kaldır",
-    "emptyThread": "Henüz mesaj yok — Mamaya merhaba de!"
+    "emptyThread": "Henüz mesaj yok — Hanadi'ye merhaba de!"
   },
   "Chat": {
     "listTitle": "Sohbetleriniz",
-    "listHint": "Mamayla sohbetleriniz burada — sipariş başına biri, ilk sohbetinizle birlikte.",
-    "listEmpty": "Henüz sohbet yok — Mamayla konuşmaya başla!",
+    "listHint": "Hanadi'yle sohbetleriniz burada — sipariş başına biri, ilk sohbetinizle birlikte.",
+    "listEmpty": "Henüz sohbet yok — Hanadi'yle konuşmaya başla!",
     "noSubject": "Sohbet",
     "closed": "Kapalı",
     "allConversations": "Tüm sohbetler"
