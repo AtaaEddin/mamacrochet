@@ -45,8 +45,9 @@ deployable with one script, with backups.
 - [x] deploy.sh + backup.sh + restore.md + .env.example
 - [ ] Smoke test on Pi-class hardware (or QEMU ARM64): fresh install → deploy.sh →
       full user flow works over HTTPS (or local HTTP)
-      — **remaining**: x64 Docker smoke test passed 2026-09-27 (see below); ARM64/
-      real-hardware pass + chat-realtime-through-Caddy (needs plan 06) still open.
+      — **remaining**: x64 passed twice (2026-09-27 initial, 2026-09-28 re-verified on
+      current HEAD incl. chat realtime through Caddy + SSR routes — see below);
+      ARM64/real-hardware pass still open.
 
 ## Acceptance
 
@@ -96,9 +97,33 @@ deployable with one script, with backups.
   a **fresh** DB: 0 errors, 10 tables. `deploy.sh` run end-to-end: 4/4 healthy,
   URL printed.
 
+## Done (2026-09-28) — x64 re-verification on current HEAD (52fbc2d)
+
+Run from a **clean worktree at HEAD** (main worktree carried plan-07 WIP),
+fresh `deploy.sh` on a fresh data dir:
+
+- **Stack**: 4/4 healthy; only Caddy publishes ports; 9/9 EF migrations applied
+  on the empty DB (25 tables). The `fail:` DbCommand line in api logs is EF's
+  normal first probe on an empty database, not an error.
+- **HTTP through Caddy**: `/`→307 `/en`; `/en /ar /tr /en/works`→200 — including
+  the **SSR catalog pages** (web→api `API_SERVER_URL` path added in 7a3f1a9
+  after the first smoke test, now verified in prod); `/api/health` ok + db
+  connected; `/api/identity/me`→401 typed; OpenAPI→404 in prod.
+- **Chat realtime through Caddy (acceptance item closed)**: Node
+  `@microsoft/signalr@10` with **WebSockets forced** (long-poll fallback
+  impossible): guest bootstrap `POST /api/chat/visitor` → two WS connections to
+  `/api/hubs/chat` through Caddy (thread token survives the upgrade) →
+  `JoinThread` both → `SendMessage` → both clients receive `newMessage`
+  realtime → message present in REST history via `X-Chat-Token`. Caddy needed
+  no change for WebSockets, as predicted.
+- **Backup**: `backup.sh` → plain `pg_dump` 16.15 + uploads tar; **restore into a
+  fresh DB: 0 errors, 25/25 tables, 9/9 migrations**.
+- **Memory baseline (x64 dev box, shortly after smoke)**: api 124 MiB, web
+  61 MiB, postgres 67 MiB, caddy 14 MiB — **~265 MiB total**, well under the
+  ~1 GB budget (x64 reference; ARM64 numbers come with the owner's Pi run).
+
 ## Open
 
 - ARM64 / real-hardware smoke test (owner, on the Pi or QEMU).
-- "Chat realtime through Caddy" acceptance item — verifiable once plan 06
-  (SignalR) lands; Caddy needs no change for WebSockets.
-- Pi memory budget check (`docker stats`) after plan 04–07 land.
+- Pi memory budget check on real hardware (owner's Pi run) — x64 baseline
+  recorded 2026-09-28 (~265 MiB total); revisit after plan 07 lands.
