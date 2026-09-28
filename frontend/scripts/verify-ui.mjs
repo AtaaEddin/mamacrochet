@@ -32,7 +32,7 @@ const SHOTS = [
   ["home-tr-mobile-light", "/tr", 390, 844, "light", 2],
   ["notfound-en-mobile-light", "/en/this-page-does-not-exist", 390, 844, "light", 2],
   ["home-en-desktop-full-light", "/en", 1280, 800, "light", 1, "full"],
-  ["showmore-en-mobile-light", "/en", 390, 844, "light", 2, "showmore"],
+  ["showmore-en-mobile-light", "/en/works", 390, 844, "light", 2, "showmore"],
   ["chat-en-desktop-light", "/en/chat", 1280, 800, "light", 1, "pick"],
   ["chat-ar-mobile-dark", "/ar/chat", 390, 844, "dark", 2],
   ["works-en-mobile-light", "/en/works", 390, 844, "light", 2, "full"],
@@ -70,8 +70,19 @@ for (const [name, path, width, height, colorScheme, dpr, action] of SHOTS) {
       }
     } else if (action === "showmore") {
       // The last button in the #works section is the "show more" control.
-      await page.locator("#works button").last().click();
-      await page.waitForTimeout(500);
+      // It only renders when the catalog spans more than one page.
+      const more = page
+        .locator("#works, section[aria-labelledby='works-all-title']")
+        .first()
+        .locator("div.justify-center")
+        .locator("button")
+        .last();
+      if (await more.count()) {
+        await more.click();
+        await page.waitForTimeout(500);
+      } else {
+        console.log(`SKIP ${name}: no show-more control (catalog fits one page)`);
+      }
     }
     const file = `${OUT}/${name}.png`;
     await page.screenshot({ path: file, fullPage: action === "full" });

@@ -1,6 +1,6 @@
 # 08 — Localization (en/ar/tr) & Themes
 
-status: in-progress
+status: done
 parent: main.md
 
 ## Goal
@@ -68,10 +68,12 @@ i18n-ready from the start; whole-page translations are finished last (phase 7).
 
 - [x] next-intl setup: providers, routing/middleware (proxy) language
       negotiation, catalogs (`messages/en.json`, `ar.json`, `tr.json`) — FOUNDATION DONE
-- [ ] Translate core UI strings (catalog, orders, chat, auth, admin) en/ar/tr — phase 7
-- [ ] RTL pass: dir handling, logical properties, component review (shadcn RTL
-      support) — foundation done (`<html lang dir>`, logical props, QA verified);
-      feature screens verified as they land
+- [x] Translate core UI strings (catalog, orders, chat, auth, admin) en/ar/tr —
+      phase 7 done 2026-09-28: final en/ar/tr pass complete, catalogs at full key
+      parity (0 missing / 0 extra vs en, 714 lines each)
+- [x] RTL pass: dir handling, logical properties, component review (shadcn RTL
+      support) — done 2026-09-28: 12 UI components converted to logical properties,
+      switch thumb gets an RTL flip, /ar DOM scan shows 0 physical utilities
 - [x] Theme provider (system/light/dark) + toggle in header — FOUNDATION DONE
       (next-themes, segmented light/system/dark, 44 px targets, localStorage
       key `mamacrochet-theme`)
@@ -103,6 +105,53 @@ i18n-ready from the start; whole-page translations are finished last (phase 7).
   motion on a running build), `frontend/scripts/verify-ui.mjs` (screenshots,
   playwright-core + system Chromium). No `pnpm test` script exists yet
   (vitest not scaffolded) — DoD item 2 tracked for a later plan.
+
+## Result (final pass, 2026-09-28)
+
+- **Catalog parity + gaps**: ar/tr verified 0 missing / 0 extra keys vs en
+  (714 lines each). Genuinely missing keys added: `AdminHiring.email`,
+  `ApiError.fallback` (per-locale wording). Hardcoded a11y labels moved into
+  the catalog: `Works.galleryLabel` / `Works.galleryPhoto` (photo tabs),
+  `Works.navCategory` (home category group), `Works.navWorksByCategory`
+  (works page category group) — now translatable per locale. `Locale`
+  self-names localized per locale (en shows English names, ar shows Arabic,
+  tr shows Turkish); `tr.Metadata.name` was `"mamacrochet"` → `"Mama Kroşe"`.
+  `staff-products-view` hardcoded `Intl.NumberFormat("en")` → uses the active
+  locale.
+- **Translation quality pass (tr)**: "örümek" (spider) → "ören" (Join.pitch),
+  "üretici" (producer) → zanaatkar / "bizzat" wording (Join), "biz iğnelerini
+  çekelim" (pulled your needles) → "biz senin için örelim" (Orders.custom),
+  "özer" → "örebilir" (ChatPanel.pickerEmpty), "eskiz" → "skiz"
+  (CustomOffer.body), "Oturman" → "Oturumun" (ApiError.csrf),
+  "sen" → "senin" (Staff.vYou), "çıkışları" → "oturumları sonlandırılır"
+  (AdminUsers.deleteBody), paymentAdminBody clarified, plus grammar passes
+  (Join.successBody, AdminUsers.formBody, Orders.deliveryIntro, Hiring.formBody,
+  Profile.saveError/roleEmployee, Join.title, Join.hiringForm aria, Home.
+  askMamaCta/heroTitle, Home.heroKicker, Home.heroCta, Orders.create.fileInvalid,
+  ApiError.title).
+- **Translation quality pass (ar)**: feminine register normalized to match the
+  rest of the catalog (Staff.errorBody/retry/saveError/deleteError, AdminUsers.
+  createBody, Join.pitch — "يُعمَل" passive removed), "مشرف" → "إدارية/إداريات"
+  (ChatPanel.adminBadge, AdminHiring.forbidden*), "دخول الموظفين" → "دخول
+  الموظفات" (Staff.staffSignin), "10MB" → "10 م.ب" (Orders.create.fileInvalid),
+  minor wording (AdminHiring.forbiddenBody, ApiError.title).
+- **RTL component review**: physical → logical properties in `ui/{select,
+  toast,alert,button,field,dialog,table,alert-dialog,avatar,badge,switch}.tsx`
+  + `chat-panel.tsx` (e.g. `pr-*`/`pl-*`→`ps`/`pe`, `text-left`→`text-start`,
+  `right-*`→`end-*`); `switch` thumb flip for RTL (checked state pushes thumb
+  the other way: `rtl:...data-checked:-translate-x-[calc(100%-2px)]`).
+  Verified: 0 physical utilities on rendered /ar pages (DOM scan), compiled
+  CSS contains the new `rtl:` variants, `visual-qa.mjs` all green
+  (dir=rtl, logo mirrored, no overflow, AA contrast both themes).
+- **Verification (DoD)**: `pnpm typecheck` ✓ · `pnpm lint` ✓ · `pnpm build` ✓
+  (all 3 locales prerender) · `verify-ui.mjs` 15/15 shots en/ar/tr ×
+  mobile/desktop × light/dark, 0 page errors · `visual-qa.mjs` all checks
+  pass · product-page gallery a11y labels verified in browser en + ar
+  ("Test amigurumi fox — photo 1" / "«ثعلب اختبار» — الصورة 1").
+- **Tooling refresh**: `verify-ui.mjs` / `visual-qa.mjs` aligned with the
+  current UI (works cards now link `/works/[id]`, fresh guest chat starts on
+  the empty state, rail count compared against the live catalog endpoint,
+  "show more" shot skips gracefully when the catalog fits one page).
 
 ## Acceptance
 

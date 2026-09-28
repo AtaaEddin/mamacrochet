@@ -205,7 +205,7 @@ export function ChatPanel({
           <p className="truncate font-display text-base font-bold leading-tight">
             {t("title")}
             {chat.thread?.subject ? (
-              <span className="ml-2 text-sm font-medium text-muted-foreground">
+              <span className="ms-2 text-sm font-medium text-muted-foreground">
                 · {chat.thread.subject}
               </span>
             ) : null}

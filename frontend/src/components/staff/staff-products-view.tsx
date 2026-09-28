@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { api } from "@/lib/api/client";
 import { isStaff, type User } from "@/lib/auth";
@@ -356,8 +356,9 @@ function ProductRow({
   onEdit: () => void;
 }) {
   const t = useTranslations("Staff");
+  const locale = useLocale();
   const cover = fileSrc(product.coverImage?.url ?? null);
-  const price = new Intl.NumberFormat("en", {
+  const price = new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "USD",
   }).format(Number(product.price));

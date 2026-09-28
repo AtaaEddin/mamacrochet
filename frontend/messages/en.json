@@ -62,6 +62,10 @@
       "body": "The workshop is unreachable right now. Check your connection and try again.",
       "retry": "Try again"
     },
+    "galleryLabel": "Product photos",
+    "galleryPhoto": "{title} — photo {index}",
+    "navCategory": "Categories",
+    "navWorksByCategory": "Works by category",
     "items": {
       "sunflowerTote": "Sunflower tote bag",
       "owlBag": "Owl messenger bag",
@@ -410,7 +414,8 @@
     "unsupported_file_type": "Use a JPG, PNG or WEBP photo, or a PDF.",
     "already_decided": "This application was already decided.",
     "hiring_not_found": "Application not found.",
-    "invalid_language": "Add between one and six languages."
+    "invalid_language": "Add between one and six languages.",
+    "fallback": "Something went wrong. Please try again."
   },
   "Join": {
     "title": "Join the team",
@@ -470,6 +475,7 @@
     "loadError": "Couldn't load applications.",
     "retry": "Try again",
     "contact": "Contact",
+    "email": "Email",
     "phone": "Phone",
     "country": "Country",
     "nationality": "Nationality",

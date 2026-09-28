@@ -1,6 +1,6 @@
 {
   "Metadata": {
-    "name": "mamacrochet",
+    "name": "Mama Kroşe",
     "title": "El emeği kroeşe — sevgiyle, sadece senin için",
     "description": "El işi kroeşe çantalar ve sıcacık parçalar, her dikiş özenle işlenir. Belirli bir şey mi hayal ediyorsun? Sohbetten yaz, senin için işleyelim — hesab gerekmez."
   },
@@ -16,8 +16,8 @@
   },
   "Locale": {
     "label": "Dil",
-    "en": "English",
-    "ar": "العربية",
+    "en": "İngilizce",
+    "ar": "Arapça",
     "tr": "Türkçe"
   },
   "IntroBar": {
@@ -62,6 +62,10 @@
       "body": "Atölyeye şu an ulaşılamıyor. Bağlantını kontrol edip tekrar dene.",
       "retry": "Tekrar dene"
     },
+    "galleryLabel": "Ürün fotoğrafları",
+    "galleryPhoto": "{title} — fotoğraf {index}",
+    "navCategory": "Kategoriler",
+    "navWorksByCategory": "Kategoriye göre eserler",
     "items": {
       "sunflowerTote": "Ayçiçeği el çantası",
       "owlBag": "Baykuş çantası",
@@ -73,7 +77,7 @@
   },
   "CustomOffer": {
     "title": "Beğenini bulamadın mı?",
-    "body": "Mama'ya bir fikir, eskiz ya da fotoğraf gönder — neredeyse her şeyi, sadece senin için örer. Başlamak için hesaba gerek yok.",
+    "body": "Mama'ya bir fikir, skiz ya da fotoğraf gönder — neredeyse her şeyi, tam senin için örer. Başlamak için hesaba gerek yok.",
     "cta": "Özel parça için sohbet et"
   },
   "ChatPanel": {
@@ -89,7 +93,7 @@
     "pickerLabel": "Eserlerde ara",
     "pickerSearch": "Bir eser ara…",
     "pickerClose": "Aramayı kapat",
-    "pickerEmpty": "Sonuç yok — fikrini Mamaya anlat, neredeyse her şeyi özer!",
+    "pickerEmpty": "Sonuç yok — fikrini Mamaya anlat, neredeyse her şeyi örebilir!",
     "railTitle": "Ekleyebileceğin eserler",
     "railHint": "Sohbete eklemek için dokun — ya da kartı sürükleyip bırak.",
     "railFoot": "Ya da tam listeye göz at — her parça senin olabilir.",
@@ -273,7 +277,7 @@
     "selfEditHint": "Kendi rollerini, atamanı veya durumunu değiştiremezsin — başka bir yöneticiden iste.",
     "deactivateHint": "Pasif hesap giriş yapamaz, ama geçmişi korunur.",
     "deleteTitle": "{name} silinsin mi?",
-    "deleteBody": "Bu yumuşak silmedir: çıkışları yapılır ve tekrar giriş yapamazlar. Sipariş geçmişleri ve sohbetleri saklanır.",
+    "deleteBody": "Bu yumuşak bir silmedir: oturumları sonlandırılır ve tekrar giriş yapamazlar. Sipariş geçmişleri ve sohbetleri saklanır.",
     "cancel": "Vazgeç",
     "pagination": "Kullanıcı sayfaları",
     "prev": "Önceki",
@@ -367,7 +371,7 @@
     "vFilterNew": "Yeni",
     "vFilterMine": "Benim",
     "vNew": "Yeni",
-    "vYou": "sen",
+    "vYou": "senin",
     "vClosed": "Kapalı",
     "vOpen": "Sohbeti aç",
     "vClaim": "Üstlen",
@@ -399,7 +403,7 @@
     "locked": "Çok fazla deneme — birkaç dakika bekle, sonra tekrar dene.",
     "rate_limited": "Biraz hızlı — bir saniye ver, sonra tekrar dene.",
     "server_error": "Bizde bir şeyler ters gitti. Bir an sonra tekrar dene.",
-    "csrf": "Oturman sona erdi — lütfen yeniden giriş yap.",
+    "csrf": "Oturumun sona erdi — lütfen yeniden giriş yap.",
     "wrong_password": "Bu mevcut şifre değil.",
     "not_found": "Bu sayfa yok.",
     "invalid_image": "1 MB'den küçük bir resim seçin.",
@@ -410,13 +414,14 @@
     "unsupported_file_type": "JPG, PNG veya WEBP fotoğraf ya da bir PDF kullanın.",
     "already_decided": "Bu başvurunun kararı zaten verildi.",
     "hiring_not_found": "Başvuru bulunamadı.",
-    "invalid_language": "Bir ile altı dil arasında ekle."
+    "invalid_language": "Bir ile altı dil arasında ekle.",
+    "fallback": "Bir şeyler ters gitti. Lütfen tekrar dene."
   },
   "Join": {
     "title": "Ekibe katıl",
-    "pitch": "Sevgiyle örümek yapan küçük bir ekibiz. Elleriniz tığın ritmini biliyorsa, tanışmaktan çok memnun oluruz — aşağıda kendinizden ve işlerinizden bahsedin.",
+    "pitch": "Sevgiyle ören küçük bir ekibiz. Eliniz tığın ritmini biliyorsa, tanışmaktan çok memnun oluruz — aşağıda kendinizden ve işlerinizden bahsedin.",
     "formTitle": "Başvurunuz",
-    "formBody": "Her başvuru üretici tarafından kişisel olarak okunur. Her e-posta için bir başvuru — tekrar başvurmak mevcut başvurunuzu günceller.",
+    "formBody": "Her başvuru zanaatkar tarafından bizzat okunur. Her e-posta için bir başvuru — tekrar başvurmak mevcut başvurunuzu günceller.",
     "name": "Adınız",
     "namePlaceholder": "ör. Deniz Yılmaz",
     "email": "E-posta",
@@ -446,7 +451,7 @@
     "errorRequired": "Lütfen adınızı, e-postanızı, telefonunuzu, ülkenizi, en az bir dili ve işlerinizden birkaç cümleyi doldurun.",
     "errorLanguage": "1–6 dili virgülle ayırarak yazın.",
     "successTitle": "Başvurunuz bize ulaştı!",
-    "successBody": "İlettiğiniz için teşekkürler — üretici her başvuruyu kişisel olarak okur ve sizinle iletişime geçecek. Ne yapacağınızı görmek için sabırsızlanıyoruz.",
+    "successBody": "İlettiğiniz için teşekkürler — her başvuru bizzat okunur ve sizinle iletişime geçeceğiz. Ne yapacağını görmek için sabırsızlanıyoruz.",
     "backHome": "Mağazaya dön"
   },
   "AdminHiring": {
@@ -470,6 +475,7 @@
     "loadError": "Başvurular yüklenemedi.",
     "retry": "Tekrar dene",
     "contact": "İletişim",
+    "email": "E-posta",
     "phone": "Telefon",
     "country": "Ülke",
     "nationality": "Uyruk",
@@ -602,7 +608,7 @@
     "staffCloseHint": "Ödendi ve teslim edildi — bitirmek için siparişi kapatın.",
     "paymentFormTitle": "Ödemeyi kaydet",
     "paymentFormBody": "Sipariş \"ödüldü\" durumuna geçer. Fiş dosyası zorunludur.",
-    "paymentAdminBody": "Sipariş \"ödüldü\" durumuna geçer. Fiş dosyası zorunludur — yoksa zorunlu yazılı gerekçe gerekir (yalnızca yönetici izi).",
+    "paymentAdminBody": "Sipariş \"ödüldü\" durumuna geçer. Fiş dosyası zorunludur — yoksa zorunlu yazılı gerekçe gerekir (yalnızca yönetici izinde gösterilir).",
     "paymentMethodPlaceholder": "örn. banka havalesi, kart, nakit",
     "paymentNoteLabel": "Not",
     "paymentNotePlaceholder": "Not (isteğe bağlı)",
@@ -705,7 +711,7 @@
     "custom": {
       "badge": "Özel sipariş",
       "title": "Özel bir parça iste",
-      "intro": "Hayalindeki parçayı anlat — renk, ölçü, kullanım — biz iğnelerini çekelim.",
+      "intro": "Hayalindeki parçayı anlat — renk, ölçü, kullanım — biz senin için örelim.",
       "pickerTitle": "Referans olarak beğendiğin bir çalışma var mı?",
       "pickerBody": "Başlangıç noktası olarak bir çalışma seç (isteğe bağlı) — ya da sadece anlatımandan başla.",
       "specPrefill": "“{name}” gibi ama şu değişikliklerle:"

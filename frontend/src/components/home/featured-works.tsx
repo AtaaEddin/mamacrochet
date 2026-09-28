@@ -70,7 +70,11 @@ export async function FeaturedWorks() {
       </div>
 
       {chipCategories.length > 0 && (
-        <HomeCategoryChips categories={chipCategories} allLabel={t("categories.all")} />
+        <HomeCategoryChips
+          categories={chipCategories}
+          allLabel={t("categories.all")}
+          navLabel={t("navWorksByCategory")}
+        />
       )}
 
       <ul className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
@@ -96,12 +100,14 @@ export async function FeaturedWorks() {
 function HomeCategoryChips({
   categories,
   allLabel,
+  navLabel,
 }: {
   categories: { id: string; label: string }[];
   allLabel: string;
+  navLabel: string;
 }) {
   return (
-    <nav className="mt-4 flex flex-wrap gap-2" aria-label="Works by category">
+    <nav className="mt-4 flex flex-wrap gap-2" aria-label={navLabel}>
       <ChipLink href="/works" active={false}>
         {allLabel}
       </ChipLink>

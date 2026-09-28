@@ -130,6 +130,21 @@ async function samplePixels(page, screenshotPath, points) {
   );
 }
 
+// Catalog ground truth (dev DB seed changes over time — compare against it).
+const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8085";
+let catalogCount = 0;
+let firstProductId = null;
+try {
+  const catalogRes = await fetch(`${API_BASE}/catalog/products?$top=12`);
+  if (catalogRes.ok) {
+    const catalog = await catalogRes.json();
+    catalogCount = catalog.items.length;
+    firstProductId = catalog.items[0]?.id ?? null;
+  }
+} catch {
+  // API offline — UI checks will fail anyway.
+}
+
 // ---------------------------------------------------------------- EN desktop
 {
   const page = await newPage({ width: 1280, height: 800 });
@@ -199,7 +214,11 @@ async function samplePixels(page, screenshotPath, points) {
     doc.widgetBox === null,
     `widget=${doc.widgetBox ? "present" : "absent"}`,
   );
-  check("en: works grid starts the page (3 cards)", doc.workCards === 3, `cards=${doc.workCards}`);
+  check(
+    "en: works grid starts the page (6 cards)",
+    doc.workCards === Math.min(6, catalogCount),
+    `cards=${doc.workCards} catalog=${catalogCount}`,
+  );
   check("en: custom-offer CTA links to chat", doc.customOffer, String(doc.customOffer));
   const loaded = doc.fontsLoaded.join(" | ");
   check(
@@ -248,10 +267,14 @@ async function samplePixels(page, screenshotPath, points) {
     const rail = document.querySelector('aside[aria-label]');
     const railCards = rail ? rail.querySelectorAll('ul button').length : 0;
     const panel = document.querySelector('section[aria-label]');
+    const list = thread?.firstElementChild;
+    const messages = list
+      ? Array.from(list.children).filter((c) => /self-(start|end)/.test(c.className)).length
+      : -1;
     return {
       panelH: panel ? panel.getBoundingClientRect().height : 0,
       panelW: panel ? panel.getBoundingClientRect().width : 0,
-      messages: thread && thread.firstElementChild ? thread.firstElementChild.children.length : 0,
+      messages,
       composer: Boolean(composer),
       rail: Boolean(rail),
       railCards,
@@ -260,19 +283,26 @@ async function samplePixels(page, screenshotPath, points) {
 
   check("chat: full-width panel (>= 90% viewport)", doc.panelW >= 1280 * 0.9, `w=${doc.panelW}`);
   check("chat: near full height (>= 600px)", doc.panelH >= 600, `h=${doc.panelH}`);
-  check("chat: thread seeded (>= 2 messages)", doc.messages >= 2, `n=${doc.messages}`);
+  check("chat: fresh guest thread starts on empty state", doc.messages === 0, `n=${doc.messages}`);
   check("chat: composer present", doc.composer);
-  check("chat: product rail present (6 works)", doc.rail && doc.railCards === 6, `n=${doc.railCards}`);
-
-  // Pick a product from the rail -> product card appears in the thread.
-  await page.locator('aside[aria-label] ul button').first().click();
-  await page.waitForTimeout(400);
-  const after = await page.evaluate(() =>
-    document.querySelector('[aria-live="polite"]')?.firstElementChild?.children.length ?? 0,
+  check(
+    "chat: product rail matches catalog",
+    doc.rail && catalogCount >= 1 && doc.railCards === catalogCount,
+    `rail=${doc.railCards} catalog=${catalogCount}`,
   );
-  check("chat: rail pick adds a product message", after > doc.messages, `n=${after}`);
+
+  // Pick a product from the rail -> product card message appears in the thread.
+  await page.locator('aside[aria-label] ul button').first().click();
+  await page.waitForTimeout(1200);
+  const after = await page.evaluate(() => {
+    const list = document.querySelector('[aria-live="polite"]')?.firstElementChild;
+    return list
+      ? Array.from(list.children).filter((c) => /self-(start|end)/.test(c.className)).length
+      : -1;
+  });
+  check("chat: rail pick adds a product message", after === doc.messages + 1, `n=${after}`);
   const hasProductCard = await page.evaluate(() =>
-    Boolean(document.querySelector('[aria-live="polite"] .max-w-sm')),
+    Boolean(document.querySelector('[aria-live="polite"] img')),
   );
   check("chat: product card rendered", hasProductCard);
 
@@ -288,12 +318,16 @@ async function samplePixels(page, screenshotPath, points) {
 // ---------------------------------------------------------------- EN chat ?work=
 {
   const page = await newPage({ width: 1280, height: 800 });
-  await page.goto(`${BASE}/en/chat?work=w1`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(800);
-  const seeded = await page.evaluate(() =>
-    Boolean(document.querySelector('[aria-live="polite"] .max-w-sm')),
-  );
-  check("chat: ?work= seeds a product message", seeded);
+  if (!firstProductId) {
+    console.log("SKIP chat: ?work= seeds a product message (no catalog product)");
+  } else {
+    await page.goto(`${BASE}/en/chat?work=${firstProductId}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+    const seeded = await page.evaluate(() =>
+      Boolean(document.querySelector('[aria-live="polite"] img')),
+    );
+    check("chat: ?work= seeds a product message", seeded);
+  }
   await page.context().close();
 }
 
@@ -303,14 +337,18 @@ async function samplePixels(page, screenshotPath, points) {
   await page.goto(`${BASE}/en/works`, { waitUntil: "networkidle" });
   await page.waitForTimeout(800);
 
-  const all = await page.locator('main a[href^="/en/chat?work="]').count();
-  check("works: full list shows 6", all === 6, `n=${all}`);
+  const all = await page.locator('main a[href^="/en/works/"]').count();
+  check(
+    "works: full list matches catalog",
+    catalogCount >= 1 && all === catalogCount,
+    `n=${all} catalog=${catalogCount}`,
+  );
 
-  // Category filter: Bags -> 2 items.
+  // Category filter narrows the list (seed-dependent exact count).
   await page.getByRole("button", { name: "Bags" }).click();
-  await page.waitForTimeout(300);
-  const bags = await page.locator('main a[href^="/en/chat?work="]').count();
-  check("works: category filter (Bags -> 2)", bags === 2, `n=${bags}`);
+  await page.waitForTimeout(600);
+  const bags = await page.locator('main a[href^="/en/works/"]').count();
+  check("works: category filter narrows list", bags >= 1 && bags < all, `bags=${bags} all=${all}`);
 
   // Custom offer at the bottom links to chat.
   const offer = await page.locator('#custom-offer-title').count();

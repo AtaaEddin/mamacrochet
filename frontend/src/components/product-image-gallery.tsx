@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { WorkArt } from "@/components/illustrations/work-art";
 import type { WorkArtKind } from "@/lib/sample-works";
 import { fileSrc } from "@/lib/catalog/display";
@@ -26,6 +27,7 @@ export function ImageGallery({
   title: string;
   art: WorkArtKind | null;
 }) {
+  const t = useTranslations("Works");
   const [active, setActive] = useState(0);
   const safeActive = images.length > 0 ? Math.min(active, images.length - 1) : -1;
   const current = images[safeActive];
@@ -53,14 +55,14 @@ export function ImageGallery({
       </div>
 
       {images.length > 1 && (
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Product photos">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label={t("galleryLabel")}>
           {images.map((img, i) => (
             <button
               key={img.id}
               type="button"
               role="tab"
               aria-selected={i === safeActive}
-              aria-label={`${title} — photo ${i + 1}`}
+                  aria-label={t("galleryPhoto", { title, index: i + 1 })}
               onClick={() => setActive(i)}
               className={cn(
                 "size-16 shrink-0 overflow-hidden rounded-2xl border-2 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",

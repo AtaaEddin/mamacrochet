@@ -199,8 +199,9 @@ function CategoryChips({
   allLabel: string;
   className?: string;
 }) {
+  const t = useTranslations("Works");
   return (
-    <div className={cn("flex flex-wrap gap-2", className)} role="group" aria-label="Category">
+    <div className={cn("flex flex-wrap gap-2", className)} role="group" aria-label={t("navCategory")}>
       <Chip active={value === null} onClick={() => onChange(null)}>
         {allLabel}
       </Chip>
