@@ -78,7 +78,10 @@ i18n-ready from the start; whole-page translations are finished last (phase 7).
 - [x] Brand tokens: plan 11 palette/type/motion tokens into the shadcn theme
       (light+dark) — FOUNDATION DONE (see plan 11)
 - [ ] (deferred — future email plan) email templates en/ar/tr
-- [ ] Translation editor (admin/employee) for product/category content — with plan 04
+- [x] Translation editor (admin/employee) for product/category content — with
+      plan 04 (delivered in plan 04: product editor + category manager edit
+      en/ar/tr titles/descriptions/names; API `PATCH /staff/products/{id}` +
+      `PATCH /staff/categories/{id}` — checkbox verified 2026-09-28)
 
 ## Result (foundation, 2026-09-26)
 
