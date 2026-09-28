@@ -55,3 +55,5 @@ then commit the update.
 | 2026-09-28 | d0eb4d8 | refactor(frontend): parse the ApiError envelope in one place | Review cleanup: 4 duplicated error-parse blocks → parseApiError (per-site fallback wording preserved) |
 
 | 2026-09-28 | c1d8c4b | fix(frontend): retry a failed chat send with its uploaded attachments | Review cleanup (plan 06): retry re-sent a failed message without its already-uploaded files; SendInput now carries them (no re-upload). Also unified the 3 message-upsert paths into upsertMessage |
+
+| 2026-09-28 | df9375d | i18n(frontend): plan 08 final pass — catalog parity, tr/ar quality fixes, RTL logical properties, a18n labels | Plan 08 (localization & themes) closed: en/ar/tr key parity + tr/ar translation fixes, 12 UI components to logical RTL properties + switch thumb flip, a18n labels to Works.* catalog keys; DoD verified (typecheck/lint/build clean, 15/15 verify-ui shots, visual-qa all pass, /ar DOM scan clean) |
