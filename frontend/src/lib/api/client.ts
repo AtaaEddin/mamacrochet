@@ -95,6 +95,10 @@ function needsCsrf(url: string, method: string): boolean {
 }
 
 async function withCsrfRetry(request: Request, retried: boolean): Promise<Response> {
+  // The Request's body stream is consumed once it is sent, and a consumed
+  // Request cannot be re-wrapped (`new Request(consumed, ...)` throws).
+  // Keep a pre-flight clone so the one-shot retry can replay the mutation.
+  const replay = request.clone();
   const response = await globalThis.fetch(request, { credentials: "include" });
   if (!retried && response.status === 403) {
     const contentType = response.headers.get("content-type") ?? "";
@@ -113,7 +117,7 @@ async function withCsrfRetry(request: Request, retried: boolean): Promise<Respon
         if (token) {
           const headers = new Headers(request.headers);
           headers.set("X-CSRF-TOKEN", token);
-          return withCsrfRetry(new Request(request, { headers }), true);
+          return withCsrfRetry(new Request(replay, { headers }), true);
         }
       }
     }
@@ -216,9 +220,77 @@ export async function uploadProductImages(
  */
 export function avatarSrc(avatarUrl: string | null | undefined): string | null {
   if (!avatarUrl) return null;
+  return fileSrc(avatarUrl);
+}
+
+/** Resolve any API path (e.g. hiring files) against the API base. */
+export function fileSrc(apiPath: string): string {
   try {
-    return new URL(avatarUrl, API_BASE_URL).toString();
+    return new URL(apiPath, API_BASE_URL).toString();
   } catch {
-    return avatarUrl;
+    return apiPath;
   }
+}
+
+export type HiringSubmitResult =
+  | { ok: true; id: string; reapplied: boolean }
+  | { ok: false; error: ApiError };
+
+/**
+ * Public hiring application (plan 09): multipart FormData through raw
+ * fetch — the same precedent as `uploadAvatar` (a FormData body can't be
+ * expressed in the generated binary schema). No CSRF header: the endpoint
+ * is public and is protected server-side by the strict rate bucket +
+ * honeypot instead.
+ */
+export async function submitHiringApplication(data: {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  nationality: string;
+  /** Comma-separated free-text languages (1–6, 2–32 chars each). */
+  languages: string;
+  previousWork: string;
+  message: string;
+  files: File[];
+}): Promise<HiringSubmitResult> {
+  const form = new FormData();
+  form.append("name", data.name);
+  form.append("email", data.email);
+  form.append("phone", data.phone);
+  form.append("country", data.country);
+  form.append("nationality", data.nationality);
+  form.append("languages", data.languages);
+  form.append("previousWork", data.previousWork);
+  form.append("message", data.message);
+  // Honeypot field — the UI always sends it empty (D16).
+  form.append("company", "");
+  for (const file of data.files) {
+    form.append("files", file);
+  }
+
+  let response: Response | null = null;
+  try {
+    response = await fetch(`${API_BASE_URL}/hiring`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+  } catch {
+    response = null;
+  }
+
+  if (!response || !response.ok) {
+    let error: ApiError = { code: "server_error", message: "" };
+    try {
+      const parsed = (await response?.json()) as ApiError;
+      if (typeof parsed.code === "string") error = parsed;
+    } catch {
+      // Keep the fallback envelope.
+    }
+    return { ok: false, error };
+  }
+  const body = (await response.json()) as components["schemas"]["HiringSubmitted"];
+  return { ok: true, id: body.id, reapplied: body.reapplied };
 }

@@ -90,7 +90,7 @@ hardware.
 | 06 | 06-chat.md                          | Realtime chat per order + attachments            | proposed    |
 | 07 | 07-payments-receipts-delivery.md    | Receipt-gated payment, delivery, close rules     | proposed    |
 | 08 | 08-localization-and-themes.md       | en/ar/tr i18n (RTL) + light/dark themes          | in-progress (foundation done 2026-09-26) |
-| 09 | 09-hiring.md                        | Public hiring page + admin review                | proposed    |
+| 09 | 09-hiring.md                        | Public hiring page + admin review                | done        |
 | 10 | 10-deployment.md                    | Docker Compose prod, deploy/backup scripts       | in-progress (infra done, Pi test open) |
 | 11 | 11-visual-identity.md               | Brand & design language (feminine/fluffy/joyful) | done        |
 

@@ -5,7 +5,9 @@ namespace Mamacrochet.Api.Data;
 
 /// <summary>
 /// Application database context. Plan 03 entities: identity users (role
-/// flags), guest→account links (D14), admin audit trail.
+/// flags), guest→account links (D14), admin audit trail; plan 04: catalog
+/// (products, categories, images); plan 09: hiring applications (+ files,
+/// + status history).
 /// </summary>
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<AppUser>(options)
 {
@@ -16,6 +18,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<ProductTranslation> ProductTranslations => Set<ProductTranslation>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<CategoryTranslation> CategoryTranslations => Set<CategoryTranslation>();
+    public DbSet<HiringApplication> HiringApplications => Set<HiringApplication>();
+    public DbSet<HiringApplicationFile> HiringApplicationFiles => Set<HiringApplicationFile>();
+    public DbSet<HiringApplicationEvent> HiringApplicationEvents => Set<HiringApplicationEvent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -136,6 +141,59 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             audit.Property(a => a.Note).HasMaxLength(512);
             audit.HasIndex(a => a.At);
             audit.HasIndex(a => new { a.TargetUserId, a.At });
+        });
+
+        builder.Entity<HiringApplication>(application =>
+        {
+            application.HasKey(a => a.Id);
+            application.Property(a => a.Id).HasMaxLength(32);
+            application.Property(a => a.Name).HasMaxLength(80).IsRequired();
+            application.Property(a => a.Email).HasMaxLength(320).IsRequired();
+            application.Property(a => a.NormalizedEmail).HasMaxLength(320).IsRequired();
+            application.Property(a => a.Phone).HasMaxLength(20).IsRequired();
+            application.Property(a => a.Country).HasMaxLength(64).IsRequired();
+            application.Property(a => a.Nationality).HasMaxLength(64);
+            application.Property(a => a.PreviousWork).HasMaxLength(4000);
+            application.Property(a => a.Message).HasMaxLength(2000);
+            application.Property(a => a.Status).HasMaxLength(16).IsRequired();
+            application.Property(a => a.DecisionNote).HasMaxLength(1000);
+
+            // One application per e-mail (plan 09): re-applying updates the row.
+            application.HasIndex(a => a.NormalizedEmail).IsUnique();
+            // Admin queue: filter by status, list newest first.
+            application.HasIndex(a => new { a.Status, a.AppliedAt });
+
+            application.HasOne(a => a.DecidedBy)
+                .WithMany()
+                .HasForeignKey(a => a.DecidedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<HiringApplicationFile>(file =>
+        {
+            file.HasKey(f => f.Id);
+            file.Property(f => f.Id).HasMaxLength(32);
+            file.Property(f => f.StoredName).HasMaxLength(40).IsRequired();
+            file.Property(f => f.OriginalName).HasMaxLength(200).IsRequired();
+            file.Property(f => f.ContentType).HasMaxLength(64).IsRequired();
+            file.HasOne(f => f.Application)
+                .WithMany(a => a.Files)
+                .HasForeignKey(f => f.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<HiringApplicationEvent>(evt =>
+        {
+            evt.HasKey(e => e.Id);
+            evt.Property(e => e.Id).HasMaxLength(32);
+            evt.Property(e => e.Kind).HasMaxLength(16).IsRequired();
+            evt.Property(e => e.Note).HasMaxLength(512);
+            evt.Property(e => e.ActorName).HasMaxLength(80);
+            evt.HasOne(e => e.Application)
+                .WithMany(a => a.Events)
+                .HasForeignKey(e => e.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            evt.HasIndex(e => new { e.ApplicationId, e.At });
         });
     }
 }

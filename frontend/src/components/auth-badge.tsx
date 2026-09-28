@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Scissors, Users } from "lucide-react";
+import { HeartHandshake, Scissors, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { api, avatarSrc } from "@/lib/api/client";
 import type { User } from "@/lib/auth";
@@ -13,7 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
  * Header sign-in state (plan 03):
  * - guest → "Sign in" pill (register lives on the login page)
  * - customer → avatar + name → /account
- * - admin → plus the "Team desk" icon → /admin/users
+ * - admin → plus the "Team desk" icon → /admin/users and the
+ *   "Join requests" icon → /admin/hiring (plan 09)
  *
  * Cookie auth: the browser sends mm.auth automatically; 401/gone → guest.
  */
@@ -80,14 +81,24 @@ export function AuthBadge() {
         </Link>
       ) : null}
       {isAdmin ? (
-        <Link
-          href="/admin/users"
-          aria-label={t("teamDesk")}
-          title={t("teamDesk")}
-          className="hidden size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
-        >
-          <Users className="size-5" aria-hidden="true" />
-        </Link>
+        <>
+          <Link
+            href="/admin/users"
+            aria-label={t("teamDesk")}
+            title={t("teamDesk")}
+            className="hidden size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
+          >
+            <Users className="size-5" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/admin/hiring"
+            aria-label={t("badgeHiring")}
+            title={t("badgeHiring")}
+            className="hidden size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
+          >
+            <HeartHandshake className="size-5" aria-hidden="true" />
+          </Link>
+        </>
       ) : null}
       <Link
         href="/account"

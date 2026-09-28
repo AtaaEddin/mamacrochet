@@ -3,6 +3,7 @@ using System;
 using Mamacrochet.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Mamacrochet.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927214951_AddHiring")]
+    partial class AddHiring
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -173,58 +176,6 @@ namespace Mamacrochet.Api.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.Category", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsListed")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeletedAt");
-
-                    b.HasIndex("SortOrder");
-
-                    b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.CategoryTranslation", b =>
-                {
-                    b.Property<string>("CategoryId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Language")
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
-
-                    b.HasKey("CategoryId", "Language");
-
-                    b.ToTable("CategoryTranslations");
                 });
 
             modelBuilder.Entity("Mamacrochet.Api.Data.GuestAccountLink", b =>
@@ -401,123 +352,6 @@ namespace Mamacrochet.Api.Migrations
                     b.ToTable("HiringApplicationFiles");
                 });
 
-            modelBuilder.Entity("Mamacrochet.Api.Data.Product", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("CategoryId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedById")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsListed")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)");
-
-                    b.Property<int>("StockUnits")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedById")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("DeletedAt");
-
-                    b.HasIndex("Price");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.ToTable("Products");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ProductImage", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<long>("Bytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Height")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ProductId")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Width")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId", "SortOrder")
-                        .IsUnique();
-
-                    b.ToTable("ProductImages");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ProductTranslation", b =>
-                {
-                    b.Property<string>("ProductId")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Language")
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.HasKey("ProductId", "Language");
-
-                    b.ToTable("ProductTranslations");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -660,17 +494,6 @@ namespace Mamacrochet.Api.Migrations
                     b.Navigation("AssignedEmployee");
                 });
 
-            modelBuilder.Entity("Mamacrochet.Api.Data.CategoryTranslation", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.Category", "Category")
-                        .WithMany("Translations")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("Mamacrochet.Api.Data.GuestAccountLink", b =>
                 {
                     b.HasOne("Mamacrochet.Api.Data.AppUser", "User")
@@ -712,48 +535,6 @@ namespace Mamacrochet.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Application");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.Product", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Mamacrochet.Api.Data.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Mamacrochet.Api.Data.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ProductImage", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.Product", "Product")
-                        .WithMany("Images")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.ProductTranslation", b =>
-                {
-                    b.HasOne("Mamacrochet.Api.Data.Product", "Product")
-                        .WithMany("Translations")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -807,23 +588,11 @@ namespace Mamacrochet.Api.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Mamacrochet.Api.Data.Category", b =>
-                {
-                    b.Navigation("Translations");
-                });
-
             modelBuilder.Entity("Mamacrochet.Api.Data.HiringApplication", b =>
                 {
                     b.Navigation("Events");
 
                     b.Navigation("Files");
-                });
-
-            modelBuilder.Entity("Mamacrochet.Api.Data.Product", b =>
-                {
-                    b.Navigation("Images");
-
-                    b.Navigation("Translations");
                 });
 #pragma warning restore 612, 618
         }

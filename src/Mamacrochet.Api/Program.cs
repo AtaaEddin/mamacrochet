@@ -83,12 +83,13 @@ builder.Services.AddOpenApi(options =>
         }
     });
 
-    // Binary image files (avatar + product images): 200 = the bytes,
+    // Binary files (avatar, product images, hiring proofs): 200 = the bytes,
     // 404 = empty (no JSON envelope). Rate limiting and server errors still
     // return the ApiError JSON envelope.
     options.AddOperationTransformer(async (operation, context, ct) =>
     {
-        if (operation.OperationId is not ("files.getAvatar" or "files.getProductImage"))
+        if (operation.OperationId is not
+            ("files.getAvatar" or "files.getProductImage" or "files.getHiringFile"))
         {
             return;
         }
@@ -96,11 +97,18 @@ builder.Services.AddOpenApi(options =>
         operation.Responses ??= new OpenApiResponses();
         operation.Responses["200"] = new OpenApiResponse
         {
-            Description = "The image file.",
+            Description = "The file.",
             Content = new Dictionary<string, OpenApiMediaType>
             {
                 [
                     "image/*"] = new()
+                {
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" },
+                },
+                // Hiring proofs may also be PDFs; avatars are images only —
+                // the extra media type is harmless for both.
+                [
+                    "application/pdf"] = new()
                 {
                     Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" },
                 },
@@ -207,7 +215,8 @@ builder.Services
     .AddScoped<IAuthorizationHandler, ActiveUserAuthorizationHandler>()
     .AddScoped<UserAdministrationService>()
     .AddScoped<GuestLinkService>()
-    .AddScoped<ProductAdministrationService>();
+    .AddScoped<ProductAdministrationService>()
+    .AddScoped<HiringService>();
 
 builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection(UploadsOptions.SectionName));
 
@@ -232,7 +241,10 @@ builder.Services.AddRateLimiter(options =>
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var path = context.Request.Path;
         var inAuthArea = path.StartsWithSegments("/identity")
-            || path.StartsWithSegments("/admin");
+            || path.StartsWithSegments("/admin")
+            // Public hiring submit (plan 09) is a guest-mutable action — it
+            // gets the strict guest budget, not the default one (D16).
+            || path.StartsWithSegments("/hiring");
         // The strict budget is for auth/admin ACTIONS (login, register,
         // mutations). Reading one's own profile is part of every page load
         // (header badge + account pages) and belongs to the default budget,
@@ -342,6 +354,7 @@ IdentityEndpoints.MapIdentityEndpoints(app);
 AdminUserEndpoints.MapAdminUserEndpoints(app);
 CatalogEndpoints.MapCatalogEndpoints(app);
 StaffProductEndpoints.MapStaffProductEndpoints(app);
+HiringEndpoints.MapHiringEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 FileEndpoints.MapFileEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 
 app.MapGet("/health", (AppDbContext db) =>

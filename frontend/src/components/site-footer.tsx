@@ -34,6 +34,13 @@ export async function SiteFooter() {
           >
             {t("Auth.createAccount")}
           </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            href="/join"
+            className="rounded-sm px-1 text-foreground/80 underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {t("Footer.join")}
+          </Link>
         </nav>
         <p className="text-xs text-muted-foreground/70">
           © {year} {t("Metadata.name")}. {t("Footer.rights")}
