@@ -10,3 +10,4 @@ system), then commit the update.
 | 2026-09-28 | ab80af8 | chore: rename to hanadicrochet in deploy + living docs | Compose project+images+build path, POSTGRES_USER/DB, Caddyfile example domain, scripts, AGENTS.md/Readme/skills/prompts. Historical plan files intentionally untouched |
 | 2026-09-28 | 77c869e | chore: rename leftovers in frontend comments + scripts | globals.css brand-tokens comment + scripts/*.mjs comments/shot paths (missed by the first frontend pass) |
 | 2026-09-28 | 9792ff4 | chore: rename final stragglers — design-time env var, .http file, brand guide | Full-tree sweep: only historical plan files + this plan's own explanation retain the old name |
+| 2026-09-28 | d15c630 | chore: rename last two stragglers — tr.json title, globals.css comments | Case-insensitive sweep clean: only historical plan files retain the old name |
