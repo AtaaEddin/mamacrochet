@@ -55,6 +55,10 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
+      // next-themes' inline script mutates documentElement (color-scheme +
+      // theme class) before hydration; the README mandates this flag on
+      // <html> (one level deep, so child mismatches still surface).
+      suppressHydrationWarning
       className={`${baloo.variable} ${cairo.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">

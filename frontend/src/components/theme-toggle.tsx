@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { Monitor, Moon, Sun } from "lucide-react";
@@ -13,11 +14,41 @@ const OPTIONS: { value: ThemeValue; icon: typeof Sun }[] = [
   { value: "dark", icon: Moon },
 ];
 
+/**
+ * True only after this component has hydrated on the client.
+ *
+ * `useSyncExternalStore` renders `getServerSnapshot` on the server AND on the
+ * first client render, then switches to `getSnapshot` — the lint-clean form
+ * of the mounted flag (no setState in an effect).
+ */
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * Segmented light/system/dark toggle (next-themes, plan 08).
+ *
+ * Hydration-safe: the persisted theme cannot be known on the server, so no
+ * option is marked active until the component mounts (next-themes README →
+ * "Avoid Hydration Mismatch"). Until then the pill keeps its layout (all
+ * options muted) → no CLS and no server/client mismatch.
+ */
 export function ThemeToggle() {
   const t = useTranslations("Theme");
-  const { resolvedTheme, setTheme } = useTheme();
-  const current: ThemeValue =
-    resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "system";
+  const { theme, setTheme } = useTheme();
+  const mounted = useMounted();
+  // `theme` is the stored choice ("system" | "light" | "dark"); the old
+  // `resolvedTheme` source is always light/dark and could never highlight the
+  // System segment (e.g. a user who explicitly picked System on a light OS).
+  const current: ThemeValue | null = mounted
+    ? theme === "light" || theme === "dark"
+      ? theme
+      : "system"
+    : null;
 
   return (
     <div
