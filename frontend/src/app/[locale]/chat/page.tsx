@@ -3,10 +3,12 @@
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
+import { ChatExitBar } from "@/components/chat-exit-bar";
 import { ChatPanel } from "@/components/chat-panel";
 import { api } from "@/lib/api/client";
 import { type User } from "@/lib/auth";
+import { consumeChatReturnTo } from "@/lib/chat/return-to";
 import * as chat from "@/lib/chat/api";
 
 /**
@@ -88,11 +90,21 @@ function ChatScreen() {
     );
   }
 
+  // Back out of the chat to where the visitor came from (FAB/CTA recorded
+  // it in sessionStorage); fresh tab / deep link → Home.
+  const backToPreviousOrHome = () => {
+    const back = consumeChatReturnTo();
+    router.replace(back ?? "/");
+  };
+
   // Visitor: the live chat, full height.
   if (me === null) {
     return (
-      <div className="h-[100dvh] px-3 pb-3 pt-3 sm:px-4">
-        <ChatPanel mode="guest" initialProductId={workParam} withProductRail />
+      <div className="flex h-[100dvh] flex-col px-3 pb-3 pt-3 sm:px-4">
+        <ChatExitBar backLabel={t("back")} onBack={backToPreviousOrHome} />
+        <div className="min-h-0 flex-1">
+          <ChatPanel mode="guest" initialProductId={workParam} withProductRail />
+        </div>
       </div>
     );
   }
@@ -101,17 +113,13 @@ function ChatScreen() {
   if (threadParam) {
     return (
       <div className="flex h-[100dvh] flex-col px-3 pb-3 pt-3 sm:px-4">
-        <button
-          type="button"
-          onClick={() => {
+        <ChatExitBar
+          backLabel={t("allConversations")}
+          onBack={() => {
             setThreads(null);
             router.replace(pathname);
           }}
-          className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-        >
-          <ArrowLeft className="size-3.5 rtl:rotate-180" aria-hidden="true" />
-          {t("allConversations")}
-        </button>
+        />
         <div className="min-h-0 flex-1 pt-2">
           <ChatPanel mode="user" threadId={threadParam} withProductRail />
         </div>
@@ -122,7 +130,8 @@ function ChatScreen() {
   // Signed-in customer, list view.
   return (
     <div className="mx-auto flex h-[100dvh] w-full max-w-2xl flex-col px-4 py-4">
-      <p className="font-display text-xl font-bold">{t("listTitle")}</p>
+      <ChatExitBar backLabel={t("back")} onBack={backToPreviousOrHome} />
+      <p className="mt-2 font-display text-xl font-bold">{t("listTitle")}</p>
       <p className="mt-1 text-sm text-muted-foreground">{t("listHint")}</p>
       <div className="mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pb-4">
         {threads === null && (

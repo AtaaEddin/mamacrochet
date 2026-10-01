@@ -122,7 +122,11 @@
     "listEmpty": "Henüz sohbet yok — Hanadi'yle konuşmaya başla!",
     "noSubject": "Sohbet",
     "closed": "Kapalı",
-    "allConversations": "Tüm sohbetler"
+    "allConversations": "Tüm sohbetler",
+    "back": "Geri",
+    "home": "Ana sayfa",
+    "works": "Tüm eserler",
+    "exitLabel": "Sohbetten ayrıl"
   },
   "Footer": {
     "tagline": "Sevgiyle, dikiş dikiş yapıldı.",

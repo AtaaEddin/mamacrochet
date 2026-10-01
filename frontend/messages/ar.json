@@ -122,7 +122,11 @@
     "listEmpty": "لا محادثات بعد — ابدأ محادثة مع حنادي!",
     "noSubject": "محادثة",
     "closed": "مغلقة",
-    "allConversations": "كل المحادثات"
+    "allConversations": "كل المحادثات",
+    "back": "رجوع",
+    "home": "الرئيسية",
+    "works": "كل الأعمال",
+    "exitLabel": "الخروج من المحادثة"
   },
   "Footer": {
     "tagline": "صُنع بحب، غرزة غرزة.",

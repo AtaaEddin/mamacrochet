@@ -122,7 +122,11 @@
     "listEmpty": "No conversations yet — start a chat with Hanadi!",
     "noSubject": "Chat",
     "closed": "Closed",
-    "allConversations": "All conversations"
+    "allConversations": "All conversations",
+    "back": "Back",
+    "home": "Home",
+    "works": "All works",
+    "exitLabel": "Leave chat"
   },
   "Footer": {
     "tagline": "Handmade with love, one stitch at a time.",

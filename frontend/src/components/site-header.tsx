@@ -1,7 +1,6 @@
-import { getTranslations } from "next-intl/server";
-import { MessageCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { AuthBadge } from "@/components/auth-badge";
+import { ChatCtaLink } from "@/components/chat-cta-link";
 import { HanadiMark } from "@/components/illustrations/hanadi-mark";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -14,19 +13,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
  * shop; chat is a page you go to). All tap targets ≥ 44 px.
  */
 export async function SiteHeader() {
-  const t = await getTranslations();
-
-  const chatCta = (
-    <Link
-      href="/chat"
-      data-chat-cta=""
-      className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
-      <MessageCircle className="size-4.5" aria-hidden="true" />
-      {t("Nav.hello")}
-    </Link>
-  );
-
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
@@ -47,13 +33,13 @@ export async function SiteHeader() {
             <LanguageSwitcher />
             <ThemeToggle />
             <AuthBadge />
-            {chatCta}
+            <ChatCtaLink />
           </div>
 
           {/* Mobile row 1: sign-in state + chat CTA */}
           <div className="flex items-center gap-2 md:hidden">
             <AuthBadge />
-            {chatCta}
+            <ChatCtaLink />
           </div>
         </div>
 
