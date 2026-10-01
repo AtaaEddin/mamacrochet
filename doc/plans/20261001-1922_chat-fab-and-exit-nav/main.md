@@ -74,7 +74,7 @@ Out of scope: redesigning `/chat` itself, staff/admin navigation, new pages.
 - `pnpm typecheck` + `pnpm lint` green. No backend touched (no dotnet changes).
 - Browser: `pnpm`-free `node scripts/verify-fab-exit.mjs <BASE> <API_BASE>`
   (playwright-core + /snap/bin/chromium, kept in `frontend/scripts/` per repo
-  convention) — **28/28 PASS**:
+  convention) — **29/29 PASS**:
   - FAB visible: `/en` + `/en/works` mobile 390×844 (light+dark) AND desktop
     1280×800; geometry 56×56, 16 px margins, bottom-end corner; RTL `/ar` at
     bottom-START (x=16), logical `end-4` mirrors correctly.
@@ -82,6 +82,9 @@ Out of scope: redesigning `/chat` itself, staff/admin navigation, new pages.
     anonymous users are redirected to /login by the admin gate, where the
     FAB correctly shows).
   - Flow: `/en/works` → FAB → `/en/chat` → Back → `/en/works` (previous page).
+  - F4: header "Say hi" CTA on `/chat` stores no return URL (guard: the
+    locale-prefixed chat path must never be stored — fixed in 1a1e23d after
+    review caught the dead `startsWith("/chat")` guard).
   - Fresh entry: `/en/chat` → Back → `/en` (Home fallback).
   - Exit bar links: Home → `/en`, All works → `/en/works`; Arabic labels
     الرئيسية / كل الأعمال verified.
