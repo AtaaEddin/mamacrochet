@@ -153,6 +153,32 @@ i18n-ready from the start; whole-page translations are finished last (phase 7).
   the empty state, rail count compared against the live catalog endpoint,
   "show more" shot skips gracefully when the catalog fits one page).
 
+## Result (bug fix — ThemeToggle hydration, 2026-10-01)
+
+- **Bug**: every page logged `A tree hydrated but some attributes of the
+  server rendered HTML didn't match` in dev (Turbopack). `ThemeToggle`
+  rendered `aria-pressed`/active classes from `useTheme().resolvedTheme`,
+  which is `undefined` on the server (→ System pressed) but already resolved
+  on the client at hydration → mismatch; next-themes' inline script also
+  mutates `<html>` (color-scheme + theme class) before hydration.
+- **Fix**: (1) `ThemeToggle` is hydration-safe per the next-themes README
+  ("Avoid Hydration Mismatch"): a `useMounted` flag via
+  `useSyncExternalStore` (server snapshot on the server AND the first client
+  render, client snapshot afterwards — no setState in an effect, lint-clean)
+  — until mount no option is active, the pill keeps its layout (all muted),
+  no CLS. (2) The active option now comes from `useTheme().theme` (the stored
+  choice) instead of `resolvedTheme` — latent bug: `resolvedTheme` is always
+  light/dark, so a user who explicitly picked System saw Light/Dark
+  highlighted. (3) `suppressHydrationWarning` on `<html>` (README-mandated,
+  one level deep — child mismatches still surface).
+- **Verified in dev (Turbopack)**: /en + /ar × mobile 390×844 + desktop
+  1280×800 × light + dark OS preference: 0 hydration console errors, 0 other
+  console errors; after hydration System pressed in BOTH toggle instances
+  (hidden desktop row + mobile row, fresh storage → defaultTheme); clicking
+  Dark → `html.dark` + pressed state in both instances; choice persists after
+  reload; explicit System pick on a light OS highlights System (old code:
+  Light). `pnpm typecheck` ✓ · `pnpm lint` ✓.
+
 ## Acceptance
 
 - Every page usable in en, ar, tr (no missing keys → no `[[key]]` shown);
