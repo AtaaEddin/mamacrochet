@@ -16,9 +16,11 @@ const RETURN_TO_KEY = "hc.chatReturnTo";
 export function rememberChatReturnTo(): void {
   if (typeof window === "undefined") return;
   try {
+    // Never store the chat page itself (the FAB is hidden there anyway, but
+    // the header CTA is visible on /chat — its click must be a no-op).
+    // Chat routes are locale-prefixed: /en/chat, /ar/chat, ...
+    if (/(^|\/)(chat)(\/|$)/.test(window.location.pathname)) return;
     const url = window.location.pathname + window.location.search;
-    // Never store the chat page itself (the FAB is hidden there anyway).
-    if (url.startsWith("/chat")) return;
     window.sessionStorage.setItem(RETURN_TO_KEY, url);
   } catch {
     // private mode — degrade: Back falls back to Home.

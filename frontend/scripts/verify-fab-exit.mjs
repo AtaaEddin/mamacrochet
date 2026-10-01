@@ -116,6 +116,17 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   await page.waitForURL("**/en/works");
   check("F3b All works link → /en/works", page.url().includes("/en/works"));
 
+  // F4 — the header "Say hi" CTA IS visible on /chat; its click must not
+  // store the chat URL as the return-to (rememberChatReturnTo guard).
+  await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+  // Header renders desktop + mobile CTA rows; click the visible one.
+  await page.locator("a[data-chat-cta]").filter({ visible: true }).click();
+  await page.waitForTimeout(400);
+  const stored = await page.evaluate(
+    () => window.sessionStorage.getItem("hc.chatReturnTo"),
+  );
+  check("F4 header CTA on /chat stores no return URL", stored === null, String(stored));
+
   // T1-T5 — signed-in: guest msg → register → guest-link → thread mode Back
   // (guest msg creates the device visitor thread; register signs in; guest-link
   //  is the same API call the order confirmation makes (D14), done via fetch.)
