@@ -145,6 +145,15 @@ Product management (admin + employee) and a public, mobile-first catalog.
   bytes and the upload works end-to-end. The app upload path is correct (in-memory `File`
   uploads and curl both succeed); the size-0 file is a test-harness artifact, not a bug.
 
+- **Bug fix — product images 404** (recorded 2026-10-02, live-verified):
+  `GET /files/products/{productId}/{fileName}` served nothing — `IsValidName` also
+  required `fileName.StartsWith(productId)`, but per this plan's storage scheme the
+  file name is `{imageId}.webp` (a different 32-hex), so the gate was always false and
+  every image request 404'd (silent: the card falls back to the illustration). Ownership
+  is enforced by the per-product directory (`{root}/products/{productId}/`) plus the
+  opaque regex gates; the StartsWith condition was removed. Verified: restored QA images
+  serve `200 image/webp` with bytes identical to disk; cross-product and traversal
+  requests 404.
 - **Staff entry point**: header gets a staff chip (employees see it, admins too) once
   plan 03's frontend lands — this plan ships `/staff/products` behind it.
 

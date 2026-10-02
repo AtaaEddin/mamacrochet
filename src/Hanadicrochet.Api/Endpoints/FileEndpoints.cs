@@ -67,14 +67,16 @@ public static class FileEndpoints
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
-        /// File names are `{imageId}.webp` / `{imageId}.thumb.webp` and must
-        /// belong to the product in the URL (no cross-product serving).
+        /// File names are `{imageId}.webp` / `{imageId}.thumb.webp` — opaque,
+        /// regex-gated (no path traversal). Ownership is the per-product
+        /// directory itself (`{root}/products/{productId}/`): a file only
+        /// resolves inside the directory named in the URL, so no cross-product
+        /// serving is possible (plan 04 storage scheme).
         /// </summary>
         public static bool IsValidName(string productId, string fileName)
         {
             return IdPattern.IsMatch(productId)
-                && NamePattern.IsMatch(fileName)
-                && fileName.StartsWith(productId, StringComparison.OrdinalIgnoreCase);
+                && NamePattern.IsMatch(fileName);
         }
     }
 }

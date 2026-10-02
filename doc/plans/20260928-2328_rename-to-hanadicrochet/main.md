@@ -94,3 +94,12 @@ persona, code identifiers, keys, database, deploy config, docs, repo folder.
   src/Hanadicrochet.AppHost` → fresh volume + DB (the planned wipe);
   the old `mamacrochet-postgres-data` volume is orphaned on disk as a
   recoverable backup of the pre-rename QA data.
+- 2026-10-02: the pre-rename QA data was **restored from the orphaned
+  volume** (`pg_dump mamacrochet` → restored into `hanadicrochet`; same
+  migration state, seeder stayed a no-op on fixed IDs): 21 products (15
+  images), 20 orders, 128 users, 67 chat threads — the local `uploads/`
+  folder (product images, receipts, samples, avatars) is referenced again.
+  The fresh pre-restore DB was backed up to `/tmp/hanadicrochet-pre-restore.dump`
+  (transient). Verification surfaced a latent plan 04 bug — product images
+  were never served by the API (see note in `04-products-catalog.md`);
+  fixed in the same commit.
