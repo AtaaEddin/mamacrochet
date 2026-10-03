@@ -200,6 +200,127 @@ public sealed class ChatService(
             false);
     }
 
+    // ---- New conversations (chat app screen plan, sub-plan 02) ------------
+
+    /// <summary>
+    /// A signed-in user starts a free conversation (no order, no device):
+    /// customers with themselves, staff with an existing customer — the
+    /// thread is assigned to the caller so it lands in the staff inbox.
+    /// <c>kind=visitor</c> only means "not bound to an order"; the 30-day
+    /// stale sweep covers these too (D16).
+    /// </summary>
+    public async Task<ChatThreadResult> CreateThreadAsync(
+        AppUser user, string? subject, string? customerId, CancellationToken ct)
+    {
+        var trimmed = subject?.Trim();
+        if (trimmed is not null && trimmed.Length is < 2 or > 80)
+        {
+            return new ChatThreadResult(
+                new ApiError("invalid_request", "Keep the subject between 2 and 80 characters."),
+                null);
+        }
+
+        ChatThread thread;
+        if (user.IsEmployee || user.IsAdmin)
+        {
+            if (string.IsNullOrWhiteSpace(customerId))
+            {
+                return new ChatThreadResult(
+                    new ApiError("invalid_request", "Choose the customer for the conversation."),
+                    null);
+            }
+
+            // A real, active, non-deleted CUSTOMER — staff can't open staff
+            // threads through this route.
+            var customer = await db.Users.FirstOrDefaultAsync(
+                u => u.Id == customerId
+                    && u.IsActive && u.DeletedAt == null
+                    && !u.IsEmployee && !u.IsAdmin,
+                ct);
+            if (customer is null)
+            {
+                return new ChatThreadResult(
+                    new ApiError("not_found", "No such customer."),
+                    null);
+            }
+
+            var now = DateTime.UtcNow;
+            thread = new ChatThread
+            {
+                Kind = ChatThreadKind.Visitor,
+                CustomerId = customer.Id,
+                AssignedEmployeeId = user.Id,
+                Subject = trimmed is { Length: > 0 } ? trimmed : null,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            db.ChatThreads.Add(thread);
+            await db.SaveChangesAsync(ct);
+            // The DTO composes participants from these navigations.
+            thread.Customer = customer;
+            thread.AssignedEmployee = user;
+        }
+        else
+        {
+            var now = DateTime.UtcNow;
+            thread = new ChatThread
+            {
+                Kind = ChatThreadKind.Visitor,
+                CustomerId = user.Id,
+                Subject = trimmed is { Length: > 0 } ? trimmed : null,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            db.ChatThreads.Add(thread);
+            await db.SaveChangesAsync(ct);
+            thread.Customer = user;
+        }
+
+        return new ChatThreadResult(null, ToThreadDto(thread, user));
+    }
+
+    /// <summary>
+    /// Staff customer search — the picker behind "New conversation":
+    /// active, non-deleted CUSTOMERS (never staff), matched on display
+    /// name / phone / email.
+    /// </summary>
+    public async Task<CustomerPageDto> SearchCustomersAsync(
+        string? search, int page, int pageSize, CancellationToken ct)
+    {
+        page = Math.Clamp(page, 1, 1000);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        IQueryable<AppUser> q = db.Users.AsNoTracking()
+            .Where(u => !u.IsEmployee && !u.IsAdmin
+                && u.IsActive && u.DeletedAt == null);
+
+        var term = search?.Trim();
+        if (term is { Length: > 0 })
+        {
+            // Escape LIKE metacharacters in the term (Postgres LIKE).
+            var escaped = term
+                .Replace("\\", "\\\\")
+                .Replace("%", "\\%")
+                .Replace("_", "\\_")
+                .Replace("[", "\\[");
+            var pattern = $"%{escaped}%";
+            q = q.Where(u =>
+                EF.Functions.Like(u.DisplayName, pattern)
+                || (u.Phone != null && EF.Functions.Like(u.Phone, pattern))
+                || (u.Email != null && EF.Functions.Like(u.Email, pattern)));
+        }
+
+        var total = await q.CountAsync(ct);
+        var items = await q
+            .OrderBy(u => u.DisplayName)
+            .ThenByDescending(u => u.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(u => new CustomerDto(u.Id, u.DisplayName, u.Phone, u.Email))
+            .ToListAsync(ct);
+        return new CustomerPageDto(items, page, Math.Max(1, (total + pageSize - 1) / pageSize));
+    }
+
     private async Task<ChatThread?> FindActiveVisitorThreadAsync(
         string guestId, CancellationToken ct)
     {

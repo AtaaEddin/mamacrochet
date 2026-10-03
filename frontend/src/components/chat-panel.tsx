@@ -69,6 +69,7 @@ export function ChatPanel({
   onCloseThread,
   onOpenThread,
   onNewConversation,
+  notice,
 }: {
   mode: "guest" | "user";
   /** user mode: the thread to open (`?thread=`); null = none open. */
@@ -87,6 +88,8 @@ export function ChatPanel({
   onOpenThread?: (threadId: string) => void;
   /** List-header action (sub-plan 02: "New conversation"). */
   onNewConversation?: () => void;
+  /** Notice row above the composer (e.g. a failed New conversation, sub 02). */
+  notice?: string | null;
 }) {
   const t = useTranslations("ChatPanel");
   const locale = useLocale();
@@ -520,12 +523,12 @@ export function ChatPanel({
         )}
       >
         <div className="mx-auto w-full max-w-2xl px-4 pb-3 pt-2 sm:px-6">
-          {chat.error && (
+          {(chat.error || notice) && (
             <p
               role="alert"
               className="mb-2 rounded-full bg-destructive/10 px-4 py-2 text-center text-xs font-semibold text-destructive"
             >
-              {chat.error}
+              {chat.error ?? notice}
             </p>
           )}
 

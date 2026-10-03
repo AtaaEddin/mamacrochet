@@ -13,6 +13,7 @@
  * middle thread / right works / bottom composer), no wordmark, no status
  * line. Screenshots → /tmp/hanadicrochet-shots.
  */
+import { execFileSync, execSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright-core";
 
@@ -274,6 +275,272 @@ const atLeast1px = (v) => v !== null && parseFloat(v) >= 1;
   const comp = await composerInViewport(page);
   check("DK1 composer in viewport (dark)", comp.ok, comp.why);
   await page.screenshot({ path: `${OUT}/appscreen-guest-mobile-dark.png` });
+  await browser.close();
+}
+
+// ============================ NC — NEW CONVERSATIONS (SUB 02) ============
+// Customer: /chat list "+" → POST /chat/threads → thread opens.
+// Employee: /staff/chat "New conversation" → search dialog → pick customer
+// → thread opens; the customer sees the same thread.
+{
+  const browser = await chromium.launch({
+    executablePath: "/snap/bin/chromium",
+    args: ["--no-sandbox"],
+  });
+  const ts = Date.now();
+  const custEmail = `nc-cust-${ts}@example.com`;
+  const staffEmail = `nc-staff-${ts}@example.com`;
+
+  const registerIn = async (ctx, email, name) => {
+    const af = await ctx.request.get(`${API_BASE}/antiforgery`);
+    const headers = { "Content-Type": "application/json" };
+    if (af.ok()) {
+      const token = (await af.json()).token;
+      if (token) headers["X-CSRF-TOKEN"] = token;
+    }
+    return (
+      await ctx.request.post(`${API_BASE}/identity/register`, {
+        headers,
+        data: { name, email, password: "Passw0rd!x", phone: "999000111", country: "Testville" },
+      })
+    ).status();
+  };
+
+  // --- Customer: "+" in the /chat list header.
+  const ctx = await newContext(browser, { width: 1280, height: 800 });
+  const page = await ctx.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(String(e)));
+
+  check("NC1 register customer", (await registerIn(ctx, custEmail, "NC Customer")) === 200);
+  await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+  const newBtn = page.locator('[data-chat-part="list"] button[aria-label="New conversation"]');
+  {
+    const deadline = Date.now() + 10000;
+    let ok = false;
+    while (Date.now() < deadline) {
+      ok = (await newBtn.count()) === 1;
+      if (ok) break;
+      await page.waitForTimeout(250);
+    }
+    check("NC2 New conversation button in list (desktop)", ok);
+  }
+
+  // Mobile: same button in the list (Back out of any auto-opened thread
+  // first — sub 03 auto-opens, but the list view is what we check).
+  {
+    const mpage = await ctx.newPage();
+    await mpage.setViewportSize({ width: 390, height: 844 });
+    await mpage.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+    await mpage.waitForTimeout(2000);
+    if (mpage.url().includes("thread=")) {
+      await mpage.locator('header button[aria-label="Back"]').click();
+      await mpage.waitForTimeout(800);
+    }
+    const mbtn = mpage.locator('[data-chat-part="list"] button[aria-label="New conversation"]');
+    check("NC2b New conversation button in list (mobile)", (await mbtn.count()) === 1);
+    await mpage.close();
+  }
+
+  let createdId = null;
+  {
+    const respP = page.waitForResponse(
+      (r) => r.url().includes("/chat/threads") && r.request().method() === "POST",
+    );
+    await newBtn.click();
+    try {
+      const resp = await respP;
+      check("NC3 POST /chat/threads → 201", resp.status() === 201, `status=${resp.status()}`);
+      const body = await resp.json();
+      createdId = body.id ?? null;
+    } catch {
+      check("NC3 POST /chat/threads → 201", false, "no response captured");
+    }
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && !page.url().includes(`?thread=${createdId}`)) {
+      await page.waitForTimeout(250);
+    }
+  }
+  check(
+    "NC4 thread opened (?thread=)",
+    createdId !== null && page.url().includes(`?thread=${createdId}`),
+    page.url(),
+  );
+  check("NC5 thread part visible", await part(page, "thread").isVisible());
+  check("NC5b composer visible in fresh thread", await page.locator("textarea").first().isVisible());
+  await page.screenshot({ path: `${OUT}/new-conversation-customer.png` });
+
+  // --- Employee: /staff/chat "New conversation" dialog.
+  const sctx = await newContext(browser, { width: 1280, height: 800 });
+  const spage = await sctx.newPage();
+  const spageErrors = [];
+  spage.on("pageerror", (e) => spageErrors.push(String(e)));
+
+  check("NC6 register staff", (await registerIn(sctx, staffEmail, "NC Staff")) === 200);
+  // Dev-only promotion (production grants roles via admin / hiring).
+  {
+    const container = execSync("docker ps --format '{{.Names}}' | grep '^postgres'")
+      .toString()
+      .trim()
+      .split("\n")[0];
+    // execFileSync: no shell involved, so the SQL needs no escaping.
+    execFileSync(
+      "docker",
+      [
+        "exec",
+        "-e",
+        "PGPASSWORD=postgres",
+        container,
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "localhost",
+        "-d",
+        "hanadicrochet",
+        "-c",
+        `UPDATE "AspNetUsers" SET "IsEmployee"=true, "IsAdmin"=true WHERE "Email"='${staffEmail}'`,
+      ],
+    );
+  }
+
+  await spage.goto(`${BASE}/en/staff/chat`, { waitUntil: "networkidle" });
+  const staffNewBtn = spage.getByRole("button", { name: "New conversation" });
+  {
+    const deadline = Date.now() + 15000;
+    let ok = false;
+    while (Date.now() < deadline) {
+      ok = (await staffNewBtn.count()) === 1;
+      if (ok) break;
+      await spage.waitForTimeout(250);
+    }
+    check("NC7 staff New conversation button", ok);
+  }
+
+  let staffThreadId = null;
+  if ((await staffNewBtn.count()) === 1) {
+    await staffNewBtn.click();
+    const dialog = spage.getByRole("dialog");
+    let dialogOk = false;
+    {
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline) {
+        dialogOk = (await dialog.count()) === 1;
+        if (dialogOk) break;
+        await spage.waitForTimeout(200);
+      }
+    }
+    check("NC8 dialog opens", dialogOk);
+
+    const search = dialog.locator("input");
+    await search.fill("NC Customer");
+    const rowBtn = dialog.locator("li button", { hasText: "NC Customer" }).first();
+    let rowOk = false;
+    {
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        rowOk = (await rowBtn.count()) === 1;
+        if (rowOk) break;
+        await spage.waitForTimeout(250);
+      }
+    }
+    check("NC9 search finds the customer", rowOk);
+    await spage.screenshot({ path: `${OUT}/new-conversation-staff-dialog.png` });
+
+    if (rowOk) {
+      const respP2 = spage.waitForResponse(
+        (r) => r.url().includes("/chat/threads") && r.request().method() === "POST",
+      );
+      await rowBtn.click();
+      let resp2 = null;
+      try {
+        resp2 = await respP2;
+      } catch {
+        resp2 = null;
+      }
+      check("NC10a POST /chat/threads (staff) → 201", resp2?.status() === 201, `status=${resp2?.status()}`);
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        staffThreadId = new URL(spage.url()).searchParams.get("thread");
+        if (staffThreadId) break;
+        await spage.waitForTimeout(250);
+      }
+      check("NC10b staff thread opened (?thread=)", staffThreadId !== null, spage.url());
+    }
+  }
+
+  // The customer sees the staff-created thread: /chat auto-opens it (it is
+  // now the customer's latest open conversation).
+  {
+    const deadline = Date.now() + 10000;
+    let seesIt = false;
+    while (Date.now() < deadline) {
+      await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+      const inner = Date.now() + 8000;
+      while (Date.now() < inner) {
+        if (staffThreadId && page.url().includes(`?thread=${staffThreadId}`)) {
+          seesIt = true;
+          break;
+        }
+        await page.waitForTimeout(250);
+      }
+      if (seesIt) break;
+    }
+    check("NC11 customer auto-opens the staff thread", seesIt, page.url());
+  }
+
+  // Staff can't open staff threads (own id → 404 from the API). CSRF area
+  // → carry an antiforgery token (the app client retries transparently;
+  // raw requests don't).
+  {
+    const meRes = await sctx.request.get(`${API_BASE}/identity/me`);
+    const meBody = meRes.ok() ? await meRes.json() : null;
+    let status = 0;
+    if (meBody) {
+      const af = await sctx.request.get(`${API_BASE}/antiforgery`);
+      const afBody = af.ok() ? await af.json() : null;
+      status = (
+        await sctx.request.post(`${API_BASE}/chat/threads`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(afBody?.token ? { "X-CSRF-TOKEN": afBody.token } : {}),
+          },
+          data: { customerId: meBody.id },
+        })
+      ).status();
+    }
+    check("NC12 staff can't open a staff thread (404)", status === 404, `status=${status}`);
+  }
+
+  // Dark: the staff button still renders (fresh dark context, shared cookies).
+  {
+    const dark = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      colorScheme: "dark",
+    });
+    await dark.addCookies(await sctx.cookies());
+    const dpage = await dark.newPage();
+    await dpage.goto(`${BASE}/en/staff/chat`, { waitUntil: "networkidle" });
+    const dbtn = dpage.getByRole("button", { name: "New conversation" });
+    let darkOk = false;
+    {
+      const deadline = Date.now() + 15000;
+      while (Date.now() < deadline) {
+        darkOk = (await dbtn.count()) === 1;
+        if (darkOk) break;
+        await dpage.waitForTimeout(250);
+      }
+    }
+    check("NC13 New conversation button (dark)", darkOk);
+    await dark.close();
+  }
+
+  check("NC14 no page errors (new conversations)", pageErrors.length === 0 && spageErrors.length === 0, [
+    ...pageErrors,
+    ...spageErrors,
+  ].join(" | "));
+  await ctx.close();
+  await sctx.close();
   await browser.close();
 }
 

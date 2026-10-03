@@ -12,6 +12,8 @@ namespace Hanadicrochet.Api.Endpoints;
 
 /// <summary>
 /// Chat REST (plan 06):
+/// - <c>POST /chat/threads</c> — new conversation for signed-in users
+///   (customers with themselves, staff with a customer);
 /// - <c>POST /chat/visitor</c> — public guest bootstrap (rate limit +
 ///   honeypot, D16; same precedent as POST /orders and /hiring);
 /// - thread/message routes — cookie auth (Identity) OR an <c>X-Chat-Token</c>
@@ -66,6 +68,29 @@ public static class ChatEndpoints
         .WithSummary("List the signed-in user's threads (admin: all) with previews + unread counts.")
         .Produces<ChatThreadListDto>(StatusCodes.Status200OK)
         .WithName("chat.listThreads");
+
+        mine.MapPost("/threads", async (
+            CreateThreadRequest request, ClaimsPrincipal principal,
+            ChatService chat, AppDbContext db, CancellationToken ct) =>
+        {
+            var user = await RequireUserAsync(principal, db, ct);
+            if (user is null)
+            {
+                return Results.Json(new ApiError("unauthenticated", "Sign in to continue."),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var result = await chat.CreateThreadAsync(
+                user, request.Subject, request.CustomerId, ct);
+            return result.Error is not null
+                ? ResultFor(result.Error, null)
+                : Results.Created($"/chat/threads/{result.Thread!.Id}", result.Thread!);
+        })
+        .WithSummary(
+            "Start a new conversation: customers with themselves; staff with an " +
+            "existing customer (assigned to the caller). Returns the new thread.")
+        .Produces<ThreadDto>(StatusCodes.Status201Created)
+        .WithName("chat.createThread");
 
         // ---- Thread detail (cookie OR thread token) ------------------------
         app.MapGet("/chat/threads/{threadId}", async (

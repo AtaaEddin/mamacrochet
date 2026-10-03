@@ -384,7 +384,15 @@
     "vErrorTitle": "Couldn't load the conversations.",
     "vErrorBody": "Check the connection and try again.",
     "working": "One moment…",
-    "vActionFailed": "That didn't work — please try again."
+    "vActionFailed": "That didn't work — please try again.",
+    "newConversation": "New conversation",
+    "newConversationTitle": "New conversation",
+    "newConversationDesc": "Find the customer to start chatting with.",
+    "newConversationSearch": "Search by name, phone or email",
+    "ncLoading": "Searching…",
+    "ncEmpty": "No customers found.",
+    "ncError": "Couldn't load customers — please try again.",
+    "ncPickFailed": "Couldn't start the conversation — please try again."
   },
   "ApiError": {
     "generic": "Something went wrong. Please try again in a moment.",

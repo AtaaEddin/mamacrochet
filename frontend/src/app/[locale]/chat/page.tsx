@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ChatPanel } from "@/components/chat-panel";
 import { api } from "@/lib/api/client";
-import { type User } from "@/lib/auth";
+import { isStaff, type User } from "@/lib/auth";
+import * as chatApi from "@/lib/chat/api";
 import { consumeChatReturnTo } from "@/lib/chat/return-to";
 
 function ChatScreen() {
@@ -17,6 +18,14 @@ function ChatScreen() {
   const workParam = params.get("work");
 
   const [me, setMe] = useState<User | null | "loading">("loading");
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // A failed action (e.g. New conversation) shows for 6 s, then clears.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 6_000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // Who am I? One API call decides guest vs user (the API is the only
   // source of truth for auth).
@@ -78,6 +87,24 @@ function ChatScreen() {
         onOpenThread={(id) => {
           window.location.search = `?thread=${id}`;
         }}
+        onNewConversation={
+          isStaff(me)
+            ? undefined
+            : () => {
+                // Sub-plan 02: a customer starts a free conversation with
+                // themselves (the API ignores any body customerId).
+                void (async () => {
+                  const r = await chatApi.createThread({});
+                  if (r.ok) {
+                    setNotice(null);
+                    router.replace(`${pathname}?thread=${r.data.id}`);
+                  } else {
+                    setNotice(r.error.message);
+                  }
+                })();
+              }
+        }
+        notice={notice}
       />
     </main>
   );

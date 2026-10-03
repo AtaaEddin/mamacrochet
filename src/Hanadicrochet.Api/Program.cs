@@ -370,6 +370,7 @@ IdentityEndpoints.MapIdentityEndpoints(app);
 AdminUserEndpoints.MapAdminUserEndpoints(app);
 CatalogEndpoints.MapCatalogEndpoints(app);
 StaffProductEndpoints.MapStaffProductEndpoints(app);
+StaffCustomerEndpoints.MapStaffCustomerEndpoints(app);
 HiringEndpoints.MapHiringEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 OrderEndpoints.MapOrderEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 ChatEndpoints.MapChatEndpoints(app);

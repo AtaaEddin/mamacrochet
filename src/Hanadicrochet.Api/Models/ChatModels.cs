@@ -24,6 +24,15 @@ public sealed record StaffAssignRequest(string EmployeeId);
 
 public sealed record StaffCloseRequest(string? Reason);
 
+/// <summary>
+/// New conversation (cookie auth). Customers create a thread with
+/// themselves (<see cref="CustomerId"/> ignored); staff create one with an
+/// existing customer (required, assigned to the caller).
+/// </summary>
+public sealed record CreateThreadRequest(
+    string? Subject,
+    string? CustomerId);
+
 // ---- Responses ------------------------------------------------------------
 
 /// <summary>Bootstrap (or re-open) result for a visitor thread.</summary>
@@ -91,6 +100,18 @@ public sealed record MessagePageDto(
 
 public sealed record ChatThreadListDto(
     IReadOnlyList<ThreadListItemDto> Threads,
+    int Page,
+    int Pages);
+
+/// <summary>Staff customer picker row (sub-plan 02 — New conversation).</summary>
+public sealed record CustomerDto(
+    string Id,
+    string DisplayName,
+    string? Phone,
+    string? Email);
+
+public sealed record CustomerPageDto(
+    IReadOnlyList<CustomerDto> Customers,
     int Page,
     int Pages);
 

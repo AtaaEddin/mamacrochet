@@ -2078,7 +2078,8 @@ export interface paths {
         /** List the signed-in user's threads (admin: all) with previews + unread counts. */
         get: operations["chat.listThreads"];
         put?: never;
-        post?: never;
+        /** Start a new conversation: customers with themselves; staff with an existing customer (assigned to the caller). Returns the new thread. */
+        post: operations["chat.createThread"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4382,6 +4383,23 @@ export interface paths {
         };
         trace?: never;
     };
+    "/staff/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search active customers (display name / phone / email) — the picker behind New conversation. */
+        get: operations["staff.searchCustomers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/staff/orders": {
         parameters: {
             query?: never;
@@ -6194,6 +6212,10 @@ export interface components {
             /** Format: int32 */
             stockUnits: number | string;
         };
+        CreateThreadRequest: {
+            customerId: null | string;
+            subject: null | string;
+        };
         CreateUserRequest: {
             country: null | string;
             displayName: string;
@@ -6204,6 +6226,19 @@ export interface components {
         };
         CsrfToken: {
             token: string;
+        };
+        CustomerDto: {
+            displayName: string;
+            email: null | string;
+            id: string;
+            phone: null | string;
+        };
+        CustomerPageDto: {
+            customers: components["schemas"]["CustomerDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pages: number | string;
         };
         DeclineHiringRequest: {
             note: null | string;
@@ -6658,6 +6693,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatThreadListDto"];
+                };
+            };
+            /** @description Error 400 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 401 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 403 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 404 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 409 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 423 */
+            423: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 429 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 500 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    "chat.createThread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateThreadRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDto"];
                 };
             };
             /** @description Error 400 */
@@ -7910,6 +8041,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiHealth"];
+                };
+            };
+        };
+    };
+    "staff.searchCustomers": {
+        parameters: {
+            query?: {
+                page?: number | string;
+                pageSize?: number | string;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPageDto"];
+                };
+            };
+            /** @description Error 400 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 401 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 403 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 404 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 409 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 423 */
+            423: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 429 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Error 500 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };

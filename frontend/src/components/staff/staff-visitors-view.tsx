@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { Inbox, UserRound } from "lucide-react";
+import { Inbox, Plus, Search, UserRound } from "lucide-react";
 import { api } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
 import { isStaff, type User } from "@/lib/auth";
@@ -11,6 +11,13 @@ import * as chat from "@/lib/chat/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
@@ -62,6 +69,17 @@ export function StaffVisitorsView() {
   const [closeReason, setCloseReason] = useState("");
   const [employees, setEmployees] = useState<UserDto[]>([]);
   const reqRef = useRef(0);
+
+  // “New conversation” (sub 02): pick an active customer → POST /chat/threads
+  // with them → open the fresh thread in the shared chat surface.
+  const [ncOpen, setNcOpen] = useState(false);
+  const [ncQuery, setNcQuery] = useState("");
+  const [ncResults, setNcResults] = useState<chat.StaffCustomer[] | null>(null);
+  const [ncLoading, setNcLoading] = useState(false);
+  const [ncError, setNcError] = useState(false);
+  const [ncPicking, setNcPicking] = useState<string | null>(null);
+  const [ncPickError, setNcPickError] = useState<string | null>(null);
+  const ncReqRef = useRef(0);
 
   // Role gate (server still enforces every call).
   useEffect(() => {
@@ -135,6 +153,25 @@ export function StaffVisitorsView() {
     };
   }, [me, isAdmin]);
 
+  const runCustomerSearch = useCallback((term: string) => {
+    const req = ++ncReqRef.current;
+    setNcLoading(true);
+    setNcError(false);
+    void chat.searchStaffCustomers(term).then((r) => {
+      if (req !== ncReqRef.current) return;
+      setNcLoading(false);
+      if (r.ok) setNcResults(r.data.customers);
+      else setNcError(true);
+    });
+  }, []);
+
+  // Debounced search; also the initial browse (empty term = first page).
+  useEffect(() => {
+    if (!ncOpen) return;
+    const timer = setTimeout(() => runCustomerSearch(ncQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [ncOpen, ncQuery, runCustomerSearch]);
+
   if (gate.status === "loading") {
     return (
       <div className="grid min-h-64 place-items-center">
@@ -183,6 +220,27 @@ export function StaffVisitorsView() {
     router.push({ pathname: "/chat", query: { thread: id } });
   };
 
+  const openNewConversation = () => {
+    setNcQuery("");
+    setNcResults(null);
+    setNcError(false);
+    setNcPickError(null);
+    setNcOpen(true);
+  };
+
+  const pickCustomer = async (c: chat.StaffCustomer) => {
+    setNcPicking(c.id);
+    setNcPickError(null);
+    const r = await chat.createThread({ customerId: c.id });
+    setNcPicking(null);
+    if (r.ok) {
+      setNcOpen(false);
+      openThread(r.data.id);
+    } else {
+      setNcPickError(r.error.message || t("ncPickFailed"));
+    }
+  };
+
   const fail = (id: string) => setActionError((m) => ({ ...m, [id]: true }));
   const okd = (id: string) => {
     setActionError((m) => ({ ...m, [id]: false }));
@@ -225,20 +283,109 @@ export function StaffVisitorsView() {
         <p className="mt-1 text-sm text-muted-foreground">{t("visitorsSubtitle")}</p>
       </header>
 
-      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label={t("visitorsSubtitle")}>
-        {FILTERS.map((f) => (
-          <Button
-            key={f.id}
-            type="button"
-            variant={filter === f.id ? "secondary" : "outline"}
-            size="sm"
-            className="rounded-full"
-            onClick={() => setFilter(f.id)}
-          >
-            {t(f.labelKey)}
-          </Button>
-        ))}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label={t("visitorsSubtitle")}
+        >
+          {FILTERS.map((f) => (
+            <Button
+              key={f.id}
+              type="button"
+              variant={filter === f.id ? "secondary" : "outline"}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setFilter(f.id)}
+            >
+              {t(f.labelKey)}
+            </Button>
+          ))}
+        </div>
+        <Button size="sm" className="ms-auto" onClick={openNewConversation}>
+          <Plus className="size-4" aria-hidden="true" />
+          {t("newConversation")}
+        </Button>
       </div>
+
+      <Dialog
+        open={ncOpen}
+        onOpenChange={(open) => {
+          if (!open) setNcOpen(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("newConversationTitle")}</DialogTitle>
+            <DialogDescription>{t("newConversationDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              value={ncQuery}
+              onChange={(e) => setNcQuery(e.target.value)}
+              placeholder={t("newConversationSearch")}
+              aria-label={t("newConversationSearch")}
+              className="ps-9"
+            />
+          </div>
+          {ncLoading && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <YarnLoader className="size-5" />
+              {t("ncLoading")}
+            </p>
+          )}
+          {!ncLoading && ncError && (
+            <Alert variant="destructive">
+              <AlertDescription>{t("ncError")}</AlertDescription>
+              <div className="mt-2">
+                <Button size="sm" variant="secondary" onClick={() => runCustomerSearch(ncQuery.trim())}>
+                  {t("retry")}
+                </Button>
+              </div>
+            </Alert>
+          )}
+          {!ncLoading && !ncError && ncResults !== null && ncResults.length === 0 && (
+            <p className="py-3 text-center text-sm text-muted-foreground">
+              {t("ncEmpty")}
+            </p>
+          )}
+          {!ncLoading && !ncError && ncResults !== null && ncResults.length > 0 && (
+            <ul className="-mx-1 max-h-80 overflow-y-auto">
+              {ncResults.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    disabled={ncPicking !== null}
+                    onClick={() => void pickCustomer(c)}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold">{c.displayName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {[c.phone, c.email].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                    {ncPicking === c.id ? (
+                      <YarnLoader className="size-4 shrink-0" />
+                    ) : (
+                      <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {ncPickError !== null && (
+            <p role="alert" className="text-xs font-semibold text-destructive">
+              {ncPickError}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="mt-4 flex flex-col gap-3">
         {items === null && (

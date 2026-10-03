@@ -86,6 +86,44 @@ export function bootstrapVisitorThread(guestId: string) {
 
 // ---- Threads ----------------------------------------------------------------
 
+/**
+ * New conversation (chat app screen plan, sub 02): customers start a
+ * thread with themselves; staff pass the customer it opens with (the API
+ * ignores `customerId` for customers and validates it for staff).
+ */
+export function createThread(body: {
+  subject?: string | null;
+  customerId?: string | null;
+}): Promise<ChatResult<ChatThread>> {
+  return call(
+    () =>
+      api.POST("/chat/threads", {
+        body: {
+          subject: body.subject ?? null,
+          customerId: body.customerId ?? null,
+        } satisfies components["schemas"]["CreateThreadRequest"],
+      }),
+  );
+}
+
+export type StaffCustomer = components["schemas"]["CustomerDto"];
+
+/**
+ * Staff customer search — the picker behind the staff "New conversation"
+ * (display name / phone / email, active customers only).
+ */
+export function searchStaffCustomers(
+  search: string,
+  page = 1,
+): Promise<ChatResult<components["schemas"]["CustomerPageDto"]>> {
+  return call(
+    () =>
+      api.GET("/staff/customers", {
+        params: { query: { search, page } },
+      }),
+  );
+}
+
 export function fetchThread(
   threadId: string,
   auth: Auth,
