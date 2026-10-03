@@ -184,7 +184,17 @@ async function withCsrfRetry(request: Request, retried: boolean): Promise<Respon
   return response;
 }
 
-async function browserFetch(request: Request): Promise<Response> {
+/**
+ * The app's fetch transport for generated API clients (plan 20261003-1303):
+ * cookie + CSRF header + one-shot 403-csrf retry. Request in, Response out —
+ * the same shape `@hey-api/client-fetch`'s `fetch` config option expects.
+ */
+export async function browserFetch(
+  input: Request | string | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  let request: Request =
+    input instanceof Request ? input : new Request(input, init);
   if (needsCsrf(request.url, request.method)) {
     const token = await ensureCsrfToken();
     if (token) {
