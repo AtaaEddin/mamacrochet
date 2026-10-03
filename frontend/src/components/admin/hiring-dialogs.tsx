@@ -2,8 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { api, fileSrc } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import { fileSrc } from "@/lib/api/client";
+import {
+  AdminHiring,
+  type HiringAccepted,
+  type HiringApplicationDto as HiringApplication,
+  type HiringApplicationDetailDto as HiringDetail,
+} from "@/lib/api/generated-client";
 import { useApiErrorMessage } from "@/lib/api/errors";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { YarnLoader } from "@/components/illustrations/yarn-loader";
 
-type HiringApplication = components["schemas"]["HiringApplicationDto"];
-type HiringDetail = components["schemas"]["HiringApplicationDetailDto"];
-type HiringAccepted = components["schemas"]["HiringAccepted"];
+
 
 const LANGUAGE_OPTIONS = ["en", "ar", "tr"] as const;
 
@@ -65,8 +68,7 @@ export function DetailDialog({
   useEffect(() => {
     let alive = true;
     const req = ++reqRef.current;
-    api
-      .GET("/admin/hiring/{id}", { params: { path: { id: app.id } } })
+    AdminHiring.get({ path: { id: app.id } })
       .then((res) => {
         if (!alive || req !== reqRef.current) return;
         if (res.data) setDetail(res.data);
@@ -83,8 +85,7 @@ export function DetailDialog({
   function load() {
     const req = ++reqRef.current;
     setLoadError(false);
-    api
-      .GET("/admin/hiring/{id}", { params: { path: { id: app.id } } })
+    AdminHiring.get({ path: { id: app.id } })
       .then((res) => {
         if (req !== reqRef.current) return;
         if (res.data) setDetail(res.data);
@@ -328,8 +329,8 @@ export function AcceptDialog({
     }
     setBusy(true);
     setError(null);
-    const res = await api.POST("/admin/hiring/{id}/accept", {
-      params: { path: { id: app.id } },
+    const res = await AdminHiring.accept({
+      path: { id: app.id },
       body: {
         email: email.trim(),
         displayName: displayName.trim(),
@@ -445,8 +446,8 @@ export function DeclineDialog({
     if (busy) return;
     setBusy(true);
     setError(null);
-    const res = await api.POST("/admin/hiring/{id}/decline", {
-      params: { path: { id: app.id } },
+    const res = await AdminHiring.decline({
+      path: { id: app.id },
       body: { note: note.trim() || null },
     });
     setBusy(false);

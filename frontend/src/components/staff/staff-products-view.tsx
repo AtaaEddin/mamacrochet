@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import { isStaff, type User } from "@/lib/auth";
 import type { CategoryDto, ProductDto, ProductPage } from "@/lib/staff/api";
 import { fetchStaffCategories, fetchStaffProducts } from "@/lib/staff/api";
@@ -107,8 +107,7 @@ export function StaffProductsView() {
   // 1. Who am I? (staff gate) + initial category options.
   useEffect(() => {
     let alive = true;
-    api
-      .GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error || !res.data) {

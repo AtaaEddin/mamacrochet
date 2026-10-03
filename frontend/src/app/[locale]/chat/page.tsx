@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ChatPanel } from "@/components/chat-panel";
-import { api } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import { isStaff, type User } from "@/lib/auth";
 import * as chatApi from "@/lib/chat/api";
 import { consumeChatReturnTo } from "@/lib/chat/return-to";
@@ -31,8 +31,7 @@ function ChatScreen() {
   // source of truth for auth).
   useEffect(() => {
     let cancelled = false;
-    void api
-      .GET("/identity/me")
+    void Identity.me.get()
       .then((res) => {
         if (cancelled) return;
         setMe(!res.error && res.data ? res.data : null);

@@ -1,5 +1,7 @@
-import { API_BASE_URL } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import {
+  CatalogProducts,
+  type ProductDto as CatalogProduct,
+} from "@/lib/api/generated-client";
 
 /**
  * Client-side catalog fetch for the chat product picker (plan 06): the
@@ -8,19 +10,18 @@ import type { components } from "@/lib/api/schema";
  */
 const FETCH_TIMEOUT_MS = 4_000;
 
-export type CatalogProduct = components["schemas"]["ProductDto"];
+export type { CatalogProduct };
 
 export async function fetchChatProducts(limit = 12): Promise<CatalogProduct[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(
-      `${API_BASE_URL}/catalog/products?$top=${limit}&$orderby=createdAt desc`,
-      { signal: controller.signal, credentials: "include" },
-    );
-    if (!res.ok) return [];
-    const page = (await res.json()) as components["schemas"]["ProductPage"];
-    return page.items;
+    const res = await CatalogProducts.list({
+      query: { $top: limit, $orderby: "createdAt desc" },
+      signal: controller.signal,
+    });
+    if (res.error) return [];
+    return res.data.items;
   } catch {
     return [];
   } finally {

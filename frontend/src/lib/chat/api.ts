@@ -1,10 +1,26 @@
-import { api, API_BASE_URL } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import { toApiError, type ApiError } from "@/lib/api/errors";
+import {
+  Chat,
+  Staff,
+  type ChatAttachmentDto as ChatAttachment,
+  type ChatAttachmentListDto,
+  type ChatMessageDto as ChatMessage,
+  type ChatOrderRefDto as ChatOrderRef,
+  type ChatParticipantDto as ChatParticipant,
+  type ChatThreadListDto as ChatThreadPage,
+  type CustomerDto,
+  type CustomerPageDto,
+  type MessagePageDto as ChatMessagePage,
+  type MessagePreviewDto as ChatPreview,
+  type ThreadDto as ChatThread,
+  type ThreadListItemDto as ChatThreadListItem,
+  type VisitorThreadCreated,
+} from "@/lib/api/generated-client";
 
 /**
- * Chat REST (plan 06). JSON calls go through the typed OpenAPI client;
- * multipart uploads go through raw fetch (the generated binary schema
- * cannot express a FormData — same precedent as the avatar upload).
+ * Chat REST (plan 06) through the generated per-operation SDK (plan
+ * 20261003-1303) — every call is a typed method, including the attachment
+ * upload (multipart body object, serialized by the SDK).
  *
  * Auth: the shared client's `hc.auth` cookie (signed-in users, CSRF wired
  * by `browserFetch`) OR a guest thread token sent as the `X-Chat-Token`
@@ -12,17 +28,18 @@ import type { components } from "@/lib/api/schema";
  * verifies the token itself). One `Auth` shape keeps every call site tidy.
  */
 
-type ApiError = components["schemas"]["ApiError"];
-
-export type ChatThread = components["schemas"]["ThreadDto"];
-export type ChatThreadListItem = components["schemas"]["ThreadListItemDto"];
-export type ChatMessage = components["schemas"]["ChatMessageDto"];
-export type ChatAttachment = components["schemas"]["ChatAttachmentDto"];
-export type ChatParticipant = components["schemas"]["ChatParticipantDto"];
-export type ChatOrderRef = components["schemas"]["ChatOrderRefDto"];
-export type ChatThreadPage = components["schemas"]["ChatThreadListDto"];
-export type ChatMessagePage = components["schemas"]["MessagePageDto"];
-export type ChatPreview = components["schemas"]["MessagePreviewDto"];
+export type {
+  ChatAttachment,
+  ChatMessage,
+  ChatMessagePage,
+  ChatOrderRef,
+  ChatParticipant,
+  ChatPreview,
+  ChatThread,
+  ChatThreadListItem,
+  ChatThreadPage,
+  CustomerDto as StaffCustomer,
+};
 
 export type ChatResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
@@ -34,37 +51,23 @@ function authHeaders(auth: Auth): Record<string, string> | undefined {
   return auth.token ? { "X-Chat-Token": auth.token } : undefined;
 }
 
-function toApiError(err: unknown): ApiError {
-  // openapi-fetch hands back the parsed error body (the ApiError envelope).
-  const e = err as { code?: unknown; message?: unknown } | undefined;
-  const code = e?.code;
-  const message = e?.message;
-  return {
-    code: typeof code === "string" && code.length > 0 ? code : "server_error",
-    message:
-      typeof message === "string" && message.length > 0
-        ? message
-        : "Something went wrong.",
-  };
-}
-
 /**
- * Wraps a typed openapi-fetch call in the `ChatResult` envelope.
- * openapi-fetch (0.17) already parses the JSON body into `data` on success
- * and the error envelope into `error` on failure — do NOT re-read the
- * response body (it is consumed).
+ * Wraps a generated SDK call in the `ChatResult` envelope. The fetch client
+ * resolves to `{ data, error }` (fields style): `data` on success, the
+ * parsed `ApiError` envelope on declared error statuses. A REJECTED promise
+ * (network failure, abort) is the only case where no response exists.
  */
 async function call<T>(
-  run: () => Promise<{ data?: T; error?: unknown; response?: Response }>,
+  run: () => Promise<{ data?: T; error?: unknown }>,
 ): Promise<ChatResult<T>> {
-  let res: { data?: T; error?: unknown; response?: Response };
+  let res: { data?: T; error?: unknown };
   try {
     res = await run();
   } catch {
     return { ok: false, error: { code: "network", message: "network" } };
   }
   if (res.error) {
-    return { ok: false, error: toApiError(res.error) };
+    return { ok: false, error: toApiError(res.error, "Something went wrong.") };
   }
   return { ok: true, data: res.data as T };
 }
@@ -72,15 +75,14 @@ async function call<T>(
 // ---- Guest bootstrap -------------------------------------------------------
 
 export function bootstrapVisitorThread(guestId: string) {
-  return call<components["schemas"]["VisitorThreadCreated"]>(
-    () =>
-      api.POST("/chat/visitor", {
-        body: {
-          guestId,
-          name: null,
-          website: null,
-        } satisfies components["schemas"]["VisitorThreadRequest"],
-      }),
+  return call<VisitorThreadCreated>(() =>
+    Chat.bootstrapVisitorThread({
+      body: {
+        guestId,
+        name: null,
+        website: null,
+      },
+    }),
   );
 }
 
@@ -95,18 +97,15 @@ export function createThread(body: {
   subject?: string | null;
   customerId?: string | null;
 }): Promise<ChatResult<ChatThread>> {
-  return call(
-    () =>
-      api.POST("/chat/threads", {
-        body: {
-          subject: body.subject ?? null,
-          customerId: body.customerId ?? null,
-        } satisfies components["schemas"]["CreateThreadRequest"],
-      }),
+  return call(() =>
+    Chat.createThread({
+      body: {
+        subject: body.subject ?? null,
+        customerId: body.customerId ?? null,
+      },
+    }),
   );
 }
-
-export type StaffCustomer = components["schemas"]["CustomerDto"];
 
 /**
  * Staff customer search — the picker behind the staff "New conversation"
@@ -115,25 +114,16 @@ export type StaffCustomer = components["schemas"]["CustomerDto"];
 export function searchStaffCustomers(
   search: string,
   page = 1,
-): Promise<ChatResult<components["schemas"]["CustomerPageDto"]>> {
-  return call(
-    () =>
-      api.GET("/staff/customers", {
-        params: { query: { search, page } },
-      }),
-  );
+): Promise<ChatResult<CustomerPageDto>> {
+  return call(() => Staff.searchCustomers({ query: { search, page } }));
 }
 
 export function fetchThread(
   threadId: string,
   auth: Auth,
 ): Promise<ChatResult<ChatThread>> {
-  return call(
-    () =>
-      api.GET("/chat/threads/{threadId}", {
-        params: { path: { threadId } },
-        headers: authHeaders(auth),
-      }),
+  return call(() =>
+    Chat.getThread({ path: { threadId }, headers: authHeaders(auth) }),
   );
 }
 
@@ -142,23 +132,20 @@ export function fetchThreads(params: {
   closed?: boolean;
   page?: number;
 } = {}): Promise<ChatResult<ChatThreadPage>> {
-  return call(
-    () =>
-      api.GET("/chat/threads", {
-        params: {
-          query: {
-            ...(params.kind ? { kind: params.kind } : {}),
-            ...(params.closed !== undefined ? { closed: params.closed } : {}),
-            page: params.page ?? 1,
-          },
-        },
-      }),
+  return call(() =>
+    Chat.listThreads({
+      query: {
+        ...(params.kind ? { kind: params.kind } : {}),
+        ...(params.closed !== undefined ? { closed: params.closed } : {}),
+        page: params.page ?? 1,
+      },
+    }),
   );
 }
 
 export function markThreadRead(threadId: string): Promise<boolean> {
-  return call<void>(
-    () => api.POST("/chat/threads/{threadId}/read", { params: { path: { threadId } } }),
+  return call<void>(() =>
+    Chat.markThreadRead({ path: { threadId } }),
   ).then((r) => r.ok);
 }
 
@@ -169,19 +156,16 @@ export function fetchThreadMessages(
   auth: Auth,
   cursor: { before?: string; after?: string; limit?: number } = {},
 ): Promise<ChatResult<ChatMessagePage>> {
-  return call(
-    () =>
-      api.GET("/chat/threads/{threadId}/messages", {
-        params: {
-          path: { threadId },
-          query: {
-            before: cursor.before,
-            after: cursor.after,
-            limit: cursor.limit ?? 50,
-          },
-        },
-        headers: authHeaders(auth),
-      }),
+  return call(() =>
+    Chat.listMessages({
+      path: { threadId },
+      query: {
+        before: cursor.before,
+        after: cursor.after,
+        limit: cursor.limit ?? 50,
+      },
+      headers: authHeaders(auth),
+    }),
   );
 }
 
@@ -195,18 +179,17 @@ export function sendThreadMessage(
     clientId: string;
   },
 ): Promise<ChatResult<ChatMessage>> {
-  return call(
-    () =>
-      api.POST("/chat/threads/{threadId}/messages", {
-        params: { path: { threadId } },
-        headers: authHeaders(auth),
-        body: {
-          body: body.body,
-          productId: body.productId ?? null,
-          attachmentIds: body.attachmentIds ?? null,
-          clientId: body.clientId,
-        } satisfies components["schemas"]["SendMessageRequest"],
-      }),
+  return call(() =>
+    Chat.sendMessage({
+      path: { threadId },
+      headers: authHeaders(auth),
+      body: {
+        body: body.body,
+        productId: body.productId ?? null,
+        attachmentIds: body.attachmentIds ?? null,
+        clientId: body.clientId,
+      },
+    }),
   );
 }
 
@@ -219,50 +202,28 @@ export async function uploadThreadAttachments(
   auth: Auth,
   files: File[],
 ): Promise<ChatResult<ChatAttachment[]>> {
-  const form = new FormData();
-  for (const file of files) form.append("files", file);
-  const headers = new Headers(authHeaders(auth));
-  let response: Response;
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/chat/threads/${encodeURIComponent(threadId)}/attachments`,
-      { method: "POST", credentials: "include", body: form, headers },
-    );
-  } catch {
-    return { ok: false, error: { code: "network", message: "network" } };
-  }
-  if (!response.ok) {
-    let error: ApiError = { code: "server_error", message: response.statusText };
-    try {
-      const parsed = (await response.json()) as ApiError;
-      if (typeof parsed?.code === "string") error = parsed;
-    } catch {
-      // Keep the fallback envelope.
-    }
-    return { ok: false, error };
-  }
-  const list = (await response.json()) as components["schemas"]["ChatAttachmentListDto"];
-  return { ok: true, data: list.attachments };
+  const r = await call<ChatAttachmentListDto>(() =>
+    Chat.uploadAttachments({
+      path: { threadId },
+      body: { files },
+      headers: authHeaders(auth),
+    }),
+  );
+  return r.ok ? { ok: true, data: r.data.attachments } : r;
 }
 
 // ---- Staff: Visitors inbox ---------------------------------------------------
 
 export function claimThread(threadId: string): Promise<ChatResult<ChatThread>> {
-  return call(
-    () => api.POST("/chat/threads/{threadId}/claim", { params: { path: { threadId } } }),
-  );
+  return call(() => Chat.claimThread({ path: { threadId } }));
 }
 
 export function assignThread(
   threadId: string,
   employeeId: string,
 ): Promise<ChatResult<ChatThread>> {
-  return call(
-    () =>
-      api.POST("/chat/threads/{threadId}/assign", {
-        params: { path: { threadId } },
-        body: { employeeId },
-      }),
+  return call(() =>
+    Chat.assignThread({ path: { threadId }, body: { employeeId } }),
   );
 }
 
@@ -270,11 +231,7 @@ export function closeThread(
   threadId: string,
   reason: string | null,
 ): Promise<ChatResult<ChatThread>> {
-  return call(
-    () =>
-      api.POST("/chat/threads/{threadId}/close", {
-        params: { path: { threadId } },
-        body: { reason },
-      }),
+  return call(() =>
+    Chat.closeThread({ path: { threadId }, body: { reason } }),
   );
 }

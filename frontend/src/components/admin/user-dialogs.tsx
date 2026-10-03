@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { api } from "@/lib/api/client";
 import { useApiErrorMessage } from "@/lib/api/errors";
+import { AdminUsers, type UserCreated, type UserPage } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
-import type { components } from "@/lib/api/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,8 +46,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/toast";
 
-export type UserCreated = components["schemas"]["UserCreated"];
-export type UserPage = components["schemas"]["UserPage"];
+export type { UserCreated, UserPage };
+
 export type ResetResult = { user: User; temporaryPassword: string };
 
 /**
@@ -148,7 +147,7 @@ export function CreateUserDialog({
       const roles = ["customer"];
       if (employee) roles.push("employee");
       if (admin) roles.push("admin");
-      const res = await api.POST("/admin/users", {
+      const res = await AdminUsers.create({
         body: {
           email,
           displayName,
@@ -318,8 +317,8 @@ export function EditUserDialog({
       const roles = ["customer"];
       if (employee) roles.push("employee");
       if (admin) roles.push("admin");
-      const res = await api.PATCH("/admin/users/{id}", {
-        params: { path: { id: user.id } },
+      const res = await AdminUsers.update({
+        path: { id: user.id },
         body: {
           displayName,
           phone: phone.trim() ? phone.trim() : null,
@@ -497,9 +496,7 @@ export function DeleteUserDialog({
     if (busy || isSelf) return;
     setBusy(true);
     setError(null);
-    const res = await api.DELETE("/admin/users/{id}", {
-      params: { path: { id: user.id } },
-    });
+    const res = await AdminUsers.delete({ path: { id: user.id } });
     if (res.error) {
       setError(message(res.error));
       setBusy(false);

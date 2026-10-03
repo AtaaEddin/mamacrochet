@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Inbox, Plus, Search, UserRound } from "lucide-react";
-import { api } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import { AdminUsers, Identity, type UserDto } from "@/lib/api/generated-client";
 import { isStaff, type User } from "@/lib/auth";
 import * as chat from "@/lib/chat/api";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { YarnLoader } from "@/components/illustrations/yarn-loader";
 
-type UserDto = components["schemas"]["UserDto"];
+
 type ThreadItem = chat.ChatThreadListItem;
 
 type Gate =
@@ -84,8 +83,7 @@ export function StaffVisitorsView() {
   // Role gate (server still enforces every call).
   useEffect(() => {
     let cancelled = false;
-    void api
-      .GET("/identity/me")
+    void Identity.me.get()
       .then((res) => {
         if (cancelled) return;
         if (!res.error && res.data) {
@@ -133,8 +131,7 @@ export function StaffVisitorsView() {
   useEffect(() => {
     if (me === null || !isAdmin) return;
     let cancelled = false;
-    void api
-      .GET("/admin/users", { params: { query: { pageSize: 100 } } })
+    void AdminUsers.list({ query: { pageSize: 100 } })
       .then((res) => {
         if (cancelled || res.error || !res.data) return;
         setEmployees(

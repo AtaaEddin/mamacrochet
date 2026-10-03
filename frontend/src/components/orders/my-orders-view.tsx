@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
@@ -117,11 +117,11 @@ export function MyOrdersView() {
   // Current user (401/410 = anon → sign-in card).
   useEffect(() => {
     let alive = true;
-    api.GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
-          const status = res.response.status;
+          const status = res.response?.status;
           if (status === 401 || status === 410) setMe({ status: "anon" });
           else setMe({ status: "failed" });
           return;
@@ -143,7 +143,7 @@ export function MyOrdersView() {
     linkDoneRef.current = true;
     const guestId = getGuestId();
     const link = guestId
-      ? api.POST("/identity/guest-link", { body: { guestId } }).catch(() => {})
+      ? Identity.guestLink({ body: { guestId } }).catch(() => {})
       : Promise.resolve();
     void link.then(() => setListTick((n) => n + 1));
   }, [me.status]);

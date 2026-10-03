@@ -20,6 +20,25 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## API client (OpenAPI → generated SDK)
+
+Every API call goes through the generated per-operation SDK in
+`src/lib/api/generated/` (emitted by `@hey-api/openapi-ts` from the
+committed spec `src/lib/api/schema.json`, config in `openapi-ts.config.ts`).
+Never edit the generated tree by hand. After changing the API (dev stack
+running), regenerate with:
+
+```bash
+pnpm gen:api
+```
+
+The browser transport (auth cookies + CSRF header, one-shot 403-csrf retry)
+lives in `src/lib/api/client.ts` and is installed on the generated client by
+`src/lib/api/generated-client.ts`. Domain wrappers (`src/lib/orders/api.ts`,
+`src/lib/chat/api.ts`, `src/lib/staff/api.ts`, …) add error mapping and
+result unwrapping on top of the SDK methods. Server components use their own
+plain client in `src/lib/catalog/server.ts` (no cookies, hard timeout).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

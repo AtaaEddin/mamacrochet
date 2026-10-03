@@ -6,16 +6,18 @@
  *   dotnet run --project src/Hanadicrochet.AppHost
  *
  * Outputs (all committed, so builds work without the API):
- *   src/lib/api/schema.json     — the bundled spec
- *   src/lib/api/schema.d.ts     — TypeScript types (openapi-typescript)
+ *   src/lib/api/schema.json     — the bundled spec (codegen input)
  *   src/lib/api/generated/      — per-operation SDK (@hey-api/openapi-ts,
  *                                 configured in openapi-ts.config.ts)
+ *
+ * Steps: fetch the live spec → write schema.json → run the hey-api
+ * generator (offline; the binary is a devDependency, invoked with
+ * `npx --no-install`).
  */
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import openapiTS, { astToString } from "openapi-typescript";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -31,13 +33,7 @@ if (!res.ok) {
 }
 
 const spec = await res.json();
-// v7 API: default export returns an AST; astToString serializes it. $refs
-// (incl. components) are resolved internally.
-const ast = await openapiTS(spec, { alphabetize: true });
-const types = astToString(ast);
-
 writeFileSync(join(apiDir, "schema.json"), `${JSON.stringify(spec, null, 2)}\n`);
-writeFileSync(join(apiDir, "schema.d.ts"), types);
 
 // Per-operation SDK (plan 20261003-1303): regenerate from the spec just
 // written. --no-install keeps this offline; the binary is a devDependency.
@@ -47,5 +43,5 @@ execFileSync(
   { cwd: root, stdio: "inherit" },
 );
 console.log(
-  `gen:api: wrote src/lib/api/schema.json + schema.d.ts + src/lib/api/generated (${spec.info.title})`,
+  `gen:api: wrote src/lib/api/schema.json + src/lib/api/generated (${spec.info.title})`,
 );

@@ -1,12 +1,23 @@
-import type { ProductPage, ProductDto, CategoryDto } from "./query";
+import { createClient } from "@/lib/api/generated/client";
+import {
+  Categories,
+  Product,
+  Products,
+  type CategoryDto,
+  type ProductDto,
+  type ProductPage,
+} from "@/lib/api/generated";
 
 /**
  * Server-side catalog fetch (plan 04) — used by server components (home
  * featured works, works list initial paint, product detail).
  *
- * The browser client uses `NEXT_PUBLIC_API_URL` (dev: absolute
- * `http://localhost:8085`, prod: relative `/api`). A server-side fetch needs an
- * ABSOLUTE base:
+ * Runs the generated SDK against its own client instance (not the browser
+ * one — server components must not pull in the cookie/CSRF transport):
+ * absolute base URL, plain fetch, per-call timeout. Next 15+ server fetch is
+ * no-store by default, so no explicit cache option is needed.
+ *
+ * A server-side fetch needs an ABSOLUTE base:
  *   - prod: the web container reaches the api container at `http://api:8085`
  *     (set `API_SERVER_URL` in docker-compose) — the `/api` path is a
  *     browser-only Caddy route and is not resolvable from Node.
@@ -30,32 +41,38 @@ function serverApiBase(): string {
   return DEV_API;
 }
 
-async function getJson<T>(path: string): Promise<T | null> {
+function getJson<T>(
+  run: (
+    client: ReturnType<typeof createClient>,
+    signal: AbortSignal,
+  ) => Promise<{ data?: T; error?: unknown }>,
+): Promise<T | null> {
+  const client = createClient({ baseUrl: serverApiBase() });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${serverApiBase()}${path}`, {
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return run(client, controller.signal)
+    .then((res) => (res.error ? null : (res.data ?? null)))
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
 }
 
 /** Top `n` listed products, newest first (home featured works). */
-export async function serverFetchProducts(n = 6): Promise<ProductPage | null> {
-  return getJson<ProductPage>(`/catalog/products?$top=${n}&$orderby=createdAt desc`);
+export function serverFetchProducts(n = 6): Promise<ProductPage | null> {
+  return getJson((client, signal) =>
+    Products.list({
+      client,
+      signal,
+      query: { $top: n, $orderby: "createdAt desc" },
+    }),
+  );
 }
 
-export async function serverFetchProduct(id: string): Promise<ProductDto | null> {
-  return getJson<ProductDto>(`/catalog/products/${id}`);
+export function serverFetchProduct(id: string): Promise<ProductDto | null> {
+  return getJson((client, signal) =>
+    Product.get({ client, signal, path: { id } }),
+  );
 }
 
-export async function serverFetchCategories(): Promise<CategoryDto[] | null> {
-  return getJson<CategoryDto[]>("/catalog/categories");
+export function serverFetchCategories(): Promise<CategoryDto[] | null> {
+  return getJson((client, signal) => Categories.list({ client, signal }));
 }

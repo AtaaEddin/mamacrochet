@@ -1,37 +1,45 @@
-import { api } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import {
+  StaffCategories,
+  StaffProduct,
+  StaffProductImages,
+  StaffProducts,
+  type ApiError,
+  type CategoryDto,
+  type CreateCategoryRequest,
+  type CreateProductRequest,
+  type ProductDto,
+  type ProductImageDto,
+  type ProductPage,
+  type UpdateCategoryRequest,
+  type UpdateProductRequest,
+} from "@/lib/api/generated-client";
+import { toApiError } from "@/lib/api/errors";
+import { escapeOData } from "@/lib/api/odata";
 
 /**
  * Staff catalog API (plan 04) — products + categories management.
  *
- * Mutations (create/edit/delete, images) go through the typed `api` client,
- * which sends cookies + the CSRF token for `/staff` (plan 03 wiring). The
- * products LIST binds a single `[FromQuery] QuerySpec`, so the typed client
- * types its query as `never` — the list fetch builds the OData-style query
- * string by hand and sends cookies itself (still fully typed on the body).
+ * Every call goes through the generated per-operation SDK (plan
+ * 20261003-1303): the products list passes typed `$top/$skip/$filter/
+ * $orderby` query args, mutations pass `{ path, body }`. Cookies + the CSRF
+ * header for `/staff` come from the app transport (`browserFetch`).
  *
  * Browser-only.
  */
 
-export type ProductDto = components["schemas"]["ProductDto"];
-export type CategoryDto = components["schemas"]["CategoryDto"];
-export type ProductImageDto = components["schemas"]["ProductImageDto"];
-export type ProductPage = components["schemas"]["ProductPage"];
-export type ApiError = components["schemas"]["ApiError"];
-export type LocalizedContentInput =
-  components["schemas"]["LocalizedContentInput"];
-export type LocalizedNameInput =
-  components["schemas"]["LocalizedNameInput"];
-export type CreateProductRequest =
-  components["schemas"]["CreateProductRequest"];
-export type UpdateProductRequest =
-  components["schemas"]["UpdateProductRequest"];
-export type CreateCategoryRequest =
-  components["schemas"]["CreateCategoryRequest"];
-export type UpdateCategoryRequest =
-  components["schemas"]["UpdateCategoryRequest"];
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085";
+export type {
+  ApiError,
+  CategoryDto,
+  CreateCategoryRequest,
+  CreateProductRequest,
+  LocalizedContentInput,
+  LocalizedNameInput,
+  ProductDto,
+  ProductImageDto,
+  ProductPage,
+  UpdateCategoryRequest,
+  UpdateProductRequest,
+} from "@/lib/api/generated-client";
 
 export interface StaffProductQuery {
   /** Case-insensitive title substring (OData `contains`). */
@@ -46,13 +54,9 @@ export interface StaffProductQuery {
   pageSize?: number;
 }
 
-export function buildStaffProductsQuery(opts: StaffProductQuery = {}): string {
-  const params = new URLSearchParams();
+function buildProductsQuery(opts: StaffProductQuery = {}) {
   const pageSize = Math.max(1, Math.min(96, opts.pageSize ?? 20));
   const page = Math.max(1, opts.page ?? 1);
-  params.set("$top", String(pageSize));
-  params.set("$skip", String((page - 1) * pageSize));
-  params.set("$orderby", "createdAt desc");
 
   const clauses: string[] = [];
   if (opts.categoryId) clauses.push(`category eq '${opts.categoryId}'`);
@@ -60,32 +64,34 @@ export function buildStaffProductsQuery(opts: StaffProductQuery = {}): string {
     clauses.push(`isListed eq ${opts.isListed ? "true" : "false"}`);
   }
   const q = opts.titleSearch?.trim();
-  if (q) clauses.push(`contains(title, '${q.replace(/'/g, "''")}')`);
+  if (q) clauses.push(`contains(title, '${escapeOData(q)}')`);
 
+  // OData `and()` function form (the staff binder accepts both it and the
+  // infix `and` — this keeps the pre-migration wire shape).
+  let filter: string | undefined;
   const first = clauses[0];
   if (first !== undefined) {
-    let filter = first;
-    let i = 1;
-    while (i < clauses.length) {
+    filter = first;
+    for (let i = 1; i < clauses.length; i++) {
       filter = `and(${filter}, ${clauses[i]})`;
-      i += 1;
     }
-    params.set("$filter", filter);
   }
-  return params.toString();
+
+  return {
+    $top: pageSize,
+    $skip: (page - 1) * pageSize,
+    $orderby: "createdAt desc",
+    ...(filter !== undefined ? { $filter: filter } : {}),
+  };
 }
 
 /** Staff products list (cookie-auth). `null` on any failure. */
 export async function fetchStaffProducts(
   opts: StaffProductQuery = {},
 ): Promise<ProductPage | null> {
-  const qs = buildStaffProductsQuery(opts);
   try {
-    const res = await fetch(`${API_BASE}/staff/products?${qs}`, {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as ProductPage;
+    const res = await StaffProducts.list({ query: buildProductsQuery(opts) });
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
@@ -94,11 +100,8 @@ export async function fetchStaffProducts(
 /** All categories (cookie-auth). `null` on any failure. */
 export async function fetchStaffCategories(): Promise<CategoryDto[] | null> {
   try {
-    const res = await fetch(`${API_BASE}/staff/categories`, {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as CategoryDto[];
+    const res = await StaffCategories.list();
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
@@ -107,11 +110,8 @@ export async function fetchStaffCategories(): Promise<CategoryDto[] | null> {
 /** One product (cookie-auth). `null` on any failure. */
 export async function fetchStaffProduct(id: string): Promise<ProductDto | null> {
   try {
-    const res = await fetch(`${API_BASE}/staff/products/${id}`, {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as ProductDto;
+    const res = await StaffProduct.get({ path: { id } });
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
@@ -120,29 +120,26 @@ export async function fetchStaffProduct(id: string): Promise<ProductDto | null> 
 export async function createProduct(
   body: CreateProductRequest,
 ): Promise<{ ok: true; product: ProductDto } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/staff/products", { body });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, product: res.data as ProductDto };
+  const res = await StaffProducts.create({ body });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, product: res.data };
 }
 
 export async function updateProduct(
   id: string,
   body: UpdateProductRequest,
 ): Promise<{ ok: true; product: ProductDto } | { ok: false; error: ApiError }> {
-  const res = await api.PATCH("/staff/products/{id}", {
-    params: { path: { id } },
-    body,
-  });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, product: res.data as ProductDto };
+  const res = await StaffProducts.update({ path: { id }, body });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, product: res.data };
 }
 
 /** Soft delete (Admin-only on the server). */
 export async function deleteProduct(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: ApiError }> {
-  const res = await api.DELETE("/staff/products/{id}", { params: { path: { id } } });
-  if (res.error) return { ok: false, error: res.error };
+  const res = await StaffProducts.delete({ path: { id } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
   return { ok: true };
 }
 
@@ -151,50 +148,45 @@ export async function reorderImages(
   productId: string,
   imageIds: string[],
 ): Promise<{ ok: true; images: ProductImageDto[] } | { ok: false; error: ApiError }> {
-  const res = await api.PUT("/staff/products/{id}/images", {
-    params: { path: { id: productId } },
+  const res = await StaffProductImages.reorder({
+    path: { id: productId },
     body: { imageIds },
   });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, images: res.data as ProductImageDto[] };
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, images: res.data };
 }
 
 export async function deleteImage(
   productId: string,
   imageId: string,
 ): Promise<{ ok: true } | { ok: false; error: ApiError }> {
-  const res = await api.DELETE("/staff/products/{id}/images/{imageId}", {
-    params: { path: { id: productId, imageId } },
-  });
-  if (res.error) return { ok: false, error: res.error };
+  const res = await StaffProductImages.delete({ path: { id: productId, imageId } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
   return { ok: true };
 }
 
 export async function createCategory(
   body: CreateCategoryRequest,
 ): Promise<{ ok: true; category: CategoryDto } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/staff/categories", { body });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, category: res.data as CategoryDto };
+  const res = await StaffCategories.create({ body });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, category: res.data };
 }
 
 export async function updateCategory(
   id: string,
   body: UpdateCategoryRequest,
 ): Promise<{ ok: true; category: CategoryDto } | { ok: false; error: ApiError }> {
-  const res = await api.PATCH("/staff/categories/{id}", {
-    params: { path: { id } },
-    body,
-  });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, category: res.data as CategoryDto };
+  const res = await StaffCategories.update({ path: { id }, body });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, category: res.data };
 }
 
 /** Soft delete (Admin-only on the server). */
 export async function deleteCategory(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: ApiError }> {
-  const res = await api.DELETE("/staff/categories/{id}", { params: { path: { id } } });
-  if (res.error) return { ok: false, error: res.error };
+  const res = await StaffCategories.delete({ path: { id } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
   return { ok: true };
 }

@@ -27,7 +27,7 @@ src/Hanadicrochet.Api        (API + EF Core; SignalR w/ plan 06)   frontend/  (N
 .agents/skills/            (agent skills)             .pi/prompts/  (prompt templates)
 doc/plans/                 (plans, one folder each)   doc/references/ (saved material)
 src/Hanadicrochet.ServiceDefaults (OTel/health/resilience defaults)
-frontend/scripts/gen-api.mjs (OpenAPI spec -> TS types)  deploy/  (plan 10: compose, Caddy)
+frontend/scripts/gen-api.mjs (OpenAPI spec -> generated SDK)  deploy/  (plan 10: compose, Caddy)
 ```
 
 ## Domain (main points)

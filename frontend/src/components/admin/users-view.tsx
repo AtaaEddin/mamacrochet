@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
 import { useApiErrorMessage } from "@/lib/api/errors";
+import { AdminUsers, Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { postAuthPath } from "@/lib/auth";
 import type { UserPage } from "./user-dialogs";
@@ -40,14 +40,13 @@ type Gate =
   | { status: "ready"; me: User };
 
 function loadUsers(search: string, page: number): Promise<UserPage | null> {
-  return api
-    .GET("/admin/users", {
-      query: {
-        search: search || undefined,
-        page,
-        pageSize: PAGE_SIZE,
-      },
-    })
+  return AdminUsers.list({
+    query: {
+      search: search || undefined,
+      page,
+      pageSize: PAGE_SIZE,
+    },
+  })
     .then((res) => res.data ?? null)
     .catch(() => null);
 }
@@ -141,8 +140,7 @@ export function UsersView() {
   // 1. Who am I?
   useEffect(() => {
     let alive = true;
-    api
-      .GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
@@ -170,10 +168,9 @@ export function UsersView() {
   // 2. Staff candidates for the assignment dropdown.
   useEffect(() => {
     if (gate.status !== "ready") return;
-    api
-      .GET("/admin/users", {
-        query: { search: undefined, page: 1, pageSize: 100 },
-      })
+    AdminUsers.list({
+      query: { page: 1, pageSize: 100 },
+    })
       .then((res) => {
         if (res.data) {
           setEmployees(
@@ -216,9 +213,7 @@ export function UsersView() {
   }
 
   async function resetPassword(user: User) {
-    const res = await api.POST("/admin/users/{id}/password-reset", {
-      params: { path: { id: user.id } },
-    });
+    const res = await AdminUsers.passwordReset({ path: { id: user.id } });
     if (res.error) {
       setListError(message(res.error));
       return;

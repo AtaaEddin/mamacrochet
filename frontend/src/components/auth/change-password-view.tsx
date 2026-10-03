@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
 import { useApiErrorMessage } from "@/lib/api/errors";
+import { Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +29,11 @@ function useMe() {
   const router = useRouter();
   useEffect(() => {
     let alive = true;
-    api
-      .GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
-          const status = res.response.status;
+          const status = res.response?.status;
           // 401 → not signed in. Transient failures (429/5xx/network)
           // must NOT bounce a signed-in user to /login — retry card instead.
           if (status === 401 || status === 410) {
@@ -107,7 +106,7 @@ export function ChangePasswordView() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.POST("/identity/change-password", {
+      const res = await Identity.me.passwordChange({
         body: { current, next },
       });
       if (res.error) {

@@ -1,16 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { components } from "./schema";
+import type { ApiError } from "./generated-client";
 
-type ApiError = components["schemas"]["ApiError"];
+export type { ApiError };
 
 /**
  * Typed error envelope → localized message (plan 03). Every 4xx/429/500 body
- * is `ApiError { code, message }`. Known codes map to translated strings
- * (keys must match the ApiError message namespace); anything else — e.g.
- * ASP.NET Identity password-policy text — falls back to the server message,
- * then a generic line.
+ * is `ApiError { code, message }` (the same type the generated SDK types its
+ * `error` field with). Known codes map to translated strings (keys must match
+ * the ApiError message namespace); anything else — e.g. ASP.NET Identity
+ * password-policy text — falls back to the server message, then a generic
+ * line.
  */
 const KNOWN_CODES = [
   "already_decided",
@@ -54,6 +55,19 @@ function asApiError(error: unknown): ApiError | null {
     }
   }
   return null;
+}
+
+/**
+ * Normalize an unknown SDK error value into a usable `ApiError`. The
+ * generated client hands us the parsed error body (the ApiError envelope on
+ * every declared error status) — or `{}` when a response body was not JSON.
+ * A null/undefined error (network failure — no response at all) yields the
+ * fallback envelope.
+ */
+export function toApiError(error: unknown, fallbackMessage = ""): ApiError {
+  const body = asApiError(error);
+  if (body) return body;
+  return { code: "server_error", message: fallbackMessage };
 }
 
 /** Returns a localized user-facing message for an API error value. */

@@ -3643,8 +3643,10 @@ export type StaffOrdersPaymentResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: OrderDetail;
 };
+
+export type StaffOrdersPaymentResponse = StaffOrdersPaymentResponses[keyof StaffOrdersPaymentResponses];
 
 export type StaffOrdersDeliveryData = {
     body: {
@@ -3704,8 +3706,10 @@ export type StaffOrdersDeliveryResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: OrderDetail;
 };
+
+export type StaffOrdersDeliveryResponse = StaffOrdersDeliveryResponses[keyof StaffOrdersDeliveryResponses];
 
 export type StaffOrdersAttachmentsData = {
     body: {
@@ -4057,8 +4061,10 @@ export type AdminOrdersPaymentResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: OrderDetail;
 };
+
+export type AdminOrdersPaymentResponse = AdminOrdersPaymentResponses[keyof AdminOrdersPaymentResponses];
 
 export type AdminOrdersDeliveryData = {
     body: {
@@ -4118,8 +4124,10 @@ export type AdminOrdersDeliveryResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: OrderDetail;
 };
+
+export type AdminOrdersDeliveryResponse = AdminOrdersDeliveryResponses[keyof AdminOrdersDeliveryResponses];
 
 export type AdminOrdersStatusData = {
     body: OrderStatusChangeRequest;

@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { api, refreshCsrfToken } from "@/lib/api/client";
+import { refreshCsrfToken } from "@/lib/api/client";
 import { useApiErrorMessage } from "@/lib/api/errors";
+import { Identity } from "@/lib/api/generated-client";
 import { postAuthPath } from "@/lib/auth";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.POST("/identity/register", {
+      const res = await Identity.register({
         body: {
           name,
           email,

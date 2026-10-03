@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ClipboardList, Gauge, HeartHandshake, Package, Scissors, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { api, avatarSrc } from "@/lib/api/client";
+import { avatarSrc } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,8 +26,7 @@ export function AuthBadge() {
 
   useEffect(() => {
     let alive = true;
-    api
-      .GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         setMe(res.data ?? null);

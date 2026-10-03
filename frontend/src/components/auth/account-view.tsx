@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { api, avatarSrc, uploadAvatar } from "@/lib/api/client";
+import { avatarSrc, uploadAvatar } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { routing } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
@@ -35,12 +36,11 @@ function useMe() {
   const router = useRouter();
   useEffect(() => {
     let alive = true;
-    api
-      .GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
-          const status = res.response.status;
+          const status = res.response?.status;
           // 401 → not signed in (also: deactivated/deleted → signed out).
           // Transient failures (429/5xx/network) must NOT bounce a
           // signed-in user to /login — they surface as a retry card.
@@ -180,7 +180,7 @@ function ProfileForm({
     event.preventDefault();
     if (busy) return;
     setBusy(true);
-    const res = await api.PATCH("/identity/me", {
+    const res = await Identity.me.update({
       body: {
         displayName,
         phone: phone.trim() ? phone.trim() : null,
@@ -315,7 +315,7 @@ export function AccountView() {
   const router = useRouter();
 
   async function signOut() {
-    await api.POST("/identity/logout");
+    await Identity.logout();
     router.replace("/");
   }
 

@@ -1,4 +1,6 @@
-import type { components } from "@/lib/api/schema";
+import type { CategoryDto, ProductDto } from "@/lib/api/generated-client";
+
+export type { CategoryDto, ProductDto };
 
 /**
  * Localization helpers for catalog DTOs (plan 04).
@@ -26,8 +28,7 @@ function pickRow(rows: readonly LocalizedRow[], locale: string): LocalizedRow | 
   return rows[0];
 }
 
-export type ProductDto = components["schemas"]["ProductDto"];
-export type CategoryDto = components["schemas"]["CategoryDto"];
+
 
 /** Localized product title (always present — `en` row is required). */
 export function productTitle(product: ProductDto, locale: string): string {

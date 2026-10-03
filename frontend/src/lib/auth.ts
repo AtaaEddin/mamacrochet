@@ -1,7 +1,7 @@
-import type { components } from "@/lib/api/schema";
+import type { UserDto } from "@/lib/api/generated-client";
 
 /** Public profile of a user (login result, /identity/me, admin lists). */
-export type User = components["schemas"]["UserDto"];
+export type User = UserDto;
 
 /** Staff = employee or admin flag (one user is always a customer too). */
 export function isStaff(user: User): boolean {

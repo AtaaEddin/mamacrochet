@@ -21,7 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
+import { AdminUsers, Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,11 +153,11 @@ export function AdminOrdersView() {
   // Gate: admin only.
   useEffect(() => {
     let alive = true;
-    api.GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
-          const status = res.response.status;
+          const status = res.response?.status;
           if (status === 401 || status === 410) setMe({ status: "anon" });
           else setMe({ status: "failed" });
           return;
@@ -179,8 +179,7 @@ export function AdminOrdersView() {
     void fetchOrderMetrics().then((m) => {
       if (alive) setMetrics(m);
     });
-    api
-      .GET("/admin/users", { params: { query: { page: 1, pageSize: 96 } } })
+    AdminUsers.list({ query: { page: 1, pageSize: 96 } })
       .then((res) => {
         if (!alive) return;
         if (res.error || !res.data) return;

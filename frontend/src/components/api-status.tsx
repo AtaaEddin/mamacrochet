@@ -3,12 +3,11 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { YarnLoader } from "@/components/illustrations/yarn-loader";
-import { api } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import { Health, type ApiHealth } from "@/lib/api/generated-client";
 
-type Health = components["schemas"]["ApiHealth"];
+type HealthDto = ApiHealth;
 
-type State = { health: Health | null; error: boolean };
+type State = { health: HealthDto | null; error: boolean };
 
 /**
  * Small API status pill for the footer (dev signal from plan 02, brand-styled).
@@ -21,8 +20,7 @@ export function ApiStatus() {
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .GET("/health")
+    Health.health()
       .then(({ data, error }) => {
         if (cancelled) return;
         if (data) setState({ health: data, error: false });

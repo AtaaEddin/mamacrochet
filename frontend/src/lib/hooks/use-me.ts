@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 
 export type MeState =
@@ -22,11 +22,11 @@ export function useMe(): MeState & { retry: () => void } {
 
   useEffect(() => {
     let alive = true;
-    api.GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
-          const status = res.response.status;
+          const status = res.response?.status;
           if (status === 401 || status === 410) {
             setState({ status: "anon" });
             return;

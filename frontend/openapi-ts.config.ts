@@ -9,7 +9,9 @@ import { defineConfig } from "@hey-api/openapi-ts";
  * Plugin notes (v0.99.0):
  * - `@hey-api/client-fetch` — thin fetch transport (Request-in /
  *   Response-out). The app's cookie/CSRF wrapper is injected at runtime
- *   via `client.setConfig({ fetch })` in `src/lib/api/generated-client.ts`.
+ *   via `client.setConfig({ fetch })` in `src/lib/api/client.ts` (wired by
+ *   `src/lib/api/generated-client.ts`, which imports it for its side
+ *   effect).
  * - `@hey-api/sdk` — one typed method per operation, named from the
  *   OpenAPI `operationId`, grouped by tag (`operations: "byTags"`).
  * - `paramsStructure: "grouped"` — calls take `{ path, query, body, ... }`.

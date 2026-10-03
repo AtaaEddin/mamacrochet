@@ -1,21 +1,25 @@
-import type { components } from "@/lib/api/schema";
+import {
+  CatalogCategories,
+  CatalogProduct,
+  CatalogProducts,
+  type CategoryDto,
+  type ProductDto,
+  type ProductPage,
+} from "@/lib/api/generated-client";
+import { escapeOData } from "@/lib/api/odata";
 
 /**
- * Public catalog query helpers (plan 04, D19) — browser fetch against the
- * API's OData-style endpoints.
- *
- * The endpoints bind a single `[FromQuery] QuerySpec`, so the generated
- * typed client types the query as `never`. We build the query string by hand
- * and parse the JSON body ourselves (still fully typed via the OpenAPI
- * component types). These are public (no cookies/CSRF needed).
+ * Public catalog query helpers (plan 04, D19) through the generated
+ * per-operation SDK (plan 20261003-1303): the list passes typed
+ * `$top/$skip/$filter/$orderby` query args. Public (no cookies/CSRF needed
+ * for the API — the shared transport still sends the same-site auth cookie,
+ * which the public endpoints ignore).
  *
  * Browser-only.
  */
 
-export type ProductPage = components["schemas"]["ProductPage"];
-export type ProductDto = components["schemas"]["ProductDto"];
-export type CategoryDto = components["schemas"]["CategoryDto"];
-export type ApiError = components["schemas"]["ApiError"];
+export type { CategoryDto, ProductDto, ProductPage };
+export type { ApiError } from "@/lib/api/generated-client";
 
 export interface CatalogQuery {
   /** Filter to one category (its id), or `null` for all. */
@@ -28,37 +32,40 @@ export interface CatalogQuery {
   pageSize?: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085";
-
-/** Build the OData-style query string for `/catalog/products`. */
-export function buildProductsQuery(opts: CatalogQuery = {}): string {
-  const params = new URLSearchParams();
+/** Build the typed OData query args for the catalog products list. */
+export function buildProductsQuery(opts: CatalogQuery = {}) {
   const pageSize = Math.max(1, Math.min(96, opts.pageSize ?? 12));
   const page = Math.max(1, opts.page ?? 1);
-  params.set("$top", String(pageSize));
-  params.set("$skip", String((page - 1) * pageSize));
-  params.set("$orderby", "createdAt desc");
 
   const clauses: string[] = [];
   if (opts.categoryId) clauses.push(`category eq '${opts.categoryId}'`);
   const q = opts.titleSearch?.trim();
-  if (q) clauses.push(`contains(title, '${q.replace(/'/g, "''")}')`);
+  if (q) clauses.push(`contains(title, '${escapeOData(q)}')`);
+
+  // OData `and()` function form (keeps the pre-migration wire shape).
+  let filter: string | undefined;
   const first = clauses[0];
   if (first !== undefined) {
     const second = clauses[1];
-    params.set(
-      "$filter",
-      second !== undefined ? `and(${first}, ${second})` : first,
-    );
+    filter = second !== undefined ? `and(${first}, ${second})` : first;
   }
-  return params.toString();
+
+  return {
+    $top: pageSize,
+    $skip: (page - 1) * pageSize,
+    $orderby: "createdAt desc",
+    ...(filter !== undefined ? { $filter: filter } : {}),
+  };
 }
 
-async function getJson<T>(url: string, signal?: AbortSignal): Promise<T | null> {
+async function getJson<T>(
+  run: (signal?: AbortSignal) => Promise<{ data?: T; error?: unknown }>,
+  signal?: AbortSignal,
+): Promise<T | null> {
   try {
-    const res = await fetch(url, { signal });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    const res = await run(signal);
+    if (res.error) return null;
+    return res.data ?? null;
   } catch {
     return null;
   }
@@ -68,20 +75,21 @@ export async function fetchCatalogProducts(
   opts: CatalogQuery = {},
   signal?: AbortSignal,
 ): Promise<ProductPage | null> {
-  const qs = buildProductsQuery(opts);
-  return getJson<ProductPage>(`${API_BASE}/catalog/products?${qs}`, signal);
+  return getJson(
+    (sig) => CatalogProducts.list({ query: buildProductsQuery(opts), signal: sig }),
+    signal,
+  );
 }
 
 export async function fetchCatalogProduct(
   id: string,
   signal?: AbortSignal,
 ): Promise<ProductDto | null> {
-  return getJson<ProductDto>(`${API_BASE}/catalog/products/${id}`, signal);
+  return getJson((sig) => CatalogProduct.get({ path: { id }, signal: sig }), signal);
 }
 
 export async function fetchCatalogCategories(
   signal?: AbortSignal,
 ): Promise<CategoryDto[] | null> {
-  const result = await getJson<CategoryDto[]>(`${API_BASE}/catalog/categories`, signal);
-  return result;
+  return getJson((sig) => CatalogCategories.list({ signal: sig }), signal);
 }

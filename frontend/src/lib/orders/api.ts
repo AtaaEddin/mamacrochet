@@ -1,38 +1,50 @@
-import { api, fileSrc, postForm } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import { fileSrc } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/errors";
+import {
+  AdminOrders,
+  Orders,
+  StaffOrders,
+  type ApiError,
+  type OrderDetail,
+  type OrderMetrics,
+  type OrderPage,
+  type OrderProductInfo,
+} from "@/lib/api/generated-client";
+import { escapeOData } from "@/lib/api/odata";
 
 /**
  * Orders API client (plan 05) — one shared module for the customer, staff
  * and admin order surfaces.
  *
- * The list endpoints bind a single `[FromQuery] QuerySpec`, so the typed
- * client types the query as `never` — list fetches build the query string by
- * hand and send cookies themselves (same precedent as the staff catalog
- * client). Mutations and details go through the typed `api` client (cookies
- * + CSRF for `/orders`, `/staff`, `/admin`).
+ * Every call goes through the generated per-operation SDK (plan
+ * 20261003-1303): lists pass typed `$top/$skip/$filter/$orderby` query
+ * args, mutations pass `{ path, body }`, and the multipart uploads
+ * (attachments, payment, delivery, order creation) pass typed body objects
+ * the SDK serializes to FormData. Cookies + the CSRF header come from the
+ * app transport (`browserFetch`, `lib/api/client.ts`).
  *
- * `submitOrder` is the public guest-creation call: a multipart FormData the
- * generated binary schema can't express, so it uses raw fetch with NO CSRF
- * header — the endpoint is protected server-side by the strict guest rate
- * bucket + honeypot + D16 caps (same precedent as the hiring submit).
+ * `submitOrder` is the public guest-creation call: no CSRF header — the
+ * transport's matcher exempts POST /orders, and the endpoint is protected
+ * server-side by the strict guest rate bucket + honeypot + D16 caps (same
+ * precedent as the hiring submit).
  *
  * Browser-only.
  */
 
-export type OrderPage = components["schemas"]["OrderPage"];
-export type OrderSummary = components["schemas"]["OrderSummary"];
-export type OrderDetail = components["schemas"]["OrderDetail"];
-export type OrderEventDto = components["schemas"]["OrderEventDto"];
-export type OrderAttachmentDto = components["schemas"]["OrderAttachmentDto"];
-export type OrderProductInfo = components["schemas"]["OrderProductInfo"];
-export type OrderMetrics = components["schemas"]["OrderMetrics"];
-export type PaymentDto = components["schemas"]["PaymentDto"];
-export type DeliveryDto = components["schemas"]["DeliveryDto"];
-export type OrderEmployeeMetric = components["schemas"]["OrderEmployeeMetric"];
-export type ApiError = components["schemas"]["ApiError"];
-export type UserDto = components["schemas"]["UserDto"];
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085";
+export type {
+  ApiError,
+  DeliveryDto,
+  OrderAttachmentDto,
+  OrderDetail,
+  OrderEmployeeMetric,
+  OrderEventDto,
+  OrderMetrics,
+  OrderPage,
+  OrderProductInfo,
+  OrderSummary,
+  PaymentDto,
+  UserDto,
+} from "@/lib/api/generated-client";
 
 /** Resolve an order file path (`/files/orders/...`) against the API base. */
 export function orderFileUrl(url: string): string {
@@ -53,80 +65,22 @@ export function orderProductTitle(
   return title ? title : null;
 }
 
-// ---- query building -------------------------------------------------------
+// ---- list query building --------------------------------------------------
 
-function escapeOData(value: string): string {
-  return value.replace(/'/g, "''");
+type ODataListQuery = {
+  $top: number;
+  $skip: number;
+  $orderby: string;
+  $filter?: string;
+};
+
+function pageQuery(page: number, pageSize: number): ODataListQuery {
+  return { $top: pageSize, $skip: (page - 1) * pageSize, $orderby: "createdAt desc" };
 }
 
-function buildPageParams(pageSize: number, page: number): URLSearchParams {
-  const params = new URLSearchParams();
-  params.set("$top", String(pageSize));
-  params.set("$skip", String((page - 1) * pageSize));
-  params.set("$orderby", "createdAt desc");
-  return params;
-}
-
-/**
- * Customer list query: `$filter=status eq '...'` + page. `status` `null` =
- * all. (The customer binder has no text search — the list is short.)
- */
-export function buildMyOrdersQuery(opts: {
-  status?: string | null;
-  page?: number;
-  pageSize?: number;
-}): string {
-  const params = buildPageParams(opts.pageSize ?? 20, opts.page ?? 1);
-  const status = opts.status;
-  if (status) params.set("$filter", `status eq '${escapeOData(status)}'`);
-  return params.toString();
-}
-
-/**
- * Staff list query: status + contact-name text search + page.
- */
-export function buildStaffOrdersQuery(opts: {
-  status?: string | null;
-  contactName?: string | null;
-  page?: number;
-  pageSize?: number;
-}): string {
-  const params = buildPageParams(opts.pageSize ?? 20, opts.page ?? 1);
-  const clauses: string[] = [];
-  if (opts.status) clauses.push(`status eq '${escapeOData(opts.status)}'`);
-  const contact = opts.contactName?.trim();
-  if (contact) clauses.push(`contains(contactName, '${escapeOData(contact)}')`);
-  if (clauses.length > 0) {
-    params.set(
-      "$filter",
-      clauses.join(" and "),
-    );
-  }
-  return params.toString();
-}
-
-/**
- * Admin list query: status + customer text + customer/employee ids + page.
- */
-export function buildAdminOrdersQuery(opts: {
-  status?: string | null;
-  customer?: string | null;
-  customerId?: string | null;
-  employeeId?: string | null;
-  page?: number;
-  pageSize?: number;
-}): string {
-  const params = buildPageParams(opts.pageSize ?? 20, opts.page ?? 1);
-  const clauses: string[] = [];
-  if (opts.status) clauses.push(`status eq '${escapeOData(opts.status)}'`);
-  if (opts.customerId) clauses.push(`customerId eq '${escapeOData(opts.customerId)}'`);
-  if (opts.employeeId) clauses.push(`employeeId eq '${escapeOData(opts.employeeId)}'`);
-  const customer = opts.customer?.trim();
-  if (customer) clauses.push(`contains(customer, '${escapeOData(customer)}')`);
-  if (clauses.length > 0) {
-    params.set("$filter", clauses.join(" and "));
-  }
-  return params.toString();
+function withFilter(query: ODataListQuery, clauses: string[]): ODataListQuery {
+  if (clauses.length === 0) return query;
+  return { ...query, $filter: clauses.join(" and ") };
 }
 
 // ---- reads (cookie-auth) --------------------------------------------------
@@ -137,11 +91,14 @@ export async function fetchMyOrders(opts: {
   page?: number;
   pageSize?: number;
 }): Promise<OrderPage | null> {
-  const qs = buildMyOrdersQuery(opts);
+  // The customer list has no text search — only a status filter.
+  const clauses: string[] = [];
+  if (opts.status) clauses.push(`status eq '${escapeOData(opts.status)}'`);
   try {
-    const res = await fetch(`${API_BASE}/orders?${qs}`, { credentials: "include" });
-    if (!res.ok) return null;
-    return (await res.json()) as OrderPage;
+    const res = await Orders.list({
+      query: withFilter(pageQuery(opts.page ?? 1, opts.pageSize ?? 20), clauses),
+    });
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
@@ -152,33 +109,41 @@ export async function fetchOrderDetail(
   id: string,
   role: "customer" | "staff" | "admin",
 ): Promise<OrderDetail | null> {
-  const base =
-    role === "admin" ? `/admin/orders/${id}` : role === "staff" ? `/staff/orders/${id}` : `/orders/${id}`;
   try {
-    const res = await fetch(`${API_BASE}${base}`, { credentials: "include" });
-    if (!res.ok) return null;
-    return (await res.json()) as OrderDetail;
+    const res =
+      role === "admin"
+        ? await AdminOrders.get({ path: { id } })
+        : role === "staff"
+          ? await StaffOrders.get({ path: { id } })
+          : await Orders.get({ path: { id } });
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
 }
 
+/** Staff order list: status + contact-name text search + page. */
 export async function fetchStaffOrders(opts: {
   status?: string | null;
   contactName?: string | null;
   page?: number;
   pageSize?: number;
 }): Promise<OrderPage | null> {
-  const qs = buildStaffOrdersQuery(opts);
+  const clauses: string[] = [];
+  if (opts.status) clauses.push(`status eq '${escapeOData(opts.status)}'`);
+  const contact = opts.contactName?.trim();
+  if (contact) clauses.push(`contains(contactName, '${escapeOData(contact)}')`);
   try {
-    const res = await fetch(`${API_BASE}/staff/orders?${qs}`, { credentials: "include" });
-    if (!res.ok) return null;
-    return (await res.json()) as OrderPage;
+    const res = await StaffOrders.list({
+      query: withFilter(pageQuery(opts.page ?? 1, opts.pageSize ?? 20), clauses),
+    });
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
 }
 
+/** Admin order list: status + customer text + customer/employee ids. */
 export async function fetchAdminOrders(opts: {
   status?: string | null;
   customer?: string | null;
@@ -187,11 +152,17 @@ export async function fetchAdminOrders(opts: {
   page?: number;
   pageSize?: number;
 }): Promise<OrderPage | null> {
-  const qs = buildAdminOrdersQuery(opts);
+  const clauses: string[] = [];
+  if (opts.status) clauses.push(`status eq '${escapeOData(opts.status)}'`);
+  if (opts.customerId) clauses.push(`customerId eq '${escapeOData(opts.customerId)}'`);
+  if (opts.employeeId) clauses.push(`employeeId eq '${escapeOData(opts.employeeId)}'`);
+  const customer = opts.customer?.trim();
+  if (customer) clauses.push(`contains(customer, '${escapeOData(customer)}')`);
   try {
-    const res = await fetch(`${API_BASE}/admin/orders?${qs}`, { credentials: "include" });
-    if (!res.ok) return null;
-    return (await res.json()) as OrderPage;
+    const res = await AdminOrders.list({
+      query: withFilter(pageQuery(opts.page ?? 1, opts.pageSize ?? 20), clauses),
+    });
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
@@ -199,11 +170,8 @@ export async function fetchAdminOrders(opts: {
 
 export async function fetchOrderMetrics(): Promise<OrderMetrics | null> {
   try {
-    const res = await fetch(`${API_BASE}/admin/orders/metrics`, {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as OrderMetrics;
+    const res = await AdminOrders.metrics();
+    return res.error ? null : res.data;
   } catch {
     return null;
   }
@@ -216,12 +184,9 @@ export async function cancelOrder(
   id: string,
   reason: string,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/orders/{id}/cancel", {
-    params: { path: { id } },
-    body: { reason },
-  });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  const res = await Orders.cancel({ path: { id }, body: { reason } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 /** Rate a closed order (1–5 + optional comment, once). */
@@ -230,12 +195,12 @@ export async function rateOrder(
   score: number,
   comment: string,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/orders/{id}/rating", {
-    params: { path: { id } },
+  const res = await Orders.rate({
+    path: { id },
     body: { score, comment: comment || null },
   });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 // ---- staff mutations ------------------------------------------------------
@@ -247,12 +212,12 @@ export async function changeOrderStatus(
   note?: string | null,
   finalPrice?: number | null,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/staff/orders/{id}/status", {
-    params: { path: { id } },
+  const res = await StaffOrders.status({
+    path: { id },
     body: { status, note: note ?? null, finalPrice: finalPrice ?? null },
   });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 /** Staff progress note. */
@@ -260,12 +225,9 @@ export async function addOrderNote(
   id: string,
   text: string,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/staff/orders/{id}/notes", {
-    params: { path: { id } },
-    body: { text },
-  });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  const res = await StaffOrders.note({ path: { id }, body: { text } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 /** Upload WIP/sample photos (multipart, `files`). */
@@ -274,14 +236,12 @@ export async function uploadOrderAttachments(
   kind: string,
   files: File[] | FileList,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const form = new FormData();
-  form.append("kind", kind);
-  for (const file of Array.from(files)) form.append("files", file);
-  const res = await postForm<OrderDetail>(
-    `${API_BASE}/staff/orders/${encodeURIComponent(id)}/attachments`,
-    form,
-  );
-  return res.ok ? { ok: true, order: res.data } : { ok: false, error: res.error };
+  const res = await StaffOrders.attachments({
+    path: { id },
+    body: { kind, files: Array.from(files) },
+  });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 // ---- plan 07: payment, delivery, confirm delivery -------------------------
@@ -296,17 +256,20 @@ export async function recordPayment(
   role: "staff" | "admin",
   data: { amount: string; method: string; note: string; file: File | null },
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const form = new FormData();
-  form.append("amount", data.amount);
-  form.append("method", data.method);
-  form.append("note", data.note);
-  if (data.file) form.append("receipt", data.file);
-  const base = role === "admin" ? "/admin/orders" : "/staff/orders";
-  const res = await postForm<OrderDetail>(
-    `${API_BASE}${base}/${encodeURIComponent(id)}/payment`,
-    form,
-  );
-  return res.ok ? { ok: true, order: res.data } : { ok: false, error: res.error };
+  const body = {
+    amount: data.amount,
+    method: data.method,
+    note: data.note,
+    // The SDK serializer skips null/undefined — a missing receipt is simply
+    // not appended (same wire shape as the old hand-built FormData).
+    receipt: data.file ?? undefined,
+  };
+  const res =
+    role === "admin"
+      ? await AdminOrders.payment({ path: { id }, body })
+      : await StaffOrders.payment({ path: { id }, body });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 /**
@@ -319,28 +282,27 @@ export async function recordDelivery(
   role: "staff" | "admin",
   data: { method: string; actualAt: string; description: string; file: File | null },
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const form = new FormData();
-  form.append("method", data.method);
-  form.append("actualAt", data.actualAt);
-  form.append("description", data.description);
-  if (data.file) form.append("proof", data.file);
-  const base = role === "admin" ? "/admin/orders" : "/staff/orders";
-  const res = await postForm<OrderDetail>(
-    `${API_BASE}${base}/${encodeURIComponent(id)}/delivery`,
-    form,
-  );
-  return res.ok ? { ok: true, order: res.data } : { ok: false, error: res.error };
+  const body = {
+    method: data.method,
+    actualAt: data.actualAt,
+    description: data.description,
+    proof: data.file ?? undefined,
+  };
+  const res =
+    role === "admin"
+      ? await AdminOrders.delivery({ path: { id }, body })
+      : await StaffOrders.delivery({ path: { id }, body });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 /** The customer's optional "delivered ✓" (rule 5) — once per order. */
 export async function confirmDelivery(
   id: string,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/orders/{id}/confirm-delivery", {
-    params: { path: { id } },
-  });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  const res = await Orders.confirmDelivery({ path: { id } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 // ---- admin mutations ------------------------------------------------------
@@ -350,12 +312,9 @@ export async function assignOrder(
   id: string,
   employeeId: string | null,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.PATCH("/staff/orders/{id}/assignment", {
-    params: { path: { id } },
-    body: { employeeId },
-  });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  const res = await StaffOrders.assign({ path: { id }, body: { employeeId } });
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 /** Admin override transition (note mandatory). */
@@ -365,12 +324,12 @@ export async function adminChangeOrderStatus(
   note: string,
   finalPrice?: number | null,
 ): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: ApiError }> {
-  const res = await api.POST("/admin/orders/{id}/status", {
-    params: { path: { id } },
+  const res = await AdminOrders.status({
+    path: { id },
     body: { status, note, finalPrice: finalPrice ?? null },
   });
-  if (res.error) return { ok: false, error: res.error };
-  return { ok: true, order: res.data as OrderDetail };
+  if (res.error) return { ok: false, error: toApiError(res.error) };
+  return { ok: true, order: res.data };
 }
 
 // ---- public guest creation ------------------------------------------------
@@ -396,39 +355,25 @@ export async function submitOrder(data: {
   spec?: string;
   files: File[];
 }): Promise<OrderSubmitResult> {
-  const form = new FormData();
-  form.append("kind", data.kind);
-  if (data.productId) form.append("productId", data.productId);
-  form.append("name", data.name);
-  form.append("phone", data.phone);
-  if (data.email) form.append("email", data.email);
-  form.append("guestId", data.guestId);
-  if (data.spec) form.append("spec", data.spec);
-  // Honeypot — the UI always sends it empty (D16).
-  form.append("website", "");
-  for (const file of data.files) form.append("files", file);
-
-  let response: Response | null = null;
   try {
-    response = await fetch(`${API_BASE}/orders`, {
-      method: "POST",
-      credentials: "include",
-      body: form,
+    const res = await Orders.create({
+      body: {
+        kind: data.kind,
+        ...(data.productId ? { productId: data.productId } : {}),
+        name: data.name,
+        phone: data.phone,
+        ...(data.email ? { email: data.email } : {}),
+        guestId: data.guestId,
+        ...(data.spec ? { spec: data.spec } : {}),
+        // Honeypot — the UI always sends it empty (D16).
+        website: "",
+        files: data.files,
+      },
     });
+    if (res.error) return { ok: false, error: toApiError(res.error) };
+    return { ok: true, id: res.data.id, status: res.data.status };
   } catch {
-    response = null;
+    // Network failure (offline, timeout) — no response to parse.
+    return { ok: false, error: toApiError(null) };
   }
-
-  if (!response || !response.ok) {
-    let error: ApiError = { code: "server_error", message: "" };
-    try {
-      const parsed = (await response?.json()) as ApiError;
-      if (typeof parsed.code === "string") error = parsed;
-    } catch {
-      // keep fallback envelope
-    }
-    return { ok: false, error };
-  }
-  const body = (await response.json()) as components["schemas"]["OrderCreated"];
-  return { ok: true, id: body.id, status: body.status };
 }

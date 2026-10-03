@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
-import type { components } from "@/lib/api/schema";
+import {
+  AdminHiring,
+  Identity,
+  type HiringAccepted,
+  type HiringApplicationDto as HiringApplication,
+  type HiringPage,
+} from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { postAuthPath } from "@/lib/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,9 +31,7 @@ import {
 } from "./hiring-dialogs";
 import { TempPasswordDialog } from "./user-dialogs";
 
-type HiringPage = components["schemas"]["HiringPage"];
-type HiringApplication = components["schemas"]["HiringApplicationDto"];
-type HiringAccepted = components["schemas"]["HiringAccepted"];
+
 
 type StatusFilter = "all" | "new" | "accepted" | "declined";
 
@@ -44,9 +47,8 @@ async function loadApplications(
   filter: StatusFilter,
   page: number,
 ): Promise<HiringPage | null> {
-  return api
-    .GET("/admin/hiring", {
-      query: {
+  return AdminHiring.list({
+    query: {
         status: filter === "all" ? undefined : filter,
         page,
         pageSize: PAGE_SIZE,
@@ -100,8 +102,7 @@ export function HiringView() {
 
   useEffect(() => {
     let alive = true;
-    api
-      .GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {

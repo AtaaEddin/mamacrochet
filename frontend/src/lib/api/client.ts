@@ -1,9 +1,21 @@
-import createClient from "openapi-fetch";
-import type { components, paths } from "./schema";
+import { client as generatedClient } from "./generated/client.gen";
+import {
+  Hiring,
+  Identity,
+  ProductImages,
+  type ApiError,
+  type CsrfToken,
+  type ProductImageDto,
+  type UserDto,
+} from "./generated";
+import { toApiError } from "./errors";
 
 /**
- * Typed API client — types are generated from the API's OpenAPI spec
- * (`pnpm gen:api`, committed to this folder).
+ * App API transport (plan 20261003-1303) — the cookie + CSRF layer behind
+ * the generated per-operation SDK (`./generated-client`). All API calls go
+ * through the generated client; this module only holds the transport
+ * (`browserFetch`, installed on the generated client below), the CSRF token
+ * plumbing, and the three file-upload wrappers.
  *
  * baseUrl:
  * - dev: the AppHost injects NEXT_PUBLIC_API_URL (the API's external endpoint)
@@ -14,48 +26,28 @@ import type { components, paths } from "./schema";
  * - `credentials: "include"` sends the browser's `hc.auth` + antiforgery
  *   cookies on every call. Dev is cross-origin but same-site
  *   (localhost:3000 → localhost:8085), so SameSite=Lax delivers them.
- * - CSRF: mutations under `/identity` + `/admin` carry `X-CSRF-TOKEN`.
- *   The token comes from `GET /antiforgery`, cached per page load. The API
- *   scopes tokens to the authenticated principal, so:
+ * - CSRF: mutations under `/identity` + `/admin` + `/staff` + (most of)
+ *   `/orders` + `/chat` carry `X-CSRF-TOKEN`. The token comes from
+ *   `GET /antiforgery`, cached per page load. The API scopes tokens to the
+ *   authenticated principal, so:
  *   - call `refreshCsrfToken()` after login/register (principal changed),
  *   - a 403 `csrf` body triggers one transparent re-fetch + retry.
  *
- * Browser-only: relative baseUrls (prod) and the auth cookies mean the client
- * must not be used from server components without cookie forwarding.
+ * The only route strings in the app live in `needsCsrf` below: they are
+ * transport-level CSRF area prefixes (path metadata), not call sites —
+ * every actual API call is a generated SDK method.
+ *
+ * Browser-only: relative baseUrls (prod) and the auth cookies mean the
+ * transport must not be used from server components without cookie
+ * forwarding (the catalog server fetch uses its own plain client instead).
  */
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085";
-
-type ApiError = components["schemas"]["ApiError"];
-type UserDto = components["schemas"]["UserDto"];
-type CsrfTokenBody = components["schemas"]["CsrfToken"];
-type ProductImageDto = components["schemas"]["ProductImageDto"];
 
 let csrfToken: Promise<string | null> | null = null;
 
 /** Drop the cached token — the antiforgery token is principal-scoped. */
 export function refreshCsrfToken(): void {
   csrfToken = null;
-}
-
-/**
- * Parse the ApiError envelope from an error response, falling back to a
- * generic envelope when the body is not JSON or lacks a `code`. A null
- * `response` (network failure) yields the fallback directly.
- */
-async function parseApiError(
-  response: Response | null,
-  fallbackMessage: string = "",
-): Promise<ApiError> {
-  const fallback: ApiError = { code: "server_error", message: fallbackMessage };
-  if (response) {
-    try {
-      const parsed = (await response.json()) as ApiError;
-      if (typeof parsed.code === "string") return parsed;
-    } catch {
-      // Keep the fallback envelope.
-    }
-  }
-  return fallback;
 }
 
 /**
@@ -79,33 +71,6 @@ async function fetchWithTimeout(
 
 const CSRF_FETCH_TIMEOUT_MS = 10_000;
 
-/**
- * POST a FormData body with the full cookie + CSRF wiring (multipart
- * uploads). The generated client can't express FormData, so these calls
- * build a Request by hand; the response is parsed to `T`, or the ApiError
- * envelope is returned on failure.
- */
-export async function postForm<T = unknown>(
-  url: string,
-  form: FormData,
-): Promise<{ ok: true; data: T } | { ok: false; error: ApiError }> {
-  const token = await ensureCsrfToken();
-  const headers = new Headers();
-  if (token) headers.set("X-CSRF-TOKEN", token);
-  const request = new Request(url, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-    headers,
-  });
-  const response = await withCsrfRetry(request, false);
-  if (!response.ok) {
-    return { ok: false, error: await parseApiError(response, response.statusText) };
-  }
-  const data = (await response.json()) as T;
-  return { ok: true, data };
-}
-
 function ensureCsrfToken(): Promise<string | null> {
   csrfToken ??= fetchWithTimeout(
     `${API_BASE_URL}/antiforgery`,
@@ -113,7 +78,7 @@ function ensureCsrfToken(): Promise<string | null> {
     CSRF_FETCH_TIMEOUT_MS,
   )
     .then((res) => (res.ok ? res.json() : null))
-    .then((body: CsrfTokenBody | null) => (body ? body.token : null))
+    .then((body: CsrfToken | null) => (body ? body.token : null))
     .catch(() => null);
   return csrfToken;
 }
@@ -129,6 +94,12 @@ function requestPathname(url: string): string {
   return pathname.startsWith("/api/") ? pathname.slice(4) : pathname;
 }
 
+/**
+ * CSRF area prefixes — the single intentional route-string exception to
+ * "zero route strings outside the generated tree": these are transport
+ * metadata (which API areas require the X-CSRF-TOKEN header), matching the
+ * API's own `RequireCsrf` middleware. No request is built from them.
+ */
 function needsCsrf(url: string, method: string): boolean {
   if (!/^(POST|PUT|PATCH|DELETE)$/.test(method)) return false;
   const p = requestPathname(url);
@@ -185,9 +156,9 @@ async function withCsrfRetry(request: Request, retried: boolean): Promise<Respon
 }
 
 /**
- * The app's fetch transport for generated API clients (plan 20261003-1303):
- * cookie + CSRF header + one-shot 403-csrf retry. Request in, Response out —
- * the same shape `@hey-api/client-fetch`'s `fetch` config option expects.
+ * The app's fetch transport for the generated SDK client: cookie + CSRF
+ * header + one-shot 403-csrf retry. Request in, Response out — the same
+ * shape `@hey-api/client-fetch`'s `fetch` config option expects.
  */
 export async function browserFetch(
   input: Request | string | URL,
@@ -206,66 +177,98 @@ export async function browserFetch(
   return withCsrfRetry(request, false);
 }
 
-export const api = createClient<paths>({
+// Install the app transport on the generated SDK client (idempotent —
+// setConfig merges). Every SDK method uses this client instance by default.
+generatedClient.setConfig({
   baseUrl: API_BASE_URL,
   fetch: browserFetch,
 });
 
+// ---- file-upload wrappers --------------------------------------------------
+
+export type HiringSubmitResult =
+  | { ok: true; id: string; reapplied: boolean }
+  | { ok: false; error: ApiError };
+
 /**
- * Avatar upload (multipart). The OpenAPI binary schema models the file as a
- * string, which cannot express a browser FormData, so this one call goes
- * through raw fetch — with the same cookie + CSRF wiring as the typed
- * client (the endpoint's antiforgery comes from the same middleware).
+ * Public hiring application (plan 09) through the generated SDK's multipart
+ * body (the `formDataBodySerializer` builds the FormData — it skips null/
+ * undefined, so an absent field is simply not sent). No CSRF header: the
+ * endpoint is public and is protected server-side by the strict rate bucket
+ * + honeypot (same precedent as the guest order submit).
+ */
+export async function submitHiringApplication(data: {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  nationality: string;
+  /** Comma-separated free-text languages (1–6, 2–32 chars each). */
+  languages: string;
+  previousWork: string;
+  message: string;
+  files: File[];
+}): Promise<HiringSubmitResult> {
+  try {
+    const res = await Hiring.submit({
+      body: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        country: data.country,
+        nationality: data.nationality,
+        languages: data.languages,
+        previousWork: data.previousWork,
+        message: data.message,
+        // Honeypot field — the UI always sends it empty (D16).
+        company: "",
+        files: data.files,
+      },
+    });
+    if (res.error) return { ok: false, error: toApiError(res.error) };
+    return { ok: true, id: res.data.id, reapplied: res.data.reapplied };
+  } catch {
+    // Network failure (offline, timeout) — no response to parse.
+    return { ok: false, error: toApiError(null) };
+  }
+}
+
+/**
+ * Avatar upload (multipart) through the generated SDK. The CSRF header comes
+ * from the transport (the endpoint is in the /identity CSRF area).
  */
 export async function uploadAvatar(file: File): Promise<
   | { ok: true; user: UserDto }
   | { ok: false; error: ApiError }
 > {
-  const form = new FormData();
-  form.append("file", file);
-  const token = await ensureCsrfToken();
-  const headers = new Headers();
-  if (token) headers.set("X-CSRF-TOKEN", token);
-  const request = new Request(`${API_BASE_URL}/identity/me/avatar`, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-    headers,
-  });
-  const response = await withCsrfRetry(request, false);
-  if (!response.ok) {
-    return { ok: false, error: await parseApiError(response, response.statusText) };
+  try {
+    const res = await Identity.avatar.upload({ body: { file } });
+    if (res.error) return { ok: false, error: toApiError(res.error) };
+    return { ok: true, user: res.data };
+  } catch {
+    return { ok: false, error: toApiError(null) };
   }
-  const user = (await response.json()) as UserDto;
-  return { ok: true, user };
 }
 
 /**
- * Product image upload (plan 04, multipart). Files go under the form key
- * `files` (the API binds an `IFormFileCollection`). Same cookie + CSRF wiring
- * as the avatar upload: the built-in antiforgery middleware validates the
- * X-CSRF-TOKEN header on form endpoints. Returns the product's full image
- * list (re-fetch, not a patch).
+ * Product image upload (plan 04, multipart) through the generated SDK.
+ * Files go under the form key `files` (the API binds an `IFormFileCollection`).
+ * Returns the product's full image list (re-fetch, not a patch).
  */
 export async function uploadProductImages(
   productId: string,
   files: File[] | FileList,
 ): Promise<{ ok: true; images: ProductImageDto[] } | { ok: false; error: ApiError }> {
-  const form = new FormData();
-  for (const file of Array.from(files)) form.append("files", file);
-  const token = await ensureCsrfToken();
-  const headers = new Headers();
-  if (token) headers.set("X-CSRF-TOKEN", token);
-  const request = new Request(
-    `${API_BASE_URL}/staff/products/${encodeURIComponent(productId)}/images`,
-    { method: "POST", credentials: "include", body: form, headers },
-  );
-  const response = await withCsrfRetry(request, false);
-  if (!response.ok) {
-    return { ok: false, error: await parseApiError(response, response.statusText) };
+  try {
+    const res = await ProductImages.add({
+      path: { id: productId },
+      body: { files: Array.from(files) },
+    });
+    if (res.error) return { ok: false, error: toApiError(res.error) };
+    return { ok: true, images: res.data };
+  } catch {
+    return { ok: false, error: toApiError(null) };
   }
-  const images = (await response.json()) as ProductImageDto[];
-  return { ok: true, images };
 }
 
 /**
@@ -287,58 +290,5 @@ export function fileSrc(apiPath: string): string {
   }
 }
 
-export type HiringSubmitResult =
-  | { ok: true; id: string; reapplied: boolean }
-  | { ok: false; error: ApiError };
-
-/**
- * Public hiring application (plan 09): multipart FormData through raw
- * fetch — the same precedent as `uploadAvatar` (a FormData body can't be
- * expressed in the generated binary schema). No CSRF header: the endpoint
- * is public and is protected server-side by the strict rate bucket +
- * honeypot instead.
- */
-export async function submitHiringApplication(data: {
-  name: string;
-  email: string;
-  phone: string;
-  country: string;
-  nationality: string;
-  /** Comma-separated free-text languages (1–6, 2–32 chars each). */
-  languages: string;
-  previousWork: string;
-  message: string;
-  files: File[];
-}): Promise<HiringSubmitResult> {
-  const form = new FormData();
-  form.append("name", data.name);
-  form.append("email", data.email);
-  form.append("phone", data.phone);
-  form.append("country", data.country);
-  form.append("nationality", data.nationality);
-  form.append("languages", data.languages);
-  form.append("previousWork", data.previousWork);
-  form.append("message", data.message);
-  // Honeypot field — the UI always sends it empty (D16).
-  form.append("company", "");
-  for (const file of data.files) {
-    form.append("files", file);
-  }
-
-  let response: Response | null = null;
-  try {
-    response = await fetch(`${API_BASE_URL}/hiring`, {
-      method: "POST",
-      credentials: "include",
-      body: form,
-    });
-  } catch {
-    response = null;
-  }
-
-  if (!response || !response.ok) {
-    return { ok: false, error: await parseApiError(response) };
-  }
-  const body = (await response.json()) as components["schemas"]["HiringSubmitted"];
-  return { ok: true, id: body.id, reapplied: body.reapplied };
-}
+// Type aliases kept for the call sites (now sourced from the generated SDK).
+export type { ApiError, HiringSubmitted, ProductImageDto, UserDto } from "./generated";

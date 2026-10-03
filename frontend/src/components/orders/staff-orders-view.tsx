@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
-import { api } from "@/lib/api/client";
+import { Identity } from "@/lib/api/generated-client";
 import type { User } from "@/lib/auth";
 import { isStaff } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -154,11 +154,11 @@ export function StaffOrdersView() {
   // Current user → gate (anon → staff login; signed-in non-staff → 403).
   useEffect(() => {
     let alive = true;
-    api.GET("/identity/me")
+    Identity.me.get()
       .then((res) => {
         if (!alive) return;
         if (res.error) {
-          const status = res.response.status;
+          const status = res.response?.status;
           if (status === 401 || status === 410) setMe({ status: "anon" });
           else setMe({ status: "failed" });
           return;

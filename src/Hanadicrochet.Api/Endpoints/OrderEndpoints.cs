@@ -443,6 +443,10 @@ public static class OrderEndpoints
             CancellationToken ct) =>
             await HandlePaymentAsync(id, amount, method, note, receipt,
                 db, service, principal, false, ct))
+        .Produces<OrderDetail>(200)
+        .Produces<ApiError>(400)
+        .Produces<ApiError>(404)
+        .Produces<ApiError>(409)
         .WithName("staff.orders.payment");
 
         orders.MapPost("/{id}/delivery", async (
@@ -457,6 +461,10 @@ public static class OrderEndpoints
             CancellationToken ct) =>
             await HandleDeliveryAsync(id, method, actualAt, description, proof,
                 db, service, principal, false, ct))
+        .Produces<OrderDetail>(200)
+        .Produces<ApiError>(400)
+        .Produces<ApiError>(404)
+        .Produces<ApiError>(409)
         .WithName("staff.orders.delivery");
 
         orders.MapPost("/{id}/attachments", async (
@@ -744,6 +752,10 @@ public static class OrderEndpoints
             CancellationToken ct) =>
             await HandlePaymentAsync(id, amount, method, note, receipt,
                 db, service, principal, true, ct))
+        .Produces<OrderDetail>(200)
+        .Produces<ApiError>(400)
+        .Produces<ApiError>(404)
+        .Produces<ApiError>(409)
         .WithName("admin.orders.payment");
 
         orders.MapPost("/{id}/delivery", async (
@@ -758,6 +770,10 @@ public static class OrderEndpoints
             CancellationToken ct) =>
             await HandleDeliveryAsync(id, method, actualAt, description, proof,
                 db, service, principal, true, ct))
+        .Produces<OrderDetail>(200)
+        .Produces<ApiError>(400)
+        .Produces<ApiError>(404)
+        .Produces<ApiError>(409)
         .WithName("admin.orders.delivery");
 
         orders.MapPost("/{id}/status", async (
