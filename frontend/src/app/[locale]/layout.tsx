@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { Baloo_Bhaijaan_2, Cairo } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { ChatLauncher } from "@/components/chat-launcher";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/toast";
 import { ThemeProvider } from "@/components/theme-provider";
 import { isAppLocale, routing } from "@/i18n/routing";
@@ -46,7 +45,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LocaleLayout({
   children,
   params,
-}: LayoutProps<'/[locale]'>) {
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
   const { locale } = await params;
   if (!isAppLocale(locale)) notFound();
   const dir = locale === "ar" ? "rtl" : "ltr";
@@ -64,9 +66,7 @@ export default async function LocaleLayout({
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <ThemeProvider>
           <NextIntlClientProvider>
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
+            {children}
             <ChatLauncher />
             <Toaster />
           </NextIntlClientProvider>

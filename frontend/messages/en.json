@@ -97,11 +97,6 @@
     "railTitle": "Works you can add",
     "railHint": "Tap to add to the chat — or drag a card in.",
     "railFoot": "Or browse the full list — every piece can be yours.",
-    "statusLive": "Online — usually replies in a few minutes",
-    "statusConnecting": "Connecting…",
-    "statusPolling": "Reconnecting — messages continue via backup line",
-    "statusClosed": "Conversation is closed",
-    "statusError": "Connection trouble — tap ↻ to retry",
     "closedBanner": "This conversation is closed. Need anything else? Start a new chat.",
     "closedComposer": "This conversation is closed.",
     "loadOlder": "Load earlier messages",
@@ -114,19 +109,19 @@
     "sendFailed": "Not sent",
     "retrySend": "Retry",
     "removeFile": "Remove file",
-    "emptyThread": "No messages yet — say hi to Hanadi!"
-  },
-  "Chat": {
+    "emptyThread": "No messages yet — say hi to Hanadi!",
     "listTitle": "Your conversations",
-    "listHint": "Your chats with Hanadi live here — one per order, plus your first chat.",
     "listEmpty": "No conversations yet — start a chat with Hanadi!",
     "noSubject": "Chat",
     "closed": "Closed",
-    "allConversations": "All conversations",
-    "back": "Back",
     "home": "Home",
     "works": "All works",
-    "exitLabel": "Leave chat"
+    "exitLabel": "Leave chat",
+    "pickConversation": "Pick a conversation",
+    "newConversation": "New conversation"
+  },
+  "Chat": {
+    "back": "Back"
   },
   "Footer": {
     "tagline": "Handmade with love, one stitch at a time.",

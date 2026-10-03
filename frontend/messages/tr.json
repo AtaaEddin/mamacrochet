@@ -97,11 +97,6 @@
     "railTitle": "Ekleyebileceğin eserler",
     "railHint": "Sohbete eklemek için dokun — ya da kartı sürükleyip bırak.",
     "railFoot": "Ya da tam listeye göz at — her parça senin olabilir.",
-    "statusLive": "çevrimiçi — genelde birkaç dakikada yanıt verir",
-    "statusConnecting": "Bağlanıyor…",
-    "statusPolling": "Yeniden bağlanıyor — mesajlar yedek hatla akmaya devam eder",
-    "statusClosed": "Sohbet kapalı",
-    "statusError": "Bağlantı sorunu — tekrar denemek için ↻'e dokun",
     "closedBanner": "Bu sohbet kapalı. Başka bir şeye mi ihtiyacın var? Yeni bir sohbet başlat.",
     "closedComposer": "Bu sohbet kapalı.",
     "loadOlder": "Daha eski mesajları yükle",
@@ -114,19 +109,19 @@
     "sendFailed": "Gönderilemedi",
     "retrySend": "Tekrar dene",
     "removeFile": "Dosyayı kaldır",
-    "emptyThread": "Henüz mesaj yok — Hanadi'ye merhaba de!"
-  },
-  "Chat": {
+    "emptyThread": "Henüz mesaj yok — Hanadi'ye merhaba de!",
     "listTitle": "Sohbetleriniz",
-    "listHint": "Hanadi'yle sohbetleriniz burada — sipariş başına biri, ilk sohbetinizle birlikte.",
     "listEmpty": "Henüz sohbet yok — Hanadi'yle konuşmaya başla!",
     "noSubject": "Sohbet",
     "closed": "Kapalı",
-    "allConversations": "Tüm sohbetler",
-    "back": "Geri",
     "home": "Ana sayfa",
     "works": "Tüm eserler",
-    "exitLabel": "Sohbetten ayrıl"
+    "exitLabel": "Sohbetten ayrıl",
+    "pickConversation": "Bir sohbet seç",
+    "newConversation": "Yeni sohbet"
+  },
+  "Chat": {
+    "back": "Geri"
   },
   "Footer": {
     "tagline": "Sevgiyle, dikiş dikiş yapıldı.",

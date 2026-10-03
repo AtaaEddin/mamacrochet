@@ -1,16 +1,21 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
   ChevronDown,
   FileText,
+  Home,
   ImageOff,
+  Inbox,
   Paperclip,
   Plus,
   RefreshCw,
   Search,
   Send,
+  ShoppingBag,
   X,
 } from "lucide-react";
 import { HanadiMark } from "@/components/illustrations/hanadi-mark";
@@ -20,38 +25,68 @@ import { fetchChatProducts } from "@/lib/chat/products";
 import { CHAT_FILE_ACCEPT, useChat, type UiMessage } from "@/lib/chat/use-chat";
 import { OrderProductActions } from "@/components/orders/order-product-actions";
 import { cn } from "@/lib/utils";
+import * as chatApi from "@/lib/chat/api";
 
 /** Drag-and-drop payload key (product id) — rail card → conversation. */
 export const WORK_DRAG_TYPE = "text/hanadicrochet-work";
 
 const RAIL_PRODUCT_LIMIT = 12;
 
+const NAV_BTN =
+  "grid size-11 place-items-center rounded-full text-foreground transition-colors " +
+  "hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring";
+
 /**
- * The big chat surface — hanadicrochet is a chat-first platform (brand v2).
+ * The chat app screen (plan 20261002-1847, sub 01) — hanadicrochet is a
+ * chat-first platform (brand v2).
  *
- * Look: ChatGPT-style thread — centered column (max-w-2xl), Hanadi's
- * messages as avatar + plain text, visitor messages as soft bubbles, one
- * rounded composer box. With `withProductRail` (the chat page) the free
- * space becomes a **product rail**: browse real works and add one to the
- * conversation by tap or drag-and-drop.
+ * One full-viewport surface, four bordered parts — the page itself never
+ * scrolls, the input is always visible:
  *
- * Plan 06: the local echo is gone — this is the live thread. Guest mode
- * runs the device's visitor thread over a thread token; user mode runs the
- * given thread over the cookie. Socket first, REST poll fallback.
+ *   TOP BAR   [←] [logo] ············  [home] [works]   (slim, border-b)
+ *   LEFT      conversations list (scrolls; + New = sub 02)
+ *   MIDDLE    the thread (ChatGPT-style bubbles, scrolls)
+ *   RIGHT     works rail — real catalog (scrolls, "the side" list)
+ *   BOTTOM    composer (border-t, always visible)
+ *
+ * Mobile (<lg): the list is a step, not a pane — conversations ⇄ thread,
+ * the works stay in the composer's search button. Guests skip the list
+ * (one active visitor thread per device, D16).
+ *
+ * Look: thread as avatar + plain text (Hanadi) / soft bubbles (visitor),
+ * one rounded composer box. No wordmark, no status line in the top bar
+ * (owner 2026-10-02) — the retry button appears there only on connection
+ * error. Live thread over socket, REST poll fallback.
  */
 export function ChatPanel({
   mode,
-  threadId = null,
+  threadId,
   initialProductId = null,
   onGuestThread,
   withProductRail = false,
+  backLabel,
+  onBack,
+  onCloseThread,
+  onOpenThread,
+  onNewConversation,
 }: {
   mode: "guest" | "user";
-  threadId?: string | null;
+  /** user mode: the thread to open (`?thread=`); null = none open. */
+  threadId: string | null;
   /** A work the visitor arrived with (e.g. ?work=) — sent once, as a product message. */
   initialProductId?: string | null;
   onGuestThread?: (threadId: string) => void;
   withProductRail?: boolean;
+  /** Top-bar Back — aria-label + title. */
+  backLabel: string;
+  /** Page-level Back (previous page, or Home). */
+  onBack: () => void;
+  /** Mobile: Back from an open thread returns to the conversation list. */
+  onCloseThread?: () => void;
+  /** Open a conversation from the list (user mode). */
+  onOpenThread?: (threadId: string) => void;
+  /** List-header action (sub-plan 02: "New conversation"). */
+  onNewConversation?: () => void;
 }) {
   const t = useTranslations("ChatPanel");
   const locale = useLocale();
@@ -61,6 +96,7 @@ export function ChatPanel({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerProducts, setPickerProducts] = useState<ProductDto[] | null>(null);
+  const [threads, setThreads] = useState<chatApi.ChatThreadListItem[] | null>(null);
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [sending, setSending] = useState(false);
@@ -74,6 +110,43 @@ export function ChatPanel({
     () => new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }),
     [locale],
   );
+
+  const fmtTime = (iso: string | null) => {
+    if (!iso) return "";
+    try {
+      return new Intl.DateTimeFormat(locale, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(iso));
+    } catch {
+      return "";
+    }
+  };
+
+  // The mobile "list step": users without an open thread see the
+  // conversations full-screen first; everyone else goes straight to the
+  // thread (guests have exactly one — D16).
+  const listStep = mode === "user" && !threadId;
+
+  // ---- Conversation list (LEFT pane / mobile step) --------------------------
+
+  useEffect(() => {
+    if (mode !== "user") return;
+    let cancelled = false;
+    const load = () => {
+      void chatApi.fetchThreads().then((r) => {
+        if (!cancelled && r.ok) setThreads(r.data.threads);
+      });
+    };
+    load();
+    const timer = setInterval(load, 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [mode]);
 
   // ---- Product data (picker + product bubbles) ------------------------------
 
@@ -141,6 +214,22 @@ export function ChatPanel({
 
   // ---- Actions ---------------------------------------------------------------------
 
+  const backAction = () => {
+    // One level up: on a phone, an open thread goes back to the list;
+    // everywhere else the page-level Back applies.
+    if (
+      mode === "user" &&
+      threadId &&
+      onCloseThread &&
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 1023px)").matches
+    ) {
+      onCloseThread();
+      return;
+    }
+    onBack();
+  };
+
   const sendText = async (text: string, productId?: string) => {
     if (sending) return;
     setSending(true);
@@ -173,17 +262,6 @@ export function ChatPanel({
 
   const closed = chat.thread?.isClosed ?? false;
 
-  const statusLine =
-    chat.status === "live"
-      ? t("statusLive")
-      : chat.status === "connecting"
-        ? t("statusConnecting")
-        : chat.status === "polling"
-          ? t("statusPolling")
-          : chat.status === "closed"
-            ? t("statusClosed")
-            : t("statusError");
-
   const chips = [t("chipCustom"), t("chipTrack"), t("chipDelivery")];
 
   const filteredPicker = (pickerProducts ?? []).filter((p) =>
@@ -194,53 +272,159 @@ export function ChatPanel({
     <section
       aria-label={t("label")}
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-card shadow-lg",
-        dragging && "border-primary ring-2 ring-ring/50",
+        "flex h-full min-h-0 flex-col overflow-hidden bg-background",
+        dragging && "ring-2 ring-ring/50",
       )}
     >
-      {/* Header */}
-      <header className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
-        <HanadiMark className="size-10 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-base font-bold leading-tight">
-            {t("title")}
-            {chat.thread?.subject ? (
-              <span className="ms-2 text-sm font-medium text-muted-foreground">
-                · {chat.thread.subject}
-              </span>
-            ) : null}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className={cn(
-                "size-1.5 shrink-0 rounded-full",
-                chat.status === "live" && "bg-brand-olive",
-                chat.status === "connecting" && "bg-brand-gold",
-                chat.status === "polling" && "bg-brand-gold",
-                (chat.status === "closed" || chat.status === "error") && "bg-muted-foreground/40",
-              )}
-              aria-hidden="true"
-            />
-            <span className="truncate">{statusLine}</span>
-          </p>
-        </div>
+      {/* TOP BAR — back · logo · home · works (no wordmark, no status) */}
+      <header data-chat-part="top" className="flex h-14 shrink-0 items-center gap-1.5 border-b border-border bg-background px-2">
+        <button
+          type="button"
+          onClick={backAction}
+          aria-label={backLabel}
+          title={backLabel}
+          className={NAV_BTN}
+        >
+          <ArrowLeft className="size-5 rtl:rotate-180" aria-hidden="true" />
+        </button>
+        <HanadiMark className="size-8 shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1" />
+        <nav aria-label={t("exitLabel")} className="flex shrink-0 items-center gap-1.5">
+          <Link href="/" aria-label={t("home")} title={t("home")} className={NAV_BTN}>
+            <Home className="size-5" aria-hidden="true" />
+          </Link>
+          <Link href="/works" aria-label={t("works")} title={t("works")} className={NAV_BTN}>
+            <ShoppingBag className="size-5" aria-hidden="true" />
+          </Link>
+        </nav>
         {chat.status === "error" && (
           <button
             type="button"
             onClick={chat.reconnect}
             aria-label={t("retry")}
             title={t("retry")}
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+            className={NAV_BTN}
           >
-            <RefreshCw className="size-4" aria-hidden="true" />
+            <RefreshCw className="size-5" aria-hidden="true" />
           </button>
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Conversation column */}
+      <div className="flex min-h-0 flex-1">
+        {/* LEFT — conversation list (pane ≥lg, first step on mobile) */}
         <div
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          data-chat-part="list"
+          className={cn(
+            "min-h-0 min-w-0 flex-col bg-background",
+            listStep ? "flex flex-1" : "hidden",
+            "lg:flex lg:w-[280px] xl:w-[320px] lg:flex-none lg:border-e lg:border-border",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <p className="truncate font-display text-sm font-bold">{t("listTitle")}</p>
+            {onNewConversation && (
+              <button
+                type="button"
+                onClick={onNewConversation}
+                aria-label={t("newConversation")}
+                title={t("newConversation")}
+                className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              >
+                <Plus className="size-4.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {mode === "guest" ? (
+              chat.thread ? (
+                <div
+                  aria-current="true"
+                  className="w-full rounded-2xl border border-border/60 bg-muted/70 p-3"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                      {chat.thread.subject || t("noSubject")}
+                    </span>
+                    {chat.thread.isClosed && (
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                        {t("closed")}
+                      </span>
+                    )}
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {fmtTime(chat.thread.lastMessageAt)}
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="mx-auto my-6 block size-6 animate-spin rounded-full border-2 border-border border-t-primary"
+                />
+              )
+            ) : threads === null ? (
+              <span
+                aria-hidden="true"
+                className="mx-auto my-6 block size-7 animate-spin rounded-full border-2 border-border border-t-primary"
+              />
+            ) : threads.length === 0 ? (
+              <div className="mt-10 flex flex-col items-center gap-3 text-center">
+                <Inbox className="size-10 text-muted-foreground/40" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">{t("listEmpty")}</p>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {threads.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenThread?.(item.id)}
+                      aria-current={threadId === item.id ? "true" : undefined}
+                      className={cn(
+                        "w-full rounded-2xl border p-3 text-start transition-colors",
+                        threadId === item.id
+                          ? "border-border/60 bg-muted/70"
+                          : "border-transparent hover:bg-muted/50",
+                        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                          {item.subject || t("noSubject")}
+                        </span>
+                        {item.isClosed && (
+                          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                            {t("closed")}
+                          </span>
+                        )}
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {fmtTime(item.lastMessageAt)}
+                        </span>
+                      </span>
+                      {item.preview?.text ? (
+                        <span className="mt-1 block truncate text-xs text-muted-foreground">
+                          {item.preview.text}
+                        </span>
+                      ) : null}
+                      {Number(item.unread) > 0 && (
+                        <span className="mt-1.5 inline-grid min-w-5 place-items-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                          {item.unread}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* MIDDLE — the thread (scrolls; the only tall scroll here) */}
+        <div
+          data-chat-part="thread"
+          className={cn(
+            "min-h-0 min-w-0 flex-1 flex-col bg-card",
+            listStep ? "hidden lg:flex" : "flex",
+          )}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes(WORK_DRAG_TYPE)) {
               e.preventDefault();
@@ -255,7 +439,6 @@ export function ChatPanel({
             if (id) void sendText("", id);
           }}
         >
-          {/* Thread — centered column, ChatGPT-style */}
           <div
             ref={threadRef}
             onScroll={(e) => {
@@ -286,12 +469,19 @@ export function ChatPanel({
               )}
 
               {chat.messages.length === 0 && !chat.loadingHistory && (
-                <div className="mt-10 flex flex-col items-center gap-3 text-center">
-                  <HanadiMark className="size-14 opacity-80" />
-                  <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-                    {mode === "guest" ? t("opener") : t("emptyThread")}
-                  </p>
-                </div>
+                mode === "guest" || threadId ? (
+                  <div className="mt-10 flex flex-col items-center gap-3 text-center">
+                    <HanadiMark className="size-14 opacity-80" />
+                    <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+                      {mode === "guest" ? t("opener") : t("emptyThread")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-10 flex flex-col items-center gap-3 text-center">
+                    <Inbox className="size-12 text-muted-foreground/40" aria-hidden="true" />
+                    <p className="text-sm text-muted-foreground">{t("pickConversation")}</p>
+                  </div>
+                )
               )}
 
               {chat.messages.map((m) => (
@@ -307,206 +497,10 @@ export function ChatPanel({
               ))}
             </div>
           </div>
-
-          {/* Quick topics + product search + composer */}
-          <div className="mx-auto w-full max-w-2xl px-4 pb-4 sm:px-6">
-            {chat.error && (
-              <p
-                role="alert"
-                className="mb-2 rounded-full bg-destructive/10 px-4 py-2 text-center text-xs font-semibold text-destructive"
-              >
-                {chat.error}
-              </p>
-            )}
-
-            {!closed && chat.status !== "error" && (
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {chips.map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    onClick={() => void sendText(chip)}
-                    className={cn(
-                      "rounded-full border border-border/70 bg-background px-3 py-2 text-xs font-semibold text-foreground",
-                      "transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                    )}
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {pickerOpen && (
-              <div className="mb-2 animate-fade-in rounded-[1.75rem] border border-border/80 bg-background p-3 shadow-md motion-reduce:animate-none">
-                <div className="flex items-center gap-2">
-                  <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <input
-                    autoFocus
-                    type="search"
-                    value={pickerQuery}
-                    onChange={(e) => setPickerQuery(e.target.value)}
-                    placeholder={t("pickerSearch")}
-                    aria-label={t("pickerSearch")}
-                    className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPickerOpen(false);
-                      setPickerQuery("");
-                    }}
-                    aria-label={t("pickerClose")}
-                    className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="size-4" aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="mt-2 grid max-h-56 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-                  {(pickerProducts ?? []).length === 0 && (
-                    <p className="col-span-full py-4 text-center text-sm text-muted-foreground">
-                      {pickerProducts === null ? t("pickerLoading") : t("pickerEmpty")}
-                    </p>
-                  )}
-                  {filteredPicker.map((p) => {
-                    const work = toWorkDisplay(p, productTitle(p, locale));
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          setPickerOpen(false);
-                          setPickerQuery("");
-                          void sendText("", p.id);
-                        }}
-                        title={productTitle(p, locale)}
-                        className="flex items-center gap-2 rounded-2xl border border-border/60 p-2 text-start transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                      >
-                        <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted/60">
-                          {work.imageSrc ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- catalog images are API files
-                            <img
-                              src={work.imageSrc}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <ImageOff className="size-4 text-muted-foreground/50" aria-hidden="true" />
-                          )}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-bold">
-                            {work.title}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {fmt.format(work.priceUsd)}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {chat.pendingFiles.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {chat.pendingFiles.map((f, i) => (
-                  <span
-                    key={`${f.name}-${i}`}
-                    className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background py-1 pe-1 ps-3 text-xs font-semibold"
-                  >
-                    <span className="max-w-32 truncate">{f.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => chat.removeFile(i)}
-                      aria-label={t("removeFile")}
-                      className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <X className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {closed ? (
-              <p className="rounded-[1.75rem] border border-border/80 bg-background px-5 py-4 text-center text-sm text-muted-foreground">
-                {t("closedComposer")}
-              </p>
-            ) : (
-              <form
-                className="flex items-end gap-2 rounded-[1.75rem] border border-border/80 bg-background p-2.5 shadow-sm"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (chat.pendingFiles.length > 0) void sendFiles();
-                  else void sendText(inputRef.current?.value ?? "");
-                }}
-              >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  accept={CHAT_FILE_ACCEPT}
-                  className="sr-only"
-                  onChange={(e) => onPickFiles(e.target.files)}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPickerOpen((v) => !v);
-                    setPickerQuery("");
-                  }}
-                  aria-label={t("pickerLabel")}
-                  aria-expanded={pickerOpen}
-                  title={t("pickerLabel")}
-                  className={cn(
-                    "grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                    pickerOpen
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <Search className="size-4.5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  aria-label={t("attach")}
-                  title={t("attach")}
-                  className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                >
-                  <Paperclip className="size-4.5" aria-hidden="true" />
-                </button>
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (chat.pendingFiles.length > 0) void sendFiles();
-                      else void sendText(inputRef.current?.value ?? "");
-                    }
-                  }}
-                  placeholder={t("placeholder")}
-                  aria-label={t("placeholder")}
-                  className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] leading-snug placeholder:text-muted-foreground focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={sending}
-                  aria-label={t("send")}
-                  title={t("send")}
-                  className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                >
-                  <Send className="size-4.5 rtl:-scale-x-100" aria-hidden="true" />
-                </button>
-              </form>
-            )}
-          </div>
         </div>
 
-        {/* Product rail — real works you can add to the conversation */}
+        {/* RIGHT — works rail (the side list; products below lg live in the
+            composer's search button) */}
         {withProductRail && (
           <ProductRail
             products={pickerProducts}
@@ -515,6 +509,211 @@ export function ChatPanel({
             onPick={(id) => void sendText("", id)}
           />
         )}
+      </div>
+
+      {/* BOTTOM — composer (always visible) */}
+      <div
+        data-chat-part="bottom"
+        className={cn(
+          "shrink-0 border-t border-border bg-background",
+          listStep ? "hidden lg:flex" : "flex",
+        )}
+      >
+        <div className="mx-auto w-full max-w-2xl px-4 pb-3 pt-2 sm:px-6">
+          {chat.error && (
+            <p
+              role="alert"
+              className="mb-2 rounded-full bg-destructive/10 px-4 py-2 text-center text-xs font-semibold text-destructive"
+            >
+              {chat.error}
+            </p>
+          )}
+
+          {!closed && chat.status !== "error" && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {chips.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => void sendText(chip)}
+                  className={cn(
+                    "rounded-full border border-border/70 bg-card/40 px-3 py-2 text-xs font-semibold text-foreground",
+                    "transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  )}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pickerOpen && (
+            <div className="mb-2 animate-fade-in rounded-[1.75rem] border border-border/80 bg-card/40 p-3 shadow-md motion-reduce:animate-none">
+              <div className="flex items-center gap-2">
+                <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                  autoFocus
+                  type="search"
+                  value={pickerQuery}
+                  onChange={(e) => setPickerQuery(e.target.value)}
+                  placeholder={t("pickerSearch")}
+                  aria-label={t("pickerSearch")}
+                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPickerOpen(false);
+                    setPickerQuery("");
+                  }}
+                  aria-label={t("pickerClose")}
+                  className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="mt-2 grid max-h-56 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+                {(pickerProducts ?? []).length === 0 && (
+                  <p className="col-span-full py-4 text-center text-sm text-muted-foreground">
+                    {pickerProducts === null ? t("pickerLoading") : t("pickerEmpty")}
+                  </p>
+                )}
+                {filteredPicker.map((p) => {
+                  const work = toWorkDisplay(p, productTitle(p, locale));
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setPickerOpen(false);
+                        setPickerQuery("");
+                        void sendText("", p.id);
+                      }}
+                      title={productTitle(p, locale)}
+                      className="flex items-center gap-2 rounded-2xl border border-border/60 p-2 text-start transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                    >
+                      <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted/60">
+                        {work.imageSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- catalog images are API files
+                          <img
+                            src={work.imageSrc}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <ImageOff className="size-4 text-muted-foreground/50" aria-hidden="true" />
+                        )}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-bold">
+                          {work.title}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {fmt.format(work.priceUsd)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {chat.pendingFiles.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {chat.pendingFiles.map((f, i) => (
+                <span
+                  key={`${f.name}-${i}`}
+                  className="flex items-center gap-1.5 rounded-full border border-border/70 bg-card/40 py-1 pe-1 ps-3 text-xs font-semibold"
+                >
+                  <span className="max-w-32 truncate">{f.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => chat.removeFile(i)}
+                    aria-label={t("removeFile")}
+                    className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="size-3.5" aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {closed ? (
+            <p className="rounded-[1.75rem] border border-border/80 bg-card/40 px-5 py-4 text-center text-sm text-muted-foreground">
+              {t("closedComposer")}
+            </p>
+          ) : (
+            <form
+              className="flex items-end gap-2 rounded-[1.75rem] border border-border bg-card p-2.5 shadow-sm"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (chat.pendingFiles.length > 0) void sendFiles();
+                else void sendText(inputRef.current?.value ?? "");
+              }}
+            >
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                accept={CHAT_FILE_ACCEPT}
+                className="sr-only"
+                onChange={(e) => onPickFiles(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setPickerOpen((v) => !v);
+                  setPickerQuery("");
+                }}
+                aria-label={t("pickerLabel")}
+                aria-expanded={pickerOpen}
+                title={t("pickerLabel")}
+                className={cn(
+                  "grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                  pickerOpen
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <Search className="size-4.5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                aria-label={t("attach")}
+                title={t("attach")}
+                className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              >
+                <Paperclip className="size-4.5" aria-hidden="true" />
+              </button>
+              <textarea
+                ref={inputRef}
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (chat.pendingFiles.length > 0) void sendFiles();
+                    else void sendText(inputRef.current?.value ?? "");
+                  }
+                }}
+                placeholder={t("placeholder")}
+                aria-label={t("placeholder")}
+                className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] leading-snug placeholder:text-muted-foreground focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={sending}
+                aria-label={t("send")}
+                title={t("send")}
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              >
+                <Send className="size-4.5 rtl:-scale-x-100" aria-hidden="true" />
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
       {/* Image lightbox */}
@@ -730,7 +929,7 @@ function Attachments({
   );
 }
 
-// ---- Product rail (real catalog) -------------------------------------------------
+// ---- Works rail (real catalog) -------------------------------------------------
 
 function ProductRail({
   products,
@@ -747,8 +946,9 @@ function ProductRail({
 
   return (
     <aside
+      data-chat-part="rail"
       aria-label={t("railTitle")}
-      className="min-h-0 max-h-[36dvh] shrink-0 overflow-y-auto border-t border-border/60 bg-background/40 p-4 lg:max-h-none lg:w-[340px] lg:border-s lg:border-t-0"
+      className="hidden min-h-0 shrink-0 overflow-y-auto border-s border-border bg-card/40 p-4 lg:flex lg:flex-col lg:w-[340px] xl:w-[380px]"
     >
       <p className="font-display text-sm font-bold">{t("railTitle")}</p>
       <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{t("railHint")}</p>

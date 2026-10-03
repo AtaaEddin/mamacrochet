@@ -44,6 +44,9 @@ function exitBar(page) {
 function exitBarAr(page) {
   return page.locator("nav[aria-label='الخروج من المحادثة']");
 }
+function backBtn(page) {
+  return page.locator('header button[aria-label="Back"]');
+}
 
 async function newContext(browser, { width, height, colorScheme = "light", locale = "en" } = {}) {
   return browser.newContext({
@@ -56,7 +59,7 @@ async function newContext(browser, { width, height, colorScheme = "light", local
 // ============================ MOBILE, EN, LIGHT ============================
 {
   const browser = await chromium.launch({ executablePath: "/snap/bin/chromium", args: ["--no-sandbox"] });
-  const ctx = await newContext(browser, {});
+  const ctx = await newContext(browser, { width: 390, height: 844 });
   const page = await ctx.newPage();
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(String(e)));
@@ -75,12 +78,20 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   await page.waitForTimeout(600);
   check("M3a FAB hidden on /en/chat", await fab(page).count() === 0);
   const barCount = await exitBar(page).count();
-  check("M3b exit bar on /en/chat (guest)", barCount === 1);
-  const backLabel = (await exitBar(page).locator("button").first().innerText()).trim();
-  check("M3c back label = Back", backLabel === "Back", `got "${backLabel}"`);
-  const labels = await exitBar(page).locator("a").allInnerTexts();
-  check("M3d exit bar links = Home + All works", labels[0]?.trim() === "Home" && labels[1]?.trim() === "All works", JSON.stringify(labels));
-  await page.screenshot({ path: `${OUT}/fab-m3-chat-mobile-exitbar.png` });
+  check("M3b exit nav on /en/chat (guest)", barCount === 1);
+  check(
+    "M3c back button on /en/chat (guest)",
+    await backBtn(page).count() === 1,
+  );
+  const labels = await page
+    .locator('nav[aria-label="Leave chat"] a')
+    .evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+  check(
+    "M3d top bar links = Home + All works (aria)",
+    labels[0] === "Home" && labels[1] === "All works",
+    JSON.stringify(labels),
+  );
+  await page.screenshot({ path: `${OUT}/fab-m3-chat-mobile-topbar.png` });
 
   // M4 — FAB hidden on staff/admin (admin re-verified signed-in below: the
   // page 403-cards anonymous users and redirects them to /login, where the
@@ -93,39 +104,28 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   await fab(page).click();
   await page.waitForURL("**/en/chat");
   check("F1a FAB click → /en/chat", page.url().includes("/en/chat"));
-  await exitBar(page).locator("button").first().click();
+  await backBtn(page).click();
   await page.waitForURL("**/en/works");
   check("F1b Back → /en/works (previous page)", page.url().includes("/en/works"));
 
   // F2 — fresh entry: /chat → Back → home
   await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
   await page.waitForTimeout(400);
-  await exitBar(page).locator("button").first().click();
+  await backBtn(page).click();
   await page.waitForURL("**/en");
   check("F2 Back → home (no stored return)", page.url().replace(/\/$/, "") === `${BASE}/en`);
 
-  // F3 — exit bar links
+  // F3 — top bar links
   await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
   await page.waitForTimeout(400);
-  await exitBar(page).locator("a").nth(0).click();
+  await page.locator('nav[aria-label="Leave chat"] a').nth(0).click();
   await page.waitForURL("**/en");
   check("F3a Home link → /en", page.url().replace(/\/$/, "") === `${BASE}/en`);
   await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
   await page.waitForTimeout(400);
-  await exitBar(page).locator("a").nth(1).click();
+  await page.locator('nav[aria-label="Leave chat"] a').nth(1).click();
   await page.waitForURL("**/en/works");
   check("F3b All works link → /en/works", page.url().includes("/en/works"));
-
-  // F4 — the header "Say hi" CTA IS visible on /chat; its click must not
-  // store the chat URL as the return-to (rememberChatReturnTo guard).
-  await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
-  // Header renders desktop + mobile CTA rows; click the visible one.
-  await page.locator("a[data-chat-cta]").filter({ visible: true }).click();
-  await page.waitForTimeout(400);
-  const stored = await page.evaluate(
-    () => window.sessionStorage.getItem("hc.chatReturnTo"),
-  );
-  check("F4 header CTA on /chat stores no return URL", stored === null, String(stored));
 
   // T1-T5 — signed-in: guest msg → register → guest-link → thread mode Back
   // (guest msg creates the device visitor thread; register signs in; guest-link
@@ -171,16 +171,25 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   check("T1 guest-link via API origin (200)", linked === 200, String(linked));
 
   await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1200);
-  const threadRow = page.locator("button", { hasText: /hello hanadi|Chat/i }).first();
-  check("T3 thread list shows the linked thread", await threadRow.count() === 1);
+  // Poll — the signed-in list fetch (GET /chat/threads) lands after the
+  // page's own /identity/me round-trip; a fixed short wait flakes.
+  const threadRow = page.locator("button", { hasText: /hello hanadi|Chat/i });
+  let rowCount = 0;
+  for (let i = 0; i < 20; i++) {
+    rowCount = await threadRow.count();
+    if (rowCount === 1) break;
+    await page.waitForTimeout(500);
+  }
+  check("T3 thread list shows the linked thread", rowCount === 1);
   if (await threadRow.count() === 1) {
     await threadRow.click();
     await page.waitForTimeout(800);
-    const backLabel2 = (await exitBar(page).locator("button").first().innerText()).trim();
-    check("T4 thread mode back label = All conversations", backLabel2 === "All conversations", `got "${backLabel2}"`);
-    await page.screenshot({ path: `${OUT}/fab-t4-thread-exitbar.png` });
-    await exitBar(page).locator("button").first().click();
+    check(
+      "T4 thread mode keeps the single 'Back' button",
+      await backBtn(page).count() === 1,
+    );
+    await page.screenshot({ path: `${OUT}/fab-t4-thread-topbar.png` });
+    await backBtn(page).click();
     await page.waitForTimeout(500);
     check("T5 thread Back → conversations list (no ?thread=)", !page.url().includes("thread="));
 
@@ -218,15 +227,15 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
   check("K3 FAB hidden on /en/chat (desktop)", await fab(page).count() === 0);
-  check("K4 exit bar on /en/chat (desktop)", await exitBar(page).count() === 1);
-  await page.screenshot({ path: `${OUT}/fab-k4-chat-desktop-exitbar.png` });
+  check("K4 exit nav on /en/chat (desktop)", await exitBar(page).count() === 1);
+  await page.screenshot({ path: `${OUT}/fab-k4-chat-desktop-topbar.png` });
   await browser.close();
 }
 
 // ============================ RTL, AR, MOBILE ============================
 {
   const browser = await chromium.launch({ executablePath: "/snap/bin/chromium", args: ["--no-sandbox"] });
-  const ctx = await newContext(browser, { locale: "ar" });
+  const ctx = await newContext(browser, { locale: "ar", width: 390, height: 844 });
   const page = await ctx.newPage();
 
   await page.goto(`${BASE}/ar`, { waitUntil: "networkidle" });
@@ -252,15 +261,17 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   await page.goto(`${BASE}/ar/chat`);
   await page.waitForTimeout(600);
   const barCount = await exitBarAr(page).count();
-  check("R2a exit bar on /ar/chat", barCount === 1);
-  const labels = await exitBarAr(page).locator("a").allInnerTexts();
+  check("R2a exit nav on /ar/chat", barCount === 1);
+  const labels = await page
+    .locator('nav[aria-label="الخروج من المحادثة"] a')
+    .evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
   check(
-    "R2b exit bar links ar = الرئيسية + كل الأعمال",
-    labels[0]?.trim() === "الرئيسية" && labels[1]?.trim() === "كل الأعمال",
+    "R2b top bar links ar = الرئيسية + كل الأعمال (aria)",
+    labels[0] === "الرئيسية" && labels[1] === "كل الأعمال",
     JSON.stringify(labels),
   );
-  await page.screenshot({ path: `${OUT}/fab-r2-chat-ar-exitbar.png` });
-  await exitBarAr(page).locator("button").first().click();
+  await page.screenshot({ path: `${OUT}/fab-r2-chat-ar-topbar.png` });
+  await page.locator('header button[aria-label="رجوع"]').click();
   await page.waitForURL("**/ar/works");
   check("R2c Back → /ar/works (previous page)", page.url().includes("/ar/works"));
   await browser.close();
