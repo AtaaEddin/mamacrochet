@@ -1,6 +1,6 @@
 # 02 — Frontend: conversation management UI (delete + guest new)
 
-status: proposed
+status: done
 
 Frontend only. Uses the generated client from sub 01 (`chat.deleteThread`,
 `bootstrapVisitorThread` with `reset`).
@@ -9,55 +9,68 @@ Frontend only. Uses the generated client from sub 01 (`chat.deleteThread`,
 
 - Thread list rows (the shared list markup: desktop left pane + mobile list
   step): a small `Trash2` icon button (end of the row, `aria-label` /
-  `title` = "Delete conversation", `stopPropagation` so the row still
-  opens) → `AlertDialog` (shadcn) confirm:
+  `title` = "Delete conversation") → shadcn `AlertDialog` confirm:
   - title: "Delete this conversation?"
   - body: "It disappears from your list. If Hanadi writes to it again, the
     conversation comes back." (en/ar/tr)
-  - confirm → `deleteThread(id)` (new `lib/chat/api.ts` wrapper) → on ok:
-    optimistic removal from `threads`; if the deleted thread is the one
+  - confirm → `deleteThread(id)` (`lib/chat/api.ts` wrapper) → on ok:
+    optimistic removal from `threads`; if the deleted thread was the one
     open (`?thread=`), also `onCloseThread()` (back to the list). On error:
-    `notice` row above the composer (existing pattern).
+    shown in the dialog footer and the dialog stays open (the
+    `category-manager` confirm pattern).
 - Guest mode gets no delete (there is no guest list; the reset below is the
   equivalent).
 
 ## 2. Guest "New conversation" (the capped reset)
 
-- Guest list step: same header row as user mode — title + `Plus` button
-  (`onNewConversation` prop already rendered there; pass it for guests too).
-- Guest action: `AlertDialog` confirm ("Starting a new conversation closes
-  this one for you. Hanadi can still see it.") → `use-chat` gains
-  `resetGuestThread(): void` — guest mode only: clears the session
-  (`tokenRef=null`, messages, thread), runs the bootstrap effect with
-  `reset: true` (one-shot flag consumed by the effect), i.e.
-  `bootstrapVisitorThread(guestId, { reset: true })`.
-- On success: new thread + token, URL stays `/chat` (guest threads are not
-  URL-addressed yet), composer ready; on 429: the existing error notice
-  shows the server message (≈ "You have started too many new conversations
-  today — please come back in a bit.").
-- `use-chat` change is additive: the bootstrap effect reads a
-  `resetRef` flag (default false) and the public `resetGuestThread` sets it
-  + bumps `runKey` (same path as `reconnect`).
+- Top-bar control (guest mode only): a `Plus` button (`aria-label` =
+  "Start a new conversation") → `AlertDialog` confirm ("Starting a new
+  conversation closes this one for you. Hanadi can still see it.") →
+  `use-chat.resetGuestThread()`. Guests have no list step, so the control
+  lives in the top bar (reachable on mobile + desktop).
+- `resetGuestThread(): void` — guest mode only: sets a one-shot `resetRef`
+  flag + bumps `runKey` (same path as `reconnect`), re-running the bootstrap
+  effect with `reset: true` → `bootstrapVisitorThread(guestId, reset)`.
+- On success: new thread + token swap in. On 429 (the 5/24 h cap): the
+  server kept the old thread open, and so does the client — the session
+  effect re-loads the old thread, so only the transient error notice shows
+  (no retry/error state over a conversation that still works). A plain
+  (non-reset) bootstrap failure still surfaces as the retry state.
 
 ## 3. `lib/chat/api.ts`
 
 - `deleteThread(threadId): Promise<ChatResult<void>>` → generated
   `Chat.deleteThread`.
-- `bootstrapVisitorThread(guestId, { reset = false })` — pass `reset` in
-  the body (generated type already has it after sub 01's `gen:api`).
+- `bootstrapVisitorThread(guestId, reset = false)` — passes `reset` in the
+  body (the generated type has it after sub 01's `gen:api`).
 
-## 4. i18n (`messages/{en,ar,tr}.json`, `ChatPanel` + new keys)
+## 4. i18n (`messages/{en,ar,tr}.json`, `ChatPanel`)
 
 - `deleteConversation`, `deleteConfirmTitle`, `deleteConfirmBody`,
-  `newConversationGuest` (confirm: `newConversationGuestTitle/Body`).
-  ar/tr written in natural, warm brand voice (she/her female forms).
+  `deleteConfirmAction`, `cancel`, `newConversationGuest`,
+  `newConversationGuestTitle/Body/Action`. ar/tr written in natural, warm
+  brand voice (she/her feminine second person).
+
+## Backend fix surfaced while verifying (sub 01 endpoint)
+
+- `ChatService.DeleteThreadAsync`: a guest-linked visitor thread has
+  `CustomerId = null`, so the original `thread.CustomerId != user.Id` check
+  404'd a user's own (device-linked) threads. "Mine" now mirrors
+  `ListThreadsAsync`: own `CustomerId` OR the thread's `GuestId` is linked to
+  the user.
 
 ## Definition of done
 
-- `pnpm typecheck` · `pnpm lint` (zero warnings) green.
-- Browser-verified (mobile + desktop, light + dark, en + ar):
-  - user: delete a thread → gone from list, confirm dialog, open-thread
-    edge (list step after delete), re-appears when staff reply (staff
-    sends from /staff/chat or via API).
-  - guest: new conversation → fresh empty thread, old one closed
-    (`staff-visitors-view` shows it closed), 5th/6th reset → limit notice.
+- `pnpm typecheck` · `pnpm lint` (zero warnings) green. ✅
+- Browser-verified (`frontend/scripts/verify-conversation-mgmt.mjs`,
+  playwright-core vs system Chromium) — A/B/C create the user's thread via
+  the signed-in `POST /chat/threads` (not the guest limiter), so only D/E
+  touch the 5/min/IP guest bucket. All green:
+  - A (mobile EN): delete → optimistic removal → server hides it → re-appears
+    when the customer sends.
+  - B (desktop EN): delete the open thread → back to the list.
+  - C (mobile AR): delete dialog + title render in Arabic/RTL.
+  - D (mobile EN dark, guest): new conversation → fresh thread, old one
+    closed `guest_reset`.
+  - E (API): reset closes the old thread; 5/24 h cap → the 6th reset is the
+    app-level 429 (`rate_limited`, the cap message).

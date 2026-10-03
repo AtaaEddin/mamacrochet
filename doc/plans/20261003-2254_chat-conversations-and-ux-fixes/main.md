@@ -86,8 +86,13 @@ Rationale (researched 2026-10-03; sources in `04-product-cta-new-conversation.md
   regenerated. The customer-authed DELETE is exercised in the browser in
   sub 02).
 - `02-conversation-management-ui.md` — chat UI: per-thread delete + confirm
-  (user mode), guest "New conversation" button + confirm + limit notice,
-  `use-chat` guest reset, i18n (en/ar/tr).
+  (user mode), guest "New conversation" button (top bar) + confirm + limit
+  notice, `use-chat` guest reset, i18n (en/ar/tr). **Done 2026-10-03**
+  (typecheck + lint 0 warn; browser-verified via
+  `frontend/scripts/verify-conversation-mgmt.mjs` — user delete on mobile
+  EN/desktop EN/mobile AR, guest reset on mobile dark, API 5/24 h cap; the
+  `DeleteThreadAsync` guest-linked-ownership fix surfaced during
+  verification is included).
 - `03-rtl-thread-sides.md` — thread sides stay fixed in `ar`
   (`dir="ltr"` message column, `dir="auto"` message bodies).
 - `04-product-cta-new-conversation.md` — `?work=` for logged-in customers
