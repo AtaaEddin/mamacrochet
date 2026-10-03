@@ -6,7 +6,13 @@ public sealed record VisitorThreadRequest(
     string GuestId,
     string? Name,
     /// <summary>Honeypot (D16) — hidden field, always empty from real UI.</summary>
-    string? Website);
+    string? Website,
+    /// <summary>
+    /// Guest "new conversation" (plan 20261003-2254 sub 01): close this
+    /// device's active visitor thread and start a fresh one. Rate-limited
+    /// (5 resets / device / 24 h — D16); old clients omit it (default false).
+    /// </summary>
+    bool? Reset);
 
 public sealed record SendMessageRequest(
     string? Body,

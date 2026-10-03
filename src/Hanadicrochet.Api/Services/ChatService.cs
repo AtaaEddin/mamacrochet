@@ -41,6 +41,14 @@ public sealed class ChatService(
     public const int MaxAttachments = 5;
     public const long MaxFileBytes = 10 * 1024 * 1024; // 10 MB
     public const int GuestMessagesPerMinute = 10;
+
+    /// <summary>
+    /// Guest "new conversation" budget (D16, plan 20261003-2254 sub 01):
+    /// a guest's anonymous surface is one live thread per device — the
+    /// reset is the guest's "delete + new", so it is capped like the
+    /// message budget (no Redis — D9).
+    /// </summary>
+    public const int MaxGuestResetsPerDay = 5;
     public const int MaxMessagePageSize = 100;
     public const int ThreadsPerPage = 50;
     public static readonly TimeSpan StaleAfter = TimeSpan.FromDays(30);
@@ -53,6 +61,7 @@ public sealed class ChatService(
 
     private static readonly object GuestRateLock = new();
     private static readonly Dictionary<string, (long WindowStart, int Count)> GuestWindows = new();
+    private static readonly Dictionary<string, (long WindowStart, int Count)> GuestResetWindows = new();
 
     // ---- Access ------------------------------------------------------------
 
@@ -106,9 +115,15 @@ public sealed class ChatService(
     /// Idempotent per device: returns the device's active visitor thread, or
     /// creates one. One active visitor thread per device (D16) — the
     /// filtered unique index backstops the race.
+    /// <paramref name="reset"/> (guest "new conversation", plan
+    /// 20261003-2254 sub 01): the device's active visitor thread is closed
+    /// (staff can still see it: <c>guest_reset</c>) and a fresh thread is
+    /// created — capped at <see cref="MaxGuestResetsPerDay"/> / 24 h per
+    /// device; the closed thread, unlike the delete (sub 01), stays in the
+    /// staff inbox.
     /// </summary>
     public async Task<VisitorThreadResult> BootstrapVisitorThreadAsync(
-        string? guestId, string? name, string? honeypot, CancellationToken ct)
+        string? guestId, string? name, string? honeypot, bool reset, CancellationToken ct)
     {
         // Honeypot (D16): bots fill the hidden field — answer warmly, store
         // nothing (a token bound to a fabricated thread authenticates to
@@ -135,6 +150,15 @@ public sealed class ChatService(
 
         var deviceId = guestId.Trim();
 
+        if (reset && !TryPassGuestResetLimit(deviceId))
+        {
+            return new VisitorThreadResult(
+                new ApiError(
+                    "rate_limited",
+                    "You have started too many new conversations today — please come back in a bit."),
+                null, false);
+        }
+
         var subject = name?.Trim();
         if (subject is not null && subject.Length is > 0 and < 2)
         {
@@ -151,6 +175,20 @@ public sealed class ChatService(
         }
 
         ChatThread? thread = await FindActiveVisitorThreadAsync(deviceId, ct);
+        if (thread is not null && reset)
+        {
+            // The guest's "delete + new": the old thread is CLOSED (staff
+            // keep the full view + the closed one), a fresh thread is the
+            // new conversation. A thread already bound to an order is not
+            // the device's visitor thread (Kind filter) — it is untouched.
+            var now = DateTime.UtcNow;
+            thread.IsClosed = true;
+            thread.ClosedAt = now;
+            thread.ClosedReason = "guest_reset";
+            thread.UpdatedAt = now;
+            await db.SaveChangesAsync(ct);
+            thread = null;
+        }
         if (thread is null)
         {
             var now = DateTime.UtcNow;
@@ -430,10 +468,13 @@ public sealed class ChatService(
                     .Where(g => g.UserId == user.Id)
                     .Select(g => g.GuestId)
                     .ToListAsync(ct);
+                // The customer's deletes (archive, plan 20261003-2254 sub 01)
+                // hide the row from THEM only — staff/admin are unaffected.
                 q = linkedGuestIds.Count == 0
-                    ? q.Where(t => t.CustomerId == user.Id)
-                    : q.Where(t => t.CustomerId == user.Id
-                        || linkedGuestIds.Contains(t.GuestId ?? ""));
+                    ? q.Where(t => t.CustomerId == user.Id && t.CustomerDeletedAt == null)
+                    : q.Where(t => t.CustomerDeletedAt == null
+                        && (t.CustomerId == user.Id
+                            || linkedGuestIds.Contains(t.GuestId ?? "")));
             }
         }
 
@@ -825,6 +866,9 @@ public sealed class ChatService(
 
         thread.LastMessageAt = now;
         thread.UpdatedAt = now;
+        // A conversation resumes when anyone speaks again: a customer-deleted
+        // (archive) thread re-appears in their list (plan 20261003-2254 sub 01).
+        thread.CustomerDeletedAt = null;
         // A named visitor thread is friendlier in inboxes: a guest thread
         // without a name takes its first words.
         if (thread.Kind is ChatThreadKind.Visitor && !thread.IsClosed
@@ -860,6 +904,29 @@ public sealed class ChatService(
             }
 
             GuestWindows[guestId] = (window.WindowStart, window.Count + 1);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Per-device guest reset budget (D16, plan 20261003-2254 sub 01): fixed
+    /// 24 h window, same in-memory pattern as the message budget.
+    /// </summary>
+    private static bool TryPassGuestResetLimit(string guestId)
+    {
+        const long WindowMs = 24 * 60 * 60 * 1000;
+        lock (GuestRateLock)
+        {
+            var now = Environment.TickCount64;
+            var window = GuestResetWindows.TryGetValue(guestId, out var w) && now - w.WindowStart < WindowMs
+                ? w
+                : (WindowStart: now, Count: 0);
+            if (window.Count >= MaxGuestResetsPerDay)
+            {
+                return false;
+            }
+
+            GuestResetWindows[guestId] = (window.WindowStart, window.Count + 1);
             return true;
         }
     }
@@ -999,6 +1066,41 @@ public sealed class ChatService(
         return thread is null
             ? (ApiError.NotFound("conversation_not_found"), null)
             : (null, thread);
+    }
+
+    // ---- Customer delete (archive, plan 20261003-2254 sub 01) -------------
+
+    /// <summary>
+    /// The customer's delete: HIDE the conversation from their list (archive
+    /// semantics, NOT a hard delete). Any later send — a staff reply or the
+    /// customer re-entering the thread — clears the flag and the row comes
+    /// back. Staff lists, the admin full trace and the order status board
+    /// never see this flag; nothing is erased server-side.
+    /// Customers only; idempotent.
+    /// </summary>
+    public async Task<ChatThreadResult> DeleteThreadAsync(
+        AppUser user, string threadId, CancellationToken ct)
+    {
+        if (user.IsEmployee || user.IsAdmin)
+        {
+            // Staff keep their own close (with reason); this is the
+            // customer's per-account hide, not a staff action.
+            return new ChatThreadResult(
+                new ApiError("forbidden", "Staff use close for conversations."), null);
+        }
+
+        var thread = await db.ChatThreads.FirstOrDefaultAsync(t => t.Id == threadId, ct);
+        if (thread is null || thread.CustomerId != user.Id)
+        {
+            // 404, not 403: don't leak other accounts' threads by id.
+            return new ChatThreadResult(ApiError.NotFound("conversation_not_found"), null);
+        }
+
+        var now = DateTime.UtcNow;
+        thread.CustomerDeletedAt = now;
+        thread.UpdatedAt = now;
+        await db.SaveChangesAsync(ct);
+        return new ChatThreadResult(null, null);
     }
 
     // ---- Attachments (shared file pipeline, D8) --------------------------------

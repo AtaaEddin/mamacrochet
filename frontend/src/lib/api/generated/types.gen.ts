@@ -534,6 +534,7 @@ export type VisitorThreadRequest = {
     guestId: string;
     name: null | string;
     website: null | string;
+    reset: null | boolean;
 };
 
 export type AntiforgeryGetData = {
@@ -947,6 +948,61 @@ export type ChatBootstrapVisitorThreadResponses = {
 };
 
 export type ChatBootstrapVisitorThreadResponse = ChatBootstrapVisitorThreadResponses[keyof ChatBootstrapVisitorThreadResponses];
+
+export type ChatDeleteThreadData = {
+    body?: never;
+    path: {
+        threadId: string;
+    };
+    query?: never;
+    url: '/chat/threads/{threadId}';
+};
+
+export type ChatDeleteThreadErrors = {
+    /**
+     * Error 400
+     */
+    400: ApiError;
+    /**
+     * Error 401
+     */
+    401: ApiError;
+    /**
+     * Error 403
+     */
+    403: ApiError;
+    /**
+     * Error 404
+     */
+    404: ApiError;
+    /**
+     * Error 409
+     */
+    409: ApiError;
+    /**
+     * Error 423
+     */
+    423: ApiError;
+    /**
+     * Error 429
+     */
+    429: ApiError;
+    /**
+     * Error 500
+     */
+    500: ApiError;
+};
+
+export type ChatDeleteThreadError = ChatDeleteThreadErrors[keyof ChatDeleteThreadErrors];
+
+export type ChatDeleteThreadResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ChatDeleteThreadResponse = ChatDeleteThreadResponses[keyof ChatDeleteThreadResponses];
 
 export type ChatGetThreadData = {
     body?: never;

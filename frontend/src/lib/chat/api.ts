@@ -74,13 +74,20 @@ async function call<T>(
 
 // ---- Guest bootstrap -------------------------------------------------------
 
-export function bootstrapVisitorThread(guestId: string) {
+/**
+ * The guest's "new conversation" (plan 20261003-2254 sub 01): `reset: true`
+ * closes the device's active visitor thread (staff still see it,
+ * `guest_reset`) and opens a fresh one — capped server-side at 5 / 24 h
+ * per device (D16).
+ */
+export function bootstrapVisitorThread(guestId: string, reset = false) {
   return call<VisitorThreadCreated>(() =>
     Chat.bootstrapVisitorThread({
       body: {
         guestId,
         name: null,
         website: null,
+        reset,
       },
     }),
   );

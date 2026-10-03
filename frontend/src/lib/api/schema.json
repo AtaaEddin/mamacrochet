@@ -1024,6 +1024,108 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "The customer's delete: hide the conversation from their list (archive — a reply or their next message re-opens it). Staff and admin views are never affected.",
+        "operationId": "chat.deleteThread",
+        "parameters": [
+          {
+            "name": "threadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Error 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error 401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error 403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error 409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Error 423",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error 429",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error 500",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/chat/threads/{threadId}/messages": {
@@ -10778,7 +10880,8 @@
         "required": [
           "guestId",
           "name",
-          "website"
+          "website",
+          "reset"
         ],
         "type": "object",
         "properties": {
@@ -10795,6 +10898,12 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "reset": {
+            "type": [
+              "null",
+              "boolean"
             ]
           }
         }

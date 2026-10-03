@@ -59,6 +59,15 @@ public class ChatThread
     /// <summary>Display title: the guest's name, else the first words spoken.</summary>
     public string? Subject { get; set; }
 
+    /// <summary>
+    /// The customer hid this conversation (archive semantics, NOT a hard
+    /// delete — plan 20261003-2254 sub 01): hidden from that customer's
+    /// thread list until a send arrives (a staff reply or the customer
+    /// re-entering clears it). Staff/admin lists and the admin trace are
+    /// never affected; nothing is erased server-side.
+    /// </summary>
+    public DateTime? CustomerDeletedAt { get; set; }
+
     public bool IsClosed { get; set; }
 
     public DateTime? ClosedAt { get; set; }

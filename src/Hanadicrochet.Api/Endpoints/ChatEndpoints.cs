@@ -33,10 +33,14 @@ public static class ChatEndpoints
             VisitorThreadRequest request, ChatService chat, CancellationToken ct) =>
         {
             var result = await chat.BootstrapVisitorThreadAsync(
-                request.GuestId, request.Name, request.Website, ct);
+                request.GuestId, request.Name, request.Website, request.Reset ?? false, ct);
             if (result.Error is not null)
             {
-                return Results.BadRequest(result.Error);
+                // The reset cap (guest "new conversation") is a rate limit;
+                // every other bootstrap error is a plain bad request.
+                return result.Error.Code == "rate_limited"
+                    ? Results.Json(result.Error, statusCode: StatusCodes.Status429TooManyRequests)
+                    : Results.BadRequest(result.Error);
             }
 
             return Results.Ok(result.Created!);
@@ -92,7 +96,30 @@ public static class ChatEndpoints
         .Produces<ThreadDto>(StatusCodes.Status201Created)
         .WithName("chat.createThread");
 
-        // ---- Thread detail (cookie OR thread token) ------------------------
+            mine.MapDelete("/threads/{threadId}", async (
+            string threadId, ClaimsPrincipal principal,
+            ChatService chat, AppDbContext db, CancellationToken ct) =>
+        {
+            var user = await RequireUserAsync(principal, db, ct);
+            if (user is null)
+            {
+                return Results.Json(new ApiError("unauthenticated", "Sign in to continue."),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var result = await chat.DeleteThreadAsync(user, threadId, ct);
+            return result.Error is not null
+                ? ResultFor(result.Error, null)
+                : Results.NoContent();
+        })
+        .WithSummary(
+            "The customer's delete: hide the conversation from their list " +
+            "(archive — a reply or their next message re-opens it). Staff and " +
+            "admin views are never affected.")
+        .Produces(StatusCodes.Status204NoContent)
+        .WithName("chat.deleteThread");
+
+    // ---- Thread detail (cookie OR thread token) ------------------------
         app.MapGet("/chat/threads/{threadId}", async (
             string threadId, HttpContext http, ChatService chat,
             ChatTokenService tokens, AppDbContext db, CancellationToken ct) =>
