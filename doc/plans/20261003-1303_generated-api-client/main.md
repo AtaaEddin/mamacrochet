@@ -1,6 +1,6 @@
 # Generated per-operation API client — no route strings in the frontend
 
-status: in-progress
+status: done
 created: 2026-10-03 13:03 (+03)
 owner: agent (requested by owner 2026-10-03)
 
@@ -86,6 +86,20 @@ guestId plumbing) but contain **zero route strings**. `openapi-fetch` + the
   regenerated spec files converge with the parallel agent's in-flight work
   (deep-diff = exactly 01's 59 nodes); typecheck + lint zero warnings. See
   02 Implementation log.
+- **03 done (2026-10-03)**: all call sites migrated to the generated SDK;
+  `openapi-fetch`/`openapi-typescript`/`schema.d.ts` removed; zero route
+  strings + zero raw fetch outside the generated tree and transport. Browser
+  verification 16/16 in light AND dark (guest order w/ multipart, chat
+  attachment, hiring accept/decline, staff payment/delivery lifecycle,
+  register/login, DB assertions). See 03 Notes.
+
+## Known pre-existing issues (surfaced during 03 browser verification)
+
+Not fixed under this plan (no behavior changes allowed). See
+`03-migrate-call-sites.md` → “Pre-existing product issues found”:
+chat attachment images 404 (missing `fileSrc()`), staff chat auto-open 403
+(unclaimed visitor threads), hiring dialog overflow, two `use-chat` send
+races (pending-file drop, pre-bootstrap send drop).
 
 ## Decisions (recorded with sources)
 
