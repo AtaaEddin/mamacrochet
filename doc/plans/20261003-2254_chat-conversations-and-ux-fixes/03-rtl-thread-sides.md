@@ -1,6 +1,6 @@
 # 03 — RTL: conversation sides must not flip in Arabic
 
-status: proposed
+status: done
 
 Frontend only (`chat-panel.tsx`). Ask 2: "even switching to Arabic the
 conversation sides shouldn't flip sides".
@@ -30,7 +30,18 @@ text) to the RIGHT — the conversation visually flips.
 
 ## Definition of done
 
-- `pnpm typecheck` · `pnpm lint` green.
+- `pnpm typecheck` · `pnpm lint` green. ✅
 - Browser-verified in `ar` AND `en` (mobile + desktop, light + dark):
   customer bubble right, Hanadi avatar left, Arabic body text starts from
-  the right, product bubbles + attachments unaffected.
+  the right, product bubbles + attachments unaffected. ✅
+
+  Verified by `frontend/scripts/verify-rtl-thread-sides.mjs` (playwright-core
+  vs system Chromium): one thread holding a customer + a staff (Hanadi)
+  message, rendered in `en` and `ar` on mobile + desktop, light + dark. The
+  message column is `dir="ltr"`, the body paragraphs `dir="auto"`, the Arabic
+  body computes `direction: rtl` (right-aligned), the customer bubble sits to
+  the right of the staff avatar, and the customer↔staff span is unchanged
+  `en`→`ar` in every config (the sides never flip). Note: on desktop the
+  whole message column shifts because the 3-column layout mirrors in RTL —
+  that is the expected surrounding-layout mirroring, not a conversation-side
+  flip (the relative span is identical).

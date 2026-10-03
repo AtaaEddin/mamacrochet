@@ -95,6 +95,10 @@ Rationale (researched 2026-10-03; sources in `04-product-cta-new-conversation.md
   verification is included).
 - `03-rtl-thread-sides.md` — thread sides stay fixed in `ar`
   (`dir="ltr"` message column, `dir="auto"` message bodies).
+  **Done 2026-10-03** (typecheck + lint 0 warn; browser-verified via
+  `frontend/scripts/verify-rtl-thread-sides.mjs` — customer + staff thread
+  rendered in `en`+`ar`, mobile+desktop, light+dark: sides never flip,
+  Arabic body right-aligned).
 - `04-product-cta-new-conversation.md` — `?work=` for logged-in customers
   opens a NEW conversation with the work; `?work=` dropped after the first
   send (guests included).
