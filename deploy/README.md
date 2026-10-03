@@ -41,6 +41,29 @@ cp .env.example .env      # set POSTGRES_PASSWORD, CADDY_SITE, MM_SITE_URL
 `http://<ip>:<HTTP_PORT>`; with a real domain Caddy obtains Let's Encrypt
 certs automatically (port 443 must be reachable).
 
+## Admin account (auto-seeded)
+
+On the very first boot the api seeds **one admin account** — no manual
+steps. `/staff/login` + the `/admin/*` pages require it.
+
+- **E-mail**: `ADMIN_SEED_EMAIL` from `.env`, default `admin@hanadicrochet.example`.
+- **Password**: `ADMIN_SEED_PASSWORD` from `.env`, otherwise a strong random
+  password generated at first seed (fresh installs only — a later
+  (re)start never overwrites a changed password).
+- **Initial credentials are logged exactly once** by the api at first seed:
+
+  ```bash
+  cd deploy && docker compose logs api | grep -i "admin seeded"
+  ```
+
+- **First login** at `/staff/login` **forces a password change** — that new
+  password is the one you use going forward. To use a fixed initial
+  password instead, put it in `ADMIN_SEED_PASSWORD` *before* the first boot.
+
+If the initial password was changed and is now lost: the log line above is
+the recovery path; as a last resort update the user's hash in Postgres
+(`restore.md` shows how to reach `psql`).
+
 ## Updating after a code change
 
 On the dev machine, push/`rsync` the repo to the host, then on the host:

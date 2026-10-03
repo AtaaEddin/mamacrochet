@@ -275,6 +275,7 @@ builder.Services.AddHostedService<OrderSweepService>();
 builder.Services.AddHostedService<ChatSweepService>();
 
 builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection(UploadsOptions.SectionName));
+builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.SectionName));
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
@@ -450,8 +451,18 @@ app.MapHealthChecks("/alive", new HealthCheckOptions
 // every (re)start is safe; compose gates this on a healthy postgres.
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var sp = scope.ServiceProvider;
+    var db = sp.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Admin bootstrap (plan 20261003-2126): guarantees an admin account
+    // exists, with a configured or generated strong password. Idempotent —
+    // a no-op while any non-deleted admin exists.
+    await AdminSeeder.SeedAsync(
+        db,
+        sp.GetRequiredService<UserManager<AppUser>>(),
+        sp.GetRequiredService<IOptions<AdminSeedOptions>>().Value,
+        sp.GetRequiredService<ILoggerFactory>().CreateLogger("Hanadicrochet.Api.Data.AdminSeeder"));
 
     // Plan 04: starter catalog (4 categories + 6 sample pieces). Idempotent —
     // a no-op once seeded.

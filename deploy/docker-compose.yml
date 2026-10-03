@@ -36,6 +36,10 @@ services:
     environment:
       ConnectionStrings__hanadicrochet: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       Uploads__Root: /data/uploads
+      # Admin bootstrap (auto-seeded admin; empty = generated password,
+      # logged once — see README "Admin account").
+      AdminSeed__Email: ${ADMIN_SEED_EMAIL:-}
+      AdminSeed__Password: ${ADMIN_SEED_PASSWORD:-}
     volumes:
       - ./data/uploads:/data/uploads
     depends_on:
