@@ -1,6 +1,6 @@
 # 02 — New conversations for customers and employees
 
-status: proposed
+status: done (verified 2026-10-03; commit 06a4eee)
 
 Owner ask: "both customers and employees to be able to open new
 conversations as they want."
@@ -64,3 +64,24 @@ Both routes join the OpenAPI spec → `pnpm gen:api` regenerates the client.
    thread; the thread is visible to both sides. Light + dark, mobile +
    desktop. Screenshots.
 4. Plan + `COMMITS.md` updated; clean commit.
+
+## Verification (2026-10-03)
+
+- `dotnet build` 0 warnings/0 errors · `dotnet test` no-op (no test project
+  in the solution).
+- `pnpm typecheck` · `pnpm lint` green · `pnpm gen:api` regenerated
+  (new `chat.createThread` + `staff.searchCustomers` operations in the
+  client).
+- `scripts/verify-chat-app-screen.mjs` — **NC section 14/14** (full script
+  78/78 incl. all other sections): customer "+" button (desktop + mobile)
+  → `POST /chat/threads` 201 → `?thread=` opens; staff "/staff/chat"
+  "New conversation" dialog → debounced search finds the customer →
+  pick → 201 → thread opens; the customer's `/chat` auto-opens the
+  staff-created thread (visible to both sides); staff can't open a staff
+  thread (own id → 404); dark OK. Screenshots:
+  `new-conversation-customer.png`, `new-conversation-staff-dialog.png` in
+  `/tmp/hanadicrochet-shots`.
+- Note (co-working tree): the OData `WithName`/query-param work of plan
+  `20261003-1303_generated-api-client` was in flight in the same tree
+  during verification; this commit contains only the files of this
+  sub-plan (explicit paths).
