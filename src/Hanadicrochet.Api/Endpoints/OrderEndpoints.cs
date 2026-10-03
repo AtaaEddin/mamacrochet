@@ -79,7 +79,8 @@ public static class OrderEndpoints
         .DisableAntiforgery()
         .WithMetadata(new ConsumesAttribute("multipart/form-data"))
         .WithTags("Orders")
-        .Produces(200, typeof(OrderCreated));
+        .Produces(200, typeof(OrderCreated))
+        .WithName("orders.create");
     }
 
     // ---- /orders — customer surface --------------------------------------
@@ -127,7 +128,8 @@ public static class OrderEndpoints
                 : Results.BadRequest(error);
         })
         .Produces<OrderPage>(200)
-        .Produces<ApiError>(400);
+        .Produces<ApiError>(400)
+        .WithName("orders.list");
 
         orders.MapGet("/{id}", async (
             string id,
@@ -166,7 +168,8 @@ public static class OrderEndpoints
                 ct));
         })
         .Produces<OrderDetail>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("orders.get");
 
         orders.MapPost("/{id}/cancel", async (
             string id,
@@ -205,7 +208,8 @@ public static class OrderEndpoints
         })
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404)
-        .Produces<ApiError>(409);
+        .Produces<ApiError>(409)
+        .WithName("orders.cancel");
 
         orders.MapPost("/{id}/confirm-delivery", async (
             string id,
@@ -235,7 +239,8 @@ public static class OrderEndpoints
         })
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404)
-        .Produces<ApiError>(409);
+        .Produces<ApiError>(409)
+        .WithName("orders.confirmDelivery");
 
         orders.MapPost("/{id}/rating", async (
             string id,
@@ -269,7 +274,8 @@ public static class OrderEndpoints
         })
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404)
-        .Produces<ApiError>(409);
+        .Produces<ApiError>(409)
+        .WithName("orders.rate");
     }
 
     // ---- /staff/orders — employee queue ----------------------------------
@@ -311,7 +317,8 @@ public static class OrderEndpoints
                 : Results.BadRequest(error);
         })
         .Produces<OrderPage>(200)
-        .Produces<ApiError>(400);
+        .Produces<ApiError>(400)
+        .WithName("staff.orders.list");
 
         orders.MapGet("/{id}", async (
             string id,
@@ -341,7 +348,8 @@ public static class OrderEndpoints
                 order, user.IsAdmin, owner, staff: true, ct));
         })
         .Produces<OrderDetail>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.orders.get");
 
         orders.MapPost("/{id}/status", async (
             string id,
@@ -381,7 +389,8 @@ public static class OrderEndpoints
         })
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404)
-        .Produces<ApiError>(409);
+        .Produces<ApiError>(409)
+        .WithName("staff.orders.status");
 
         orders.MapPost("/{id}/notes", async (
             string id,
@@ -419,7 +428,8 @@ public static class OrderEndpoints
                 fresh!, user.IsAdmin, owner: false, staff: true, ct));
         })
         .Produces<OrderDetail>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.orders.note");
 
         orders.MapPost("/{id}/payment", async (
             string id,
@@ -432,7 +442,8 @@ public static class OrderEndpoints
             ClaimsPrincipal principal,
             CancellationToken ct) =>
             await HandlePaymentAsync(id, amount, method, note, receipt,
-                db, service, principal, false, ct));
+                db, service, principal, false, ct))
+        .WithName("staff.orders.payment");
 
         orders.MapPost("/{id}/delivery", async (
             string id,
@@ -445,7 +456,8 @@ public static class OrderEndpoints
             ClaimsPrincipal principal,
             CancellationToken ct) =>
             await HandleDeliveryAsync(id, method, actualAt, description, proof,
-                db, service, principal, false, ct));
+                db, service, principal, false, ct))
+        .WithName("staff.orders.delivery");
 
         orders.MapPost("/{id}/attachments", async (
             string id,
@@ -488,7 +500,8 @@ public static class OrderEndpoints
                 fresh!, user.IsAdmin, owner: false, staff: true, ct));
         })
         .Produces<OrderDetail>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.orders.attachments");
 
         // Per-order assignment (admin): the order's own employee, else the
         // customer's default handler applies.
@@ -520,7 +533,8 @@ public static class OrderEndpoints
         })
         .RequireAuthorization(Policies.Admin)
         .Produces<OrderDetail>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.orders.assign");
     }
 
     // Plan 07: the same payment/delivery handlers serve the admin surface —
@@ -659,7 +673,8 @@ public static class OrderEndpoints
         // metrics panel is part of this surface.
         orders.MapGet("/metrics", async (OrderService service, CancellationToken ct) =>
             Results.Ok(await service.MetricsAsync(ct)))
-        .Produces<OrderMetrics>(200);
+        .Produces<OrderMetrics>(200)
+        .WithName("admin.orders.metrics");
 
         orders.MapGet("", async (
             AppDbContext db,
@@ -682,7 +697,8 @@ public static class OrderEndpoints
                 : Results.BadRequest(error);
         })
         .Produces<OrderPage>(200)
-        .Produces<ApiError>(400);
+        .Produces<ApiError>(400)
+        .WithName("admin.orders.list");
 
         orders.MapGet("/{id}", async (
             string id,
@@ -709,7 +725,8 @@ public static class OrderEndpoints
                 ct));
         })
         .Produces<OrderDetail>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("admin.orders.get");
 
         // Plan 07: admin payment/delivery records (mapped after /metrics and
         // before /{id} is unreachable — static segments win, and these are
@@ -726,7 +743,8 @@ public static class OrderEndpoints
             ClaimsPrincipal principal,
             CancellationToken ct) =>
             await HandlePaymentAsync(id, amount, method, note, receipt,
-                db, service, principal, true, ct));
+                db, service, principal, true, ct))
+        .WithName("admin.orders.payment");
 
         orders.MapPost("/{id}/delivery", async (
             string id,
@@ -739,7 +757,8 @@ public static class OrderEndpoints
             ClaimsPrincipal principal,
             CancellationToken ct) =>
             await HandleDeliveryAsync(id, method, actualAt, description, proof,
-                db, service, principal, true, ct));
+                db, service, principal, true, ct))
+        .WithName("admin.orders.delivery");
 
         orders.MapPost("/{id}/status", async (
             string id,
@@ -771,7 +790,8 @@ public static class OrderEndpoints
         })
         .Produces<OrderDetail>(200)
         .Produces<ApiError>(404)
-        .Produces<ApiError>(409);
+        .Produces<ApiError>(409)
+        .WithName("admin.orders.status");
     }
 
     // ---- /files/orders — order files --------------------------------------

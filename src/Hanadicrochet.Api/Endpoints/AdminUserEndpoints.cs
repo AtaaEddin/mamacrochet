@@ -60,7 +60,8 @@ public static class AdminUserEndpoints
                 p,
                 size));
         })
-        .Produces(200, typeof(UserPage));
+        .Produces(200, typeof(UserPage))
+        .WithName("admin.users.list");
 
         users.MapPost("", async (
             CreateUserRequest request,
@@ -92,7 +93,8 @@ public static class AdminUserEndpoints
 
             return Results.Ok(new UserCreated(UserDto.From(result.User!), result.TemporaryPassword!));
         })
-        .Produces(200, typeof(UserCreated));
+        .Produces(200, typeof(UserCreated))
+        .WithName("admin.users.create");
 
         users.MapPatch("/{id}", async (
             string id,
@@ -124,7 +126,8 @@ public static class AdminUserEndpoints
 
             return Results.Ok(UserDto.From(result.User!));
         })
-        .Produces(200, typeof(UserDto));
+        .Produces(200, typeof(UserDto))
+        .WithName("admin.users.update");
 
         users.MapPost("/{id}/password-reset", async (
             string id,
@@ -140,7 +143,8 @@ public static class AdminUserEndpoints
 
             return Results.Ok(new PasswordResetResult(result.TemporaryPassword!));
         })
-        .Produces(200, typeof(PasswordResetResult));
+        .Produces(200, typeof(PasswordResetResult))
+        .WithName("admin.users.passwordReset");
 
         users.MapDelete("/{id}", async (
             string id,
@@ -158,6 +162,7 @@ public static class AdminUserEndpoints
 
             return Results.NoContent();
         })
-        .Produces(204);
+        .Produces(204)
+        .WithName("admin.users.delete");
     }
 }

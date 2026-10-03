@@ -35,7 +35,8 @@ public static class CatalogEndpoints
                 : Results.BadRequest(error);
         })
         .Produces<ProductPage>(200)
-        .Produces<ApiError>(400);
+        .Produces<ApiError>(400)
+        .WithName("catalog.products.list");
 
         catalog.MapGet("/products/{id}", async (
             string id,
@@ -55,7 +56,8 @@ public static class CatalogEndpoints
                 : Results.Ok(ProductDto.From(product));
         })
         .Produces<ProductDto>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("catalog.product.get");
 
         catalog.MapGet("/categories", async (
             AppDbContext db,
@@ -70,6 +72,7 @@ public static class CatalogEndpoints
 
             return Results.Ok(categories.Select(CategoryDto.From).ToList());
         })
-        .Produces<IReadOnlyList<CategoryDto>>(200);
+        .Produces<IReadOnlyList<CategoryDto>>(200)
+        .WithName("catalog.categories.list");
     }
 }

@@ -42,7 +42,8 @@ public static class IdentityEndpoints
                     : Results.Ok(new CsrfToken(token));
             })
             .WithTags("Identity")
-            .Produces(200, typeof(CsrfToken));
+            .Produces(200, typeof(CsrfToken))
+            .WithName("antiforgery.get");
 
         var identity = app.MapGroup("/identity").WithTags("Identity");
 
@@ -90,7 +91,8 @@ public static class IdentityEndpoints
             await signIn.SignInAsync(user, isPersistent: false);
             return Results.Ok(UserDto.From(user));
         })
-        .Produces(200, typeof(UserDto));
+        .Produces(200, typeof(UserDto))
+        .WithName("identity.register");
 
         identity.MapPost("/login", async (
             LoginRequest request,
@@ -140,14 +142,16 @@ public static class IdentityEndpoints
             await signIn.SignInAsync(user, isPersistent: false);
             return Results.Ok(UserDto.From(user));
         })
-        .Produces(200, typeof(UserDto));
+        .Produces(200, typeof(UserDto))
+        .WithName("identity.login");
 
         identity.MapPost("/logout", async (SignInManager<AppUser> signIn) =>
         {
             await signIn.SignOutAsync();
             return Results.NoContent();
         })
-        .Produces(204);
+        .Produces(204)
+        .WithName("identity.logout");
 
         identity.MapGet("/me", async (AppDbContext db, ClaimsPrincipal principal) =>
         {
@@ -157,7 +161,8 @@ public static class IdentityEndpoints
                 : Results.Ok(UserDto.From(user));
         })
         .RequireAuthorization(Policies.Any)
-        .Produces(200, typeof(UserDto));
+        .Produces(200, typeof(UserDto))
+        .WithName("identity.me.get");
 
         identity.MapPatch("/me", async (
             ProfileUpdateRequest request,
@@ -191,7 +196,8 @@ public static class IdentityEndpoints
             return Results.Ok(UserDto.From(user));
         })
         .RequireAuthorization(Policies.Any)
-        .Produces(200, typeof(UserDto));
+        .Produces(200, typeof(UserDto))
+        .WithName("identity.me.update");
 
         identity.MapPost("/change-password", async (
             PasswordChangeRequest request,
@@ -228,7 +234,8 @@ public static class IdentityEndpoints
             return Results.NoContent();
         })
         .RequireAuthorization(Policies.Any)
-        .Produces(204);
+        .Produces(204)
+        .WithName("identity.me.passwordChange");
 
         identity.MapPost("/guest-link", async (
             GuestLinkRequest request,
@@ -257,7 +264,8 @@ public static class IdentityEndpoints
             }
         })
         .RequireAuthorization(Policies.Any)
-        .Produces(200, typeof(Models.GuestLinkResult));
+        .Produces(200, typeof(Models.GuestLinkResult))
+        .WithName("identity.guestLink");
 
         // Form-bound endpoints get automatic anti-forgery metadata, which would
         // require the built-in UseAntiforgery middleware (and its untyped 400).
@@ -328,6 +336,7 @@ public static class IdentityEndpoints
         })
         .RequireAuthorization(Policies.Any)
         .DisableAntiforgery()
-        .Produces(200, typeof(UserDto));
+        .Produces(200, typeof(UserDto))
+        .WithName("identity.avatar.upload");
     }
 }

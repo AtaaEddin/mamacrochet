@@ -42,7 +42,8 @@ public static class StaffProductEndpoints
                 : Results.BadRequest(error);
         })
         .Produces<ProductPage>(200)
-        .Produces<ApiError>(400);
+        .Produces<ApiError>(400)
+        .WithName("staff.products.list");
 
         products.MapGet("/{id}", async (
             string id,
@@ -62,7 +63,8 @@ public static class StaffProductEndpoints
                 : Results.Ok(ProductDto.From(product));
         })
         .Produces<ProductDto>(200)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.product.get");
 
         products.MapPost("", async (
             CreateProductRequest request,
@@ -81,7 +83,8 @@ public static class StaffProductEndpoints
         })
         .Produces<ProductDto>(200)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.products.create");
 
         products.MapPatch("/{id}", async (
             string id,
@@ -101,7 +104,8 @@ public static class StaffProductEndpoints
         })
         .Produces<ProductDto>(200)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.products.update");
 
         // Hard surface of the soft delete — admin only.
         products.MapDelete("/{id}", async (
@@ -115,7 +119,8 @@ public static class StaffProductEndpoints
         })
         .RequireAuthorization(Policies.Admin)
         .Produces(204)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.products.delete");
 
         products.MapPost("/{id}/images", async (
             string id,
@@ -135,7 +140,8 @@ public static class StaffProductEndpoints
         })
         .Produces<IReadOnlyList<ProductImageDto>>(200)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.productImages.add");
 
         products.MapPut("/{id}/images", async (
             string id,
@@ -155,7 +161,8 @@ public static class StaffProductEndpoints
         })
         .Produces<IReadOnlyList<ProductImageDto>>(200)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.productImages.reorder");
 
         products.MapDelete("/{id}/images/{imageId}", async (
             string id,
@@ -172,7 +179,8 @@ public static class StaffProductEndpoints
         })
         .Produces(204)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.productImages.delete");
 
         MapCategories(app);
     }
@@ -197,7 +205,8 @@ public static class StaffProductEndpoints
 
             return Results.Ok(list.Select(CategoryDto.From).ToList());
         })
-        .Produces<IReadOnlyList<CategoryDto>>(200);
+        .Produces<IReadOnlyList<CategoryDto>>(200)
+        .WithName("staff.categories.list");
 
         categories.MapPost("", async (
             CreateCategoryRequest request,
@@ -216,7 +225,8 @@ public static class StaffProductEndpoints
         })
         .Produces<CategoryDto>(200)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.categories.create");
 
         categories.MapPatch("/{id}", async (
             string id,
@@ -236,7 +246,8 @@ public static class StaffProductEndpoints
         })
         .Produces<CategoryDto>(200)
         .Produces<ApiError>(400)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.categories.update");
 
         // Admin only, like product deletion.
         categories.MapDelete("/{id}", async (
@@ -251,7 +262,8 @@ public static class StaffProductEndpoints
         })
         .RequireAuthorization(Policies.Admin)
         .Produces(204)
-        .Produces<ApiError>(404);
+        .Produces<ApiError>(404)
+        .WithName("staff.categories.delete");
     }
 
     private static string? ActorId(ClaimsPrincipal principal) =>

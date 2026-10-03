@@ -137,6 +137,55 @@ builder.Services.AddOpenApi(options =>
             };
         }
     });
+
+    // OData-style query subset (plan 04, D19) on the QuerySpec-backed list
+    // endpoints: the binder reads $top/$skip/$filter/$orderby from the raw
+    // query string, so the document must declare them for a typed client.
+    // The fields allowed in $filter are per-endpoint (the binder's allowlist).
+    options.AddOperationTransformer((operation, context, ct) =>
+    {
+        if (operation.OperationId is not
+            ("orders.list" or "staff.orders.list" or "admin.orders.list" or "staff.products.list" or "catalog.products.list"))
+        {
+            return Task.CompletedTask;
+        }
+
+        operation.Parameters ??= new List<IOpenApiParameter>();
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = "$top",
+            In = ParameterLocation.Query,
+            Required = false,
+            Description = "Page size (items per page).",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
+        });
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = "$skip",
+            In = ParameterLocation.Query,
+            Required = false,
+            Description = "Number of items to skip.",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
+        });
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = "$filter",
+            In = ParameterLocation.Query,
+            Required = false,
+            Description = "OData v4.01 filter (fields restricted by the endpoint allowlist).",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        });
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = "$orderby",
+            In = ParameterLocation.Query,
+            Required = false,
+            Description = "Sort, e.g. \"createdAt desc\".",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        });
+
+        return Task.CompletedTask;
+    });
 });
 
 var connectionString = builder.Configuration.GetConnectionString("hanadicrochet")

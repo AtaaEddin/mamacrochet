@@ -82,7 +82,8 @@ public static class HiringEndpoints
         .DisableAntiforgery()
         .WithMetadata(new ConsumesAttribute("multipart/form-data"))
         .WithTags("Hiring")
-        .Produces(200, typeof(HiringSubmitted));
+        .Produces(200, typeof(HiringSubmitted))
+        .WithName("hiring.submit");
 
         var hiring = app
             .MapGroup("/admin/hiring")
@@ -124,7 +125,8 @@ public static class HiringEndpoints
                 p,
                 size));
         })
-        .Produces(200, typeof(HiringPage));
+        .Produces(200, typeof(HiringPage))
+        .WithName("admin.hiring.list");
 
         hiring.MapGet("/{id}", async (string id, AppDbContext db) =>
         {
@@ -141,7 +143,8 @@ public static class HiringEndpoints
 
             return Results.Ok(HiringApplicationDetailDto.From(application));
         })
-        .Produces(200, typeof(HiringApplicationDetailDto));
+        .Produces(200, typeof(HiringApplicationDetailDto))
+        .WithName("admin.hiring.get");
 
         hiring.MapPost("/{id}/accept", async (
             string id,
@@ -167,7 +170,8 @@ public static class HiringEndpoints
                 UserDto.From(result.User!),
                 result.TemporaryPassword!));
         })
-        .Produces(200, typeof(HiringAccepted));
+        .Produces(200, typeof(HiringAccepted))
+        .WithName("admin.hiring.accept");
 
         hiring.MapPost("/{id}/decline", async (
             string id,
@@ -190,7 +194,8 @@ public static class HiringEndpoints
 
             return Results.Ok(HiringApplicationDto.From(result.Application!));
         })
-        .Produces(200, typeof(HiringApplicationDto));
+        .Produces(200, typeof(HiringApplicationDto))
+        .WithName("admin.hiring.decline");
 
         // Previous-work files: admin-only, DB row re-verified on every request
         // (stored names are opaque "{32-hex}.ext" — no path traversal).
