@@ -1,6 +1,6 @@
 # Chat app screen — no page scroll, 4-part bordered layout, new conversations
 
-status: in-progress
+status: done (all sub-plans verified 2026-10-03)
 created: 2026-10-02 18:47 (+03)
 owner: agent (requested by owner 2026-10-02)
 
@@ -75,6 +75,9 @@ parts that contain lists scroll, and every part has a clear border:
   panel rework, mobile flow, i18n, QA script). Frontend-only.
 - `02-new-conversations.md` — `POST /chat/threads` + staff customer search +
   "New conversation" in the customer list and the staff inbox.
+- `03-returning-customer-entry.md` — returning customer: thread-aware header
+  CTA ("Your chat" + open-count badge) and `/chat` auto-opens the latest open
+  conversation.
 
 ## Decisions (recorded with sources)
 
