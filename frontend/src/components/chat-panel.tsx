@@ -542,7 +542,10 @@ export function ChatPanel({
             aria-live="polite"
             className="min-h-0 flex-1 overflow-y-auto"
           >
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 sm:px-6">
+            {/* dir=ltr: the conversation geometry is fixed in every locale —
+                customer side always right, staff (avatar) always left. The
+                Arabic document direction would otherwise flip the sides. */}
+            <div dir="ltr" className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 sm:px-6">
               {closed && (
                 <p className="self-center rounded-full bg-muted px-4 py-1.5 text-xs font-semibold text-muted-foreground">
                   {t("closedBanner")}
@@ -948,7 +951,7 @@ function MessageRow({
           ) : (
             <>
               {m.body && (
-                <p className="max-w-[85%] whitespace-pre-wrap break-words text-[15px] leading-relaxed">
+                <p dir="auto" className="max-w-[85%] whitespace-pre-wrap break-words text-[15px] leading-relaxed">
                   {m.body}
                 </p>
               )}
@@ -998,7 +1001,7 @@ function MessageRow({
             <ProductBubble product={product} productName={m.productName} locale={locale} fmt={fmt} />
           </div>
         ) : (
-          <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground">
+          <p dir="auto" className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground">
             {m.body}
           </p>
         )}
