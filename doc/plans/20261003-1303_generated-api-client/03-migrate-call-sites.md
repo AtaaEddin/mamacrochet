@@ -92,8 +92,10 @@ open→in_progress→ready→paid (receipt file)→delivered (proof file)→clos
 (`delivered pay=1 del=1 files=3` in DB). Console/network gate: zero
 unexpected errors per run.
 
-### Pre-existing product issues found (OUT of scope — candidates for
-separate plans; none were fixed here)
+### Pre-existing product issues found (OUT of scope — none were fixed here)
+
+All five are planned in `20261003-2337_chat-and-hiring-bug-fixes` (01: item 1,
+02: item 2, 03: item 3, 04: items 4–5).
 
 1. **Chat attachment images never render** — the API returns *relative* signed
    URLs (`/files/chat/{tid}/{file}?sig=…`); `chat-panel.tsx` renders

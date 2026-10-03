@@ -101,6 +101,9 @@ chat attachment images 404 (missing `fileSrc()`), staff chat auto-open 403
 (unclaimed visitor threads), hiring dialog overflow, two `use-chat` send
 races (pending-file drop, pre-bootstrap send drop).
 
+→ **Planned** in `20261003-2337_chat-and-hiring-bug-fixes` (all five items,
+four sub-plans).
+
 ## Decisions (recorded with sources)
 
 - **Generator: `@hey-api/openapi-ts` (v0.99.0 today) + `@hey-api/sdk` plugin +
