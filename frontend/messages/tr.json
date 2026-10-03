@@ -119,7 +119,16 @@
     "works": "Tüm eserler",
     "exitLabel": "Sohbetten ayrıl",
     "pickConversation": "Bir sohbet seç",
-    "newConversation": "Yeni sohbet"
+    "newConversation": "Yeni sohbet",
+    "cancel": "Vazgeç",
+    "deleteConversation": "Sohbeti sil",
+    "deleteConfirmTitle": "Bu sohbeti silmek istiyor musun?",
+    "deleteConfirmBody": "Listenden gizlenir. Hanadi orada tekrar yazarsa sohbet geri gelir.",
+    "deleteConfirmAction": "Sil",
+    "newConversationGuest": "Yeni sohbet başlat",
+    "newConversationGuestTitle": "Yeni bir sohbet başla?",
+    "newConversationGuestBody": "Yeni bir sohbet başlarsa bu sohbet senin için kapanır. Hanadi hâlâ görebilir.",
+    "newConversationGuestAction": "Yeni sohbet"
   },
   "Chat": {
     "back": "Geri"

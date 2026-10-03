@@ -119,7 +119,16 @@
     "works": "All works",
     "exitLabel": "Leave chat",
     "pickConversation": "Pick a conversation",
-    "newConversation": "New conversation"
+    "newConversation": "New conversation",
+    "cancel": "Cancel",
+    "deleteConversation": "Delete conversation",
+    "deleteConfirmTitle": "Delete this conversation?",
+    "deleteConfirmBody": "It disappears from your list. If Hanadi writes to it again, the conversation comes back.",
+    "deleteConfirmAction": "Delete",
+    "newConversationGuest": "Start a new conversation",
+    "newConversationGuestTitle": "Start a new conversation?",
+    "newConversationGuestBody": "Starting a new conversation closes this one for you. Hanadi can still see it.",
+    "newConversationGuestAction": "New conversation"
   },
   "Chat": {
     "back": "Back"

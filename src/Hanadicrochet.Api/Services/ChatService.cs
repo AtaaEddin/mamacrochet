@@ -1090,9 +1090,22 @@ public sealed class ChatService(
         }
 
         var thread = await db.ChatThreads.FirstOrDefaultAsync(t => t.Id == threadId, ct);
-        if (thread is null || thread.CustomerId != user.Id)
+        if (thread is null)
         {
             // 404, not 403: don't leak other accounts' threads by id.
+            return new ChatThreadResult(ApiError.NotFound("conversation_not_found"), null);
+        }
+
+        // "Mine" = a thread they started, or a guest visitor thread from a
+        // device linked to their account (D14) — the same rule the list uses.
+        var isOwn = thread.CustomerId == user.Id;
+        if (!isOwn && thread.GuestId is not null)
+        {
+            isOwn = await db.GuestAccountLinks.AnyAsync(
+                g => g.UserId == user.Id && g.GuestId == thread.GuestId, ct);
+        }
+        if (!isOwn)
+        {
             return new ChatThreadResult(ApiError.NotFound("conversation_not_found"), null);
         }
 

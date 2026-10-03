@@ -119,7 +119,16 @@
     "works": "كل الأعمال",
     "exitLabel": "الخروج من المحادثة",
     "pickConversation": "اختاري محادثة",
-    "newConversation": "محادثة جديدة"
+    "newConversation": "محادثة جديدة",
+    "cancel": "إلغاء",
+    "deleteConversation": "حذف المحادثة",
+    "deleteConfirmTitle": "تريدين حذف هذه المحادثة؟",
+    "deleteConfirmBody": "ستختفي من قائمتك، وإن ردّت هنادي فيها ستعود من جديد.",
+    "deleteConfirmAction": "حذف",
+    "newConversationGuest": "بدء محادثة جديدة",
+    "newConversationGuestTitle": "تبدئين محادثة جديدة؟",
+    "newConversationGuestBody": "ستُغلق هذه المحادثة من عندكِ وتبدئين من جديد. هنادي تظلّ تراها.",
+    "newConversationGuestAction": "محادثة جديدة"
   },
   "Chat": {
     "back": "رجوع"

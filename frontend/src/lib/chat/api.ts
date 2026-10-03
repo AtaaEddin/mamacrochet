@@ -150,6 +150,15 @@ export function fetchThreads(params: {
   );
 }
 
+/**
+ * The customer's delete (plan 20261003-2254 sub 01): hides the thread from
+ * this customer's list (archive). A later send — a staff reply or the
+ * customer re-entering — re-opens it; nothing is erased server-side.
+ */
+export function deleteThread(threadId: string): Promise<ChatResult<void>> {
+  return call(() => Chat.deleteThread({ path: { threadId } }));
+}
+
 export function markThreadRead(threadId: string): Promise<boolean> {
   return call<void>(() =>
     Chat.markThreadRead({ path: { threadId } }),

@@ -82,6 +82,14 @@ export interface UseChatResult {
   loadOlder: () => Promise<void>;
   reconnect: () => void;
   clearError: () => void;
+  /**
+   * Guest "new conversation" (plan 20261003-2254 sub 02): re-bootstraps
+   * the device thread with `reset: true` — the server closes the old one
+   * (`guest_reset`, staff still see it) and opens a fresh one, capped at
+   * 5 / 24 h per device. Guest mode only; on the 429 cap the old thread
+   * is left untouched (the client keeps it and shows the error).
+   */
+  resetGuestThread: () => void;
 }
 
 export function useChat(options: {
@@ -110,6 +118,9 @@ export function useChat(options: {
   const visibleRef = useRef(true);
   const readAtRef = useRef(0);
   const onGuestThreadRef = useRef(onGuestThread);
+  // One-shot "reset the guest thread" flag: set by resetGuestThread(),
+  // consumed by the bootstrap effect on its next run.
+  const resetRef = useRef(false);
 
   // Ref mirrors sync in effects (ref writes during render are disallowed).
   useEffect(() => {
@@ -149,16 +160,30 @@ export function useChat(options: {
     if (mode !== "guest" || openedThreadId !== null) return;
     let cancelled = false;
     (async () => {
-      const result = await chat.bootstrapVisitorThread(getGuestId());
+      // The one-shot guest reset (sub 02): consumed even when it fails, so
+      // a later plain bootstrap/reconnect is never a surprise reset.
+      const doReset = resetRef.current;
+      resetRef.current = false;
+      const result = await chat.bootstrapVisitorThread(getGuestId(), doReset);
       if (cancelled) return;
       if (result.ok) {
+        // Success: the new thread (and token) replace the old one — the
+        // session switch below tears down the old thread's socket.
         tokenRef.current = result.data.token;
         setThread(result.data.thread);
         onGuestThreadRef.current?.(result.data.thread.id);
         setStatus("connecting");
       } else {
-        setStatus("error");
-        setError(result.error.message);
+        // Failure. A plain bootstrap failure is a hard error (the retry
+        // state). A reset failure means the server kept the old thread open
+        // — the session effect already re-loaded it, so keep it live: just
+        // the transient notice, no retry state over a working conversation.
+        if (doReset) {
+          setError(result.error.message);
+        } else {
+          setStatus("error");
+          setError(result.error.message);
+        }
       }
     })();
     return () => {
@@ -483,6 +508,15 @@ export function useChat(options: {
     setRunKey((k) => k + 1);
   }, []);
 
+  const resetGuestThread = useCallback(() => {
+    if (mode !== "guest") return;
+    // Re-run the bootstrap effect (runKey) with the one-shot reset flag;
+    // the thread/token are swapped only on success, so a capped (429)
+    // reset leaves the old conversation untouched and the error shows.
+    resetRef.current = true;
+    setRunKey((k) => k + 1);
+  }, [mode]);
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -499,6 +533,7 @@ export function useChat(options: {
     retry,
     loadOlder,
     reconnect,
+    resetGuestThread,
     clearError,
   };
 }

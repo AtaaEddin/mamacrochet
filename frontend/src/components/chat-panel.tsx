@@ -16,6 +16,7 @@ import {
   Search,
   Send,
   ShoppingBag,
+  Trash2,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -24,6 +25,16 @@ import { toWorkDisplay } from "@/lib/catalog/display";
 import { fetchChatProducts } from "@/lib/chat/products";
 import { CHAT_FILE_ACCEPT, useChat, type UiMessage } from "@/lib/chat/use-chat";
 import { OrderProductActions } from "@/components/orders/order-product-actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import * as chatApi from "@/lib/chat/api";
 
@@ -111,6 +122,13 @@ export function ChatPanel({
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // Conversation management (plan 20261003-2254 sub 02): the customer's
+  // delete (user mode) and the guest "new conversation" (capped reset).
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [guestResetOpen, setGuestResetOpen] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -240,6 +258,23 @@ export function ChatPanel({
 
   // ---- Actions ---------------------------------------------------------------------
 
+  // Customer delete (archive): hide the row from this customer's list.
+  // Nothing is erased server-side; a later send re-opens the conversation.
+  const confirmDelete = async (id: string) => {
+    setDeleting(true);
+    setDeleteError(null);
+    const r = await chatApi.deleteThread(id);
+    setDeleting(false);
+    if (r.ok) {
+      setDeleteTarget(null);
+      setThreads((prev) => (prev ? prev.filter((x) => x.id !== id) : prev));
+      // The deleted thread was the open one → back to the list.
+      if (threadId === id) onCloseThread?.();
+    } else {
+      setDeleteError(r.error.message);
+    }
+  };
+
   const backAction = () => {
     // One level up: on a phone, an open thread goes back to the list;
     // everywhere else the page-level Back applies.
@@ -330,6 +365,20 @@ export function ChatPanel({
             <ShoppingBag className="size-5" aria-hidden="true" />
           </Link>
         </nav>
+        {mode === "guest" && (
+          // The guest's "new conversation" (sub 02): the capped reset —
+          // top bar, so it is reachable on phones too (guests have no
+          // list step).
+          <button
+            type="button"
+            onClick={() => setGuestResetOpen(true)}
+            aria-label={t("newConversationGuest")}
+            title={t("newConversationGuest")}
+            className={NAV_BTN}
+          >
+            <Plus className="size-4.5" aria-hidden="true" />
+          </button>
+        )}
         {chat.status === "error" && (
           <button
             type="button"
@@ -407,13 +456,13 @@ export function ChatPanel({
             ) : (
               <ul className="flex flex-col gap-1">
                 {threads.map((item) => (
-                  <li key={item.id}>
+                  <li key={item.id} className="group flex items-center">
                     <button
                       type="button"
                       onClick={() => onOpenThread?.(item.id)}
                       aria-current={threadId === item.id ? "true" : undefined}
                       className={cn(
-                        "w-full rounded-2xl border p-3 text-start transition-colors",
+                        "min-w-0 flex-1 rounded-2xl border p-3 text-start transition-colors",
                         threadId === item.id
                           ? "border-border/60 bg-muted/70"
                           : "border-transparent hover:bg-muted/50",
@@ -443,6 +492,18 @@ export function ChatPanel({
                           {item.unread}
                         </span>
                       )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(item.id);
+                      }}
+                      aria-label={t("deleteConversation")}
+                      title={t("deleteConversation")}
+                      className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground/50 transition-colors hover:bg-muted hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </li>
                 ))}
@@ -780,6 +841,73 @@ export function ChatPanel({
             <X className="size-5" aria-hidden="true" />
           </button>
         </div>
+      )}
+
+      {/* Customer delete (sub 02): the archive confirm. The dialog stays
+          open on error; on success the row disappears (optimistic). */}
+      {deleteTarget !== null && (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+              setDeleteError(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("deleteConfirmBody")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              {deleteError ? (
+                <p role="alert" className="text-sm font-semibold text-destructive">
+                  {deleteError}
+                </p>
+              ) : null}
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleting}
+                onClick={() => {
+                  const id = deleteTarget;
+                  if (id) void confirmDelete(id);
+                }}
+              >
+                {t("deleteConfirmAction")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Guest "new conversation" (sub 02): the capped reset confirm. On
+          the 5/24 h cap the server keeps the old thread; the hook shows
+          the 429 message in the notice row. */}
+      {mode === "guest" && guestResetOpen && (
+        <AlertDialog
+          open
+          onOpenChange={(open) => setGuestResetOpen(open)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("newConversationGuestTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("newConversationGuestBody")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setGuestResetOpen(false);
+                  chat.resetGuestThread();
+                }}
+              >
+                {t("newConversationGuestAction")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </section>
   );
