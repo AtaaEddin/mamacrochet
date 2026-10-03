@@ -7,7 +7,10 @@
  * Turkish/Arabic grandmothers). Pomegranate scarf with turquoise flowers,
  * gold earrings.
  *
- * These are raw <g> pieces; wrap them in an <svg> via hanadi-mark / hanadi-scene.
+ * These are raw <g> pieces and the parameterized SOURCE of the static
+ * brand art in `public/brand/*.svg` (logo + bust are transcribed from
+ * here with the light-theme token hex, owner 2026-10-03). Kept for
+ * future re-use; the components that wrapped them are gone.
  * All fills use brand tokens so art adapts to light/dark automatically.
  */
 

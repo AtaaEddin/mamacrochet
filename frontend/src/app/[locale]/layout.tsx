@@ -39,6 +39,15 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s · ${t("name")}`,
     },
     description: t("description"),
+    // Brand favicon (plan 20261003-1755): same static art as the header logo
+    // (public/brand/) — deliberately NOT theme-aware; no src/app icon files.
+    icons: {
+      icon: [
+        { url: "/brand/hanadi-mark.svg", type: "image/svg+xml" },
+        { url: "/brand/icon-512.png", sizes: "512x512" },
+      ],
+      apple: "/brand/apple-icon.png",
+    },
   };
 }
 

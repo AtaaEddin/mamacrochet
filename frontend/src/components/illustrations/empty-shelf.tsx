@@ -1,7 +1,7 @@
-import { HanadiBust } from "@/components/illustrations/hanadi-pieces";
-
 /**
  * Empty state — Hanadi behind a nearly-empty shelf (coming soon / no items).
+ * Hanadi herself is a static brand image (owner 2026-10-03); the props
+ * stay theme-aware.
  */
 export function EmptyShelf({ className }: { className?: string }) {
   const ink = "var(--color-brand-ink)";
@@ -9,7 +9,7 @@ export function EmptyShelf({ className }: { className?: string }) {
     <svg viewBox="0 0 220 140" className={className} aria-hidden="true" focusable="false">
       {/* Hanadi (behind the shelf) */}
       <g transform="translate(58 12) scale(1.02)">
-        <HanadiBust />
+        <image href="/brand/hanadi-bust.svg" width="96" height="96" />
       </g>
 
       {/* shelf */}

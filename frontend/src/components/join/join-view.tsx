@@ -15,8 +15,8 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
+import Image from "next/image";
 import { ConfettiHearts } from "@/components/illustrations/confetti-hearts";
-import { HanadiMark } from "@/components/illustrations/hanadi-mark";
 
 /** Client-side mirror of the server limits (the API re-checks everything). */
 const MAX_FILES = 3;
@@ -173,7 +173,14 @@ export function JoinView() {
     <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
       <header className="text-center">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-          <HanadiMark className="size-9" />
+          <Image
+            src="/brand/hanadi-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width={36}
+            height={36}
+            className="size-9"
+          />
         </div>
         <h1 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
           {t("title")}

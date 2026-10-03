@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { AuthBadge } from "@/components/auth-badge";
+import Image from "next/image";
 import { ChatCtaLink } from "@/components/chat-cta-link";
-import { HanadiMark } from "@/components/illustrations/hanadi-mark";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -23,7 +23,14 @@ export async function SiteHeader() {
             href="/"
             className="flex shrink-0 items-center gap-2.5 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            <HanadiMark className="size-9" />
+            <Image
+              src="/brand/hanadi-mark.svg"
+              alt=""
+              aria-hidden="true"
+              width={36}
+              height={36}
+              className="size-9"
+            />
             <span className="font-display text-xl font-extrabold tracking-tight">
               hanadicrochet
             </span>

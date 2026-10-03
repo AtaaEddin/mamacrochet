@@ -18,7 +18,7 @@ import {
   ShoppingBag,
   X,
 } from "lucide-react";
-import { HanadiMark } from "@/components/illustrations/hanadi-mark";
+import Image from "next/image";
 import { productTitle, type ProductDto } from "@/lib/catalog/localize";
 import { toWorkDisplay } from "@/lib/catalog/display";
 import { fetchChatProducts } from "@/lib/chat/products";
@@ -313,7 +313,14 @@ export function ChatPanel({
         >
           <ArrowLeft className="size-5 rtl:rotate-180" aria-hidden="true" />
         </button>
-        <HanadiMark className="size-8 shrink-0" aria-hidden="true" />
+        <Image
+          src="/brand/hanadi-mark.svg"
+          alt=""
+          aria-hidden="true"
+          width={32}
+          height={32}
+          className="size-8 shrink-0"
+        />
         <div className="min-w-0 flex-1" />
         <nav aria-label={t("exitLabel")} className="flex shrink-0 items-center gap-1.5">
           <Link href="/" aria-label={t("home")} title={t("home")} className={NAV_BTN}>
@@ -497,7 +504,14 @@ export function ChatPanel({
               {chat.messages.length === 0 && !chat.loadingHistory && (
                 mode === "guest" || threadId ? (
                   <div className="mt-10 flex flex-col items-center gap-3 text-center">
-                    <HanadiMark className="size-14 opacity-80" />
+                    <Image
+                      src="/brand/hanadi-mark.svg"
+                      alt=""
+                      aria-hidden="true"
+                      width={56}
+                      height={56}
+                      className="size-14 opacity-80"
+                    />
                     <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
                       {mode === "guest" ? t("opener") : t("emptyThread")}
                     </p>
@@ -832,7 +846,14 @@ function MessageRow({
   const name = m.senderName || t("title");
   return (
     <div className={cn("flex gap-3", m.pending && "opacity-60")}>
-      <HanadiMark className="mt-0.5 size-8 shrink-0" />
+      <Image
+        src="/brand/hanadi-mark.svg"
+        alt=""
+        aria-hidden="true"
+        width={32}
+        height={32}
+        className="mt-0.5 size-8 shrink-0"
+      />
       <div className="min-w-0 flex-1">
         {staff && (
           <p className="mb-0.5 flex flex-wrap items-center gap-1.5 text-xs font-bold text-muted-foreground">

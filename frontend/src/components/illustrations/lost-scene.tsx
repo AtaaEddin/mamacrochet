@@ -1,7 +1,7 @@
-import { HanadiBust } from "@/components/illustrations/hanadi-pieces";
-
 /**
  * 404 illustration — Hanadi next to a page tangled in yarn (brand v2).
+ * Hanadi herself is a static brand image (owner 2026-10-03); the props
+ * stay theme-aware.
  */
 export function LostScene({ className }: { className?: string }) {
   const ink = "var(--color-brand-ink)";
@@ -9,7 +9,7 @@ export function LostScene({ className }: { className?: string }) {
     <svg viewBox="0 0 240 140" className={className} aria-hidden="true" focusable="false">
       {/* Hanadi */}
       <g transform="translate(10 16)">
-        <HanadiBust />
+        <image href="/brand/hanadi-bust.svg" width="96" height="96" />
       </g>
 
       {/* tangled page */}
