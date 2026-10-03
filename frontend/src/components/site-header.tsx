@@ -16,8 +16,9 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        {/* Row 1 */}
-        <div className="flex h-16 items-center justify-between gap-3">
+        {/* Row 1 (gap-2: AR mobile needs ~20px of headroom — logo +
+            sign-in + chat CTA must fit 358px at a 390px viewport) */}
+        <div className="flex h-16 items-center justify-between gap-2">
           <Link
             href="/"
             className="flex shrink-0 items-center gap-2.5 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"

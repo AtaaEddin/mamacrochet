@@ -1,6 +1,7 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { buttonVariants } from "@/components/ui/button";
 import { ProductCard } from "@/components/product-card";
 import { toWorkDisplay, type WorkDisplay } from "@/lib/catalog/display";
 import { productTitle, categoryName } from "@/lib/catalog/localize";
@@ -89,6 +90,22 @@ export async function FeaturedWorks() {
           </li>
         ))}
       </ul>
+
+      {/* Bottom catch-all — a real button, not a text link: first-time
+          customers reach it right after browsing the grid. Outline keeps it
+          one step below the home's single primary action (CustomOffer). */}
+      <div className="mt-6 flex justify-center sm:mt-8">
+        <Link
+          href="/works"
+          className={buttonVariants({
+            variant: "outline",
+            className: "h-11 rounded-full px-6 text-sm font-bold",
+          })}
+        >
+          {t("seeAll")}
+          <ArrowRight className="size-4 rtl:-scale-x-100" aria-hidden="true" />
+        </Link>
+      </div>
     </section>
   );
 }

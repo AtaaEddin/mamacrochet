@@ -18,8 +18,9 @@ import { OrderSuccessDialog } from "./order-success-dialog";
 
 /**
  * Order actions on a product message in the chat (plan 05): the in-chat
- * creation flow. In-stock work → "order this" (kind=catalog); made-to-order
- * work → "request this as custom" (kind=custom, the work as reference,
+ * creation flow. Same pair for in-stock and made-to-order work:
+ * "order this" (kind=catalog — the exact piece; stock-0 pieces are made to
+ * order) + "similar, customized" (kind=custom, the work as reference,
  * spec prefilled). Both open the guest-capable form; on success the
  * confirmation dialog sets the expectation (staff reach out in chat,
  * confirmation at ready_for_payment — plans 06/07).
@@ -41,32 +42,19 @@ export function OrderProductActions({
   return (
     <>
       <div className="mt-2 flex flex-wrap gap-2">
-        {product.inStock ? (
-          <>
-            <Button
-              size="sm"
-              onClick={() => setOpen("catalog")}
-              className="gap-1.5"
-            >
-              <PackageOpen className="size-3.5" aria-hidden="true" />
-              {t("orderThis")}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpen("custom")}
-              className="gap-1.5"
-            >
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              {t("customLikeThis")}
-            </Button>
-          </>
-        ) : (
-          <Button size="sm" variant="outline" onClick={() => setOpen("custom")}>
-            <Sparkles className="size-3.5" aria-hidden="true" />
-            {t("requestCustom")}
-          </Button>
-        )}
+        <Button size="sm" onClick={() => setOpen("catalog")} className="gap-1.5">
+          <PackageOpen className="size-3.5" aria-hidden="true" />
+          {t("orderThis")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setOpen("custom")}
+          className="gap-1.5"
+        >
+          <Sparkles className="size-3.5" aria-hidden="true" />
+          {t("customLikeThis")}
+        </Button>
       </div>
 
       <Dialog open={open !== null} onOpenChange={(o) => (o ? undefined : setOpen(null))}>

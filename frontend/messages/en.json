@@ -52,8 +52,7 @@
       "madeToOrder": "Made to order"
     },
     "cta": {
-      "order": "Order in chat",
-      "requestCustom": "Request custom"
+      "order": "Order in chat"
     },
     "empty": {
       "title": "Nothing here yet",
@@ -709,7 +708,6 @@
       "successDone": "Sounds good",
       "orderThis": "Order this",
       "customLikeThis": "Similar, customized",
-      "requestCustom": "Request this as custom",
       "dialogTitleCatalog": "Order this piece",
       "dialogTitleCustom": "Request a custom version",
       "dialogBodyCatalog": "Leave your name and phone — we'll contact you in chat.",

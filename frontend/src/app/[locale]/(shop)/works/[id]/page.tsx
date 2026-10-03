@@ -105,7 +105,10 @@ export default async function WorkDetailPage({ params }: WorkDetailProps) {
               })}
             >
               <MessageCircle className="size-5" aria-hidden="true" />
-              {work.inStock ? t("cta.order") : t("cta.requestCustom")}
+              {/* Always "order in chat" — in-stock and made-to-order alike;
+                  the badge above already says which. Custom is one tap away
+                  in the in-chat product actions. */}
+              {t("cta.order")}
             </Link>
           </div>
         </div>

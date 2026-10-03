@@ -49,7 +49,7 @@ export function ChatCtaLink() {
       data-chat-cta=""
       onClick={rememberChatReturnTo}
       aria-label={variant ? t("yourChatAria", { count: openCount }) : undefined}
-      className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <MessageCircle className="size-4.5" aria-hidden="true" />
       <span>{variant ? t("yourChat") : t("hello")}</span>

@@ -52,8 +52,7 @@
       "madeToOrder": "تُصنع عند الطلب"
     },
     "cta": {
-      "order": "اطلبي في المحادثة",
-      "requestCustom": "اطلبي قطعة مخصّصة"
+      "order": "اطلبي في المحادثة"
     },
     "empty": {
       "title": "لا شيء هنا بعد",
@@ -709,7 +708,6 @@
       "successDone": "حسناً",
       "orderThis": "اطلبي هذه",
       "customLikeThis": "مماثل مخصّص",
-      "requestCustom": "اطلبي مخصّصاً كهذا",
       "dialogTitleCatalog": "اطلبي هذه القطعة",
       "dialogTitleCustom": "اطلبي نسخة مخصّصة",
       "dialogBodyCatalog": "اتركي اسمك وهاتفك — سنتواصل معك في الدردشة.",

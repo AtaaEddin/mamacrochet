@@ -55,7 +55,7 @@ export function AuthBadge() {
     return (
       <Link
         href="/login"
-        className="inline-flex h-11 items-center rounded-full border border-border/70 bg-card px-4 text-sm font-bold text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="inline-flex h-11 items-center rounded-full border border-border/70 bg-card px-3 text-sm font-bold text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         {t("signIn")}
       </Link>

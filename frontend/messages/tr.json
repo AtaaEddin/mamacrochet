@@ -52,8 +52,7 @@
       "madeToOrder": "Sipariş üzerine"
     },
     "cta": {
-      "order": "Sohbette sipariş ver",
-      "requestCustom": "Özel parça iste"
+      "order": "Sohbette sipariş ver"
     },
     "empty": {
       "title": "Henüz burada bir şey yok",
@@ -709,7 +708,6 @@
       "successDone": "Süper",
       "orderThis": "Bunu sipariş et",
       "customLikeThis": "Buna benzer, özel",
-      "requestCustom": "Buna benzerini özel iste",
       "dialogTitleCatalog": "Bu parçayı sipariş et",
       "dialogTitleCustom": "Özel bir versiyon iste",
       "dialogBodyCatalog": "Adını ve telefonunu bırak — sohbette iletişime geçelim.",
