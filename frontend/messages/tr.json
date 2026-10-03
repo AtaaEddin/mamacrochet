@@ -6,6 +6,8 @@
   },
   "Nav": {
     "hello": "Merhaba de",
+    "yourChat": "Sohbetin",
+    "yourChatAria": "Sohbetin — {count} açık",
     "launcher": "Hanadi'yle sohbet et"
   },
   "Theme": {

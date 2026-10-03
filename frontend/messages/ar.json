@@ -6,6 +6,8 @@
   },
   "Nav": {
     "hello": "لنتحدث",
+    "yourChat": "دردشاتك",
+    "yourChatAria": "دردشاتك — {count} مفتوحة",
     "launcher": "تحدّثي مع حنادي"
   },
   "Theme": {

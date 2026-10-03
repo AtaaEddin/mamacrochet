@@ -84,9 +84,8 @@ function ChatScreen() {
         backLabel={t("back")}
         onBack={backToPreviousOrHome}
         onCloseThread={() => router.replace(pathname)}
-        onOpenThread={(id) => {
-          window.location.search = `?thread=${id}`;
-        }}
+        onOpenThread={(id) => router.replace(`${pathname}?thread=${id}`)}
+        onAutoOpenThread={(id) => router.replace(`${pathname}?thread=${id}`)}
         onNewConversation={
           isStaff(me)
             ? undefined

@@ -69,6 +69,7 @@ export function ChatPanel({
   onCloseThread,
   onOpenThread,
   onNewConversation,
+  onAutoOpenThread,
   notice,
 }: {
   mode: "guest" | "user";
@@ -88,6 +89,12 @@ export function ChatPanel({
   onOpenThread?: (threadId: string) => void;
   /** List-header action (sub-plan 02: "New conversation"). */
   onNewConversation?: () => void;
+  /**
+   * Sub-plan 03: user arrives at /chat with no `?thread=` → open the latest
+   * open conversation instead of "pick a conversation" (one-shot per
+   * mount; Back to the list must not re-trigger).
+   */
+  onAutoOpenThread?: (threadId: string) => void;
   /** Notice row above the composer (e.g. a failed New conversation, sub 02). */
   notice?: string | null;
 }) {
@@ -100,6 +107,7 @@ export function ChatPanel({
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerProducts, setPickerProducts] = useState<ProductDto[] | null>(null);
   const [threads, setThreads] = useState<chatApi.ChatThreadListItem[] | null>(null);
+  const autoOpenedRef = useRef(false);
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [sending, setSending] = useState(false);
@@ -150,6 +158,21 @@ export function ChatPanel({
       clearInterval(timer);
     };
   }, [mode]);
+
+  // ---- Auto-open the latest conversation (sub-plan 03) --------------------
+  // A user coming back to /chat lands in their latest open conversation,
+  // not on "pick a conversation". One-shot per mount: going Back to the
+  // list (which removes `?thread=`) must not re-trigger it. The API list is
+  // already ordered by last activity desc (ListThreadsAsync).
+  useEffect(() => {
+    if (mode !== "user" || threadId || autoOpenedRef.current || threads === null) {
+      return;
+    }
+    const latest = threads.find((item) => !item.isClosed);
+    if (!latest) return;
+    autoOpenedRef.current = true;
+    onAutoOpenThread?.(latest.id);
+  }, [mode, threadId, threads, onAutoOpenThread]);
 
   // ---- Product data (picker + product bubbles) ------------------------------
 

@@ -278,6 +278,144 @@ const atLeast1px = (v) => v !== null && parseFloat(v) >= 1;
   await browser.close();
 }
 
+// ============================ RC — RETURNING CUSTOMER (SUB 03) ==============
+{
+  const browser = await chromium.launch({ executablePath: "/snap/bin/chromium", args: ["--no-sandbox"] });
+
+  // RC0 — guest on a shop page: CTA stays "Say hi", no badge.
+  {
+    const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+    await page.goto(`${BASE}/en`, { waitUntil: "networkidle" });
+    const cta = page.locator("[data-chat-cta]").first();
+    check("RC0 guest CTA = Say hi", (await cta.getByText("Say hi").count()) === 1);
+    check("RC0b guest CTA has no badge span", (await cta.locator("span").count()) === 1, `spans=${await cta.locator("span").count()}`);
+  }
+
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(String(e)));
+
+  const email = `returnscreen+${Date.now()}@example.com`;
+  const af = await ctx.request.get(`${API_BASE}/antiforgery`);
+  const token = af.ok() ? (await af.json()).token : null;
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["X-CSRF-TOKEN"] = token;
+  const reg = await ctx.request.post(`${API_BASE}/identity/register`, {
+    headers,
+    data: {
+      name: "Return Screen QA",
+      email,
+      password: "Passw0rd!x",
+      phone: "999888777",
+      country: "Testville",
+    },
+  });
+  check("RC1 register (signed-in cookie)", reg.status() === 200, `status=${reg.status()}`);
+
+  // RC2 — signed-in user with 0 threads: CTA stays "Say hi" (200 + empty).
+  const cta = page.locator("[data-chat-cta]").first();
+  {
+    const respP = page.waitForResponse((r) => r.url().includes("/chat/threads"));
+    await page.goto(`${BASE}/en`, { waitUntil: "networkidle" });
+    const resp = await respP;
+    check("RC2a threads list reachable (200)", resp.status() === 200, `status=${resp.status()}`);
+    check("RC2b user w/ 0 threads: CTA = Say hi", (await cta.getByText("Say hi").count()) === 1);
+  }
+
+  // RC3 — create a conversation (sub-plan 02 endpoint).
+  const af2 = await ctx.request.get(`${API_BASE}/antiforgery`);
+  const token2 = af2.ok() ? (await af2.json()).token : null;
+  const h2 = { "Content-Type": "application/json" };
+  if (token2) h2["X-CSRF-TOKEN"] = token2;
+  const created = await ctx.request.post(`${API_BASE}/chat/threads`, { headers: h2, data: {} });
+  const thread = created.ok() ? (await created.json()) : null;
+  const threadId = thread?.id;
+  check("RC3 POST /chat/threads (cookie) → thread", typeof threadId === "string", `status=${created.status()}`);
+
+  // RC4 — shop page now: "Your chat" + badge 1 (fresh document load →
+  // the CTA refetches its threads).
+  {
+    const respP = page.waitForResponse((r) => r.url().includes("/chat/threads"));
+    await page.goto(`${BASE}/en`, { waitUntil: "networkidle" });
+    await respP;
+    const deadline = Date.now() + 8000;
+    let ok = false;
+    let label = "";
+    while (Date.now() < deadline) {
+      label = (await cta.getAttribute("aria-label")) ?? "";
+      ok = (await cta.getByText("Your chat").count()) === 1 && (await cta.getByText("1", { exact: true }).count()) === 1;
+      if (ok) break;
+      await page.waitForTimeout(250);
+    }
+    check("RC4 CTA = Your chat + badge 1", ok, `aria=${label}`);
+    check("RC4b CTA aria-label", label === "Your chat — 1 open", label);
+    await page.screenshot({ path: `${OUT}/return-customer-cta-desktop.png` });
+  }
+
+  // RC5 — /chat without ?thread= auto-opens the latest open thread.
+  await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+  {
+    const deadline = Date.now() + 10000;
+    let urlOk = false;
+    while (Date.now() < deadline) {
+      urlOk = page.url().includes(`?thread=${threadId}`);
+      if (urlOk) break;
+      await page.waitForTimeout(250);
+    }
+    check("RC5a /chat auto-opens latest (URL ?thread=)", urlOk && threadId !== null, page.url());
+    const threadPart = page.locator('[data-chat-part="thread"]');
+    check("RC5b thread part visible", await threadPart.isVisible());
+    check("RC5c no 'Pick a conversation' anymore", (await threadPart.getByText("Pick a conversation").count()) === 0);
+  }
+
+  // RC6 — mobile: /chat lands on the thread view; Back → list; STAYS on list.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
+  {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && !page.url().includes(`?thread=${threadId}`)) {
+      await page.waitForTimeout(250);
+    }
+    check("RC6a mobile lands on thread view", await part(page, "thread").isVisible() && !(await part(page, "list").isVisible()));
+    check("RC6b mobile composer visible in thread view", await page.locator("textarea").first().isVisible());
+    await page.screenshot({ path: `${OUT}/return-customer-mobile-thread.png` });
+    await backBtn(page).click();
+    await page.waitForTimeout(800);
+    check("RC6c back → conversation list", await part(page, "list").isVisible() && !(await part(page, "thread").isVisible()));
+    await page.waitForTimeout(2500);
+    check("RC6d list stays (no auto re-select)", await part(page, "list").isVisible() && !page.url().includes(`?thread=${threadId}`));
+  }
+
+  // RC7 — dark: badge still renders (fresh dark context, signed-in cookie
+  // shared — page.emulateMedia does not take effect with this
+  // playwright-core + Chromium combo, but a context colorScheme does).
+  {
+    const dark = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      colorScheme: "dark",
+    });
+    await dark.addCookies(await ctx.cookies());
+    const dpage = await dark.newPage();
+    const dcta = dpage.locator("[data-chat-cta]").first();
+    await dpage.goto(`${BASE}/en`, { waitUntil: "networkidle" });
+    const deadline = Date.now() + 10000;
+    let ok = false;
+    while (Date.now() < deadline) {
+      ok = (await dcta.getByText("1", { exact: true }).count()) === 1;
+      if (ok) break;
+      await dpage.waitForTimeout(250);
+    }
+    check("RC7 CTA badge in dark", ok);
+    await dpage.screenshot({ path: `${OUT}/return-customer-cta-dark.png` });
+    await dark.close();
+  }
+
+  check("RC8 no page errors (returning customer)", pageErrors.length === 0, pageErrors.join(" | "));
+  await ctx.close();
+  await browser.close();
+}
+
 // ============================ NC — NEW CONVERSATIONS (SUB 02) ============
 // Customer: /chat list "+" → POST /chat/threads → thread opens.
 // Employee: /staff/chat "New conversation" → search dialog → pick customer

@@ -6,6 +6,8 @@
   },
   "Nav": {
     "hello": "Say hi",
+    "yourChat": "Your chat",
+    "yourChatAria": "Your chat — {count} open",
     "launcher": "Chat with Hanadi"
   },
   "Theme": {
