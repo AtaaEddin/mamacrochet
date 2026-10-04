@@ -25,7 +25,7 @@ opt-in Playwright smoke (e2e) run against the live Aspire dev stack.
 |---|-------|------|--------|
 | 01 | Backend test harness (project, fixture, test DB, helpers) | 01-backend-test-harness.md | done |
 | 02 | Backend domain tests (services: orders, chat, tokens, links, signatures) | 02-backend-domain-tests.md | done |
-| 03 | Backend endpoint tests (HTTP: identity, catalog, orders, chat, hiring, admin, files) | 03-backend-endpoint-tests.md | proposed |
+| 03 | Backend endpoint tests (HTTP: identity, catalog, orders, chat, hiring, admin, files) | 03-backend-endpoint-tests.md | done |
 | 04 | Frontend unit tests (Vitest + Testing Library) | 04-frontend-unit-tests.md | proposed |
 | 05 | Frontend e2e smoke (Playwright-core, opt-in, live dev stack) | 05-frontend-e2e.md | proposed |
 

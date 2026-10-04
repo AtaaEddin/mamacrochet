@@ -1,6 +1,6 @@
 # 03 — Backend endpoint tests (HTTP)
 
-status: proposed
+status: done
 parent: 20261004-0554_full-test-suite
 
 TestServer through the real `Program` (sub-plan 01 fixture): real antiforgery,
@@ -129,3 +129,37 @@ never need CSRF; cookie-scoped mutations fetch `/antiforgery` per client.
 - Avatar/product/order/chat file routes: auth matrix + traversal rejections
   (covered per section above; consolidate asserts here for the 404/400
   shapes and content-type correctness).
+
+## Result (done)
+
+68 endpoint tests, all green in the full run (208/208 total with sub-plan 02):
+
+- `HealthTests` 3 · `IdentityEndpointsTests` 16 · `CatalogEndpointsTests` 10 ·
+  `OrderEndpointsTests` 14 · `ChatEndpointsTests` 8 · `HiringEndpointsTests` 9 ·
+  `AdminUserEndpointsTests` 8 (file-route auth shapes are asserted inside the
+  order/chat/hiring/identity tests, e.g. receipts staff-only, signed chat
+  URLs, admin-only hiring files — no separate `FileEndpointsTests` class needed).
+- Shared helpers: `EndpointHttp` (status + JSON + error-code asserts),
+  `Multipart` fluent builder (fields/files, optional `X-CSRF-TOKEN`),
+  `TestUsers` (unique users, login, CSRF token helpers), `FileFixtures`
+  (tiny PNG/JPEG/GIF/WebP/PDF, 10 MiB too-big file).
+- Notes (draft vs reality, all resolved against the code, no app changes):
+  - guest cap = 3 open per phone/device → 4th create 409; honeypot fields
+    `website` (orders) / `company` (hiring) → fake success, no row;
+  - staff order routes live under `/staff/orders` (not `/orders`); admin
+    override lives under `/admin/orders`; assignment is admin-only
+    (`PATCH /staff/orders/{id}/assignment`, staff → 403);
+  - `ready_for_payment` requires `finalPrice`; delivery requires `actualAt`
+    within [now−5y, now+1d]; close = staff `status:"closed"` after
+    customer `confirm-delivery` (confirmation only adds a timeline event);
+  - chat tokens are thread-scoped (wrong/garbage token → 403 `forbidden`);
+    claim is open to any staff (assigns the thread to the caller);
+  - unknown roles in `POST /admin/users` are silently dropped → base
+    `customer` role (200, not 400);
+  - hiring languages: case-insensitive duplicates dedupe silently,
+    >6 distinct → 400 `invalid_language`; message >2000 → 400.
+- Test-hygiene fix (not an app bug): `ChatServiceTests.Access_OrderThread_Matrix`
+  inserted a bare `Order` with `CreatedAt/UpdatedAt = 0001-01-01`, which
+  made `GET /admin/orders` 500 (`ArgumentOutOfRangeException` when converting
+  the epoch `DateTime` through a `DateTimeOffset` offset) in the full run.
+  The test now sets real timestamps.
