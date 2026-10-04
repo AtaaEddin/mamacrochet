@@ -36,7 +36,7 @@ function fab(page) {
   return page.locator("a[aria-label='Chat with Hanadi']");
 }
 function fabAr(page) {
-  return page.locator("a[aria-label='تحدّثي مع حنادي']");
+  return page.locator("a[aria-label='تحدّثي مع هنادي']");
 }
 function exitBar(page) {
   return page.locator("nav[aria-label='Leave chat']");
@@ -171,8 +171,20 @@ async function newContext(browser, { width, height, colorScheme = "light", local
   check("T1 guest-link via API origin (200)", linked === 200, String(linked));
 
   await page.goto(`${BASE}/en/chat`, { waitUntil: "networkidle" });
-  // Poll — the signed-in list fetch (GET /chat/threads) lands after the
-  // page's own /identity/me round-trip; a fixed short wait flakes.
+  // Sub-plan 03 auto-open: the single linked thread auto-opens (?thread=),
+  // so we land in THREAD mode (one-shot; going Back to the list will not
+  // re-trigger it). The conversation list is hidden until we go Back.
+  await page.waitForURL(/\/en\/chat\?thread=/, { timeout: 20_000 });
+  check(
+    "T4 thread mode keeps the single 'Back' button",
+    await backBtn(page).count() === 1,
+  );
+  await page.screenshot({ path: `${OUT}/fab-t4-thread-topbar.png` });
+  await backBtn(page).click();
+  await page.waitForTimeout(500);
+  check("T5 thread Back → conversations list (no ?thread=)", !page.url().includes("thread="));
+  // Now on the list: the linked guest thread is shown. Poll — the signed-in
+  // list fetch (GET /chat/threads) lands after the /identity/me round-trip.
   const threadRow = page.locator("button", { hasText: /hello hanadi|Chat/i });
   let rowCount = 0;
   for (let i = 0; i < 20; i++) {
@@ -181,23 +193,11 @@ async function newContext(browser, { width, height, colorScheme = "light", local
     await page.waitForTimeout(500);
   }
   check("T3 thread list shows the linked thread", rowCount === 1);
-  if (await threadRow.count() === 1) {
-    await threadRow.click();
-    await page.waitForTimeout(800);
-    check(
-      "T4 thread mode keeps the single 'Back' button",
-      await backBtn(page).count() === 1,
-    );
-    await page.screenshot({ path: `${OUT}/fab-t4-thread-topbar.png` });
-    await backBtn(page).click();
-    await page.waitForTimeout(500);
-    check("T5 thread Back → conversations list (no ?thread=)", !page.url().includes("thread="));
 
   // M4b — FAB hidden on /en/admin/users (signed-in, non-admin: 403 card)
   await page.goto(`${BASE}/en/admin/users`, { waitUntil: "networkidle" });
   await page.waitForTimeout(800);
   check("M4b FAB hidden on /en/admin/users (signed-in)", await fab(page).count() === 0);
-  }
 
   check("no page errors (mobile flow)", pageErrors.length === 0, pageErrors.join(" | "));
   await browser.close();

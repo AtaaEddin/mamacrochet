@@ -1195,10 +1195,15 @@ function ProductRail({
           {products === null ? t("pickerLoading") : t("pickerEmpty")}
         </p>
       )}
-      <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+      {/* Ask 3: the foot is a real link to the works list (was plain text). */}
+      <Link
+        href="/works"
+        aria-label={t("railFoot")}
+        className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
         <ChevronDown className="size-3.5 rotate-90" aria-hidden="true" />
         {t("railFoot")}
-      </p>
+      </Link>
     </aside>
   );
 }
