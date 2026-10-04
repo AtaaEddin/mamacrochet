@@ -292,7 +292,13 @@ export function fileSrc(apiPath: string): string {
   }
   try {
     const url = new URL(API_BASE_URL);
-    url.pathname = `${url.pathname.replace(/\/+$/, "")}${apiPath}`;
+    // Same rule as catalog/display.ts — plus: a query on apiPath (signed
+    // URLs) must stay a query, not be percent-encoded into the path.
+    const qi = apiPath.indexOf("?");
+    const pathPart = qi >= 0 ? apiPath.slice(0, qi) : apiPath;
+    const queryPart = qi >= 0 ? apiPath.slice(qi) : "";
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}${pathPart}`;
+    if (queryPart) url.search = queryPart;
     return url.toString();
   } catch {
     return apiPath;

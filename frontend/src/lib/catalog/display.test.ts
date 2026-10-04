@@ -56,6 +56,15 @@ describe("fileSrc", () => {
     );
   });
 
+  it("keeps signed-URL queries as queries (no percent-encoded '?')", () => {
+    const signed = "/files/chat/t1/a.png?sig=abc&exp=123";
+    expect(fileSrc(signed)).toBe(
+      "http://localhost:8085/files/chat/t1/a.png?sig=abc&exp=123",
+    );
+    process.env[ENV_KEY] = "/api";
+    expect(fileSrc(signed)).toBe("/api/files/chat/t1/a.png?sig=abc&exp=123");
+  });
+
   it("returns null for absent paths", () => {
     expect(fileSrc(null)).toBeNull();
     expect(fileSrc(undefined)).toBeNull();

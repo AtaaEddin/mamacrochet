@@ -42,7 +42,13 @@ export function fileSrc(path: string | null | undefined): string | null {
     const url = new URL(base);
     // Join as a path prefix: `new URL(path, base)` would replace the base's
     // path and drop any subpath (e.g. a cross-origin `/api` deployment).
-    url.pathname = `${url.pathname.replace(/\/+$/, "")}${path}`;
+    // A query on the path (signed URLs) must stay a query — assigning it to
+    // url.pathname would percent-encode the '?' into the path.
+    const qi = path.indexOf("?");
+    const pathPart = qi >= 0 ? path.slice(0, qi) : path;
+    const queryPart = qi >= 0 ? path.slice(qi) : "";
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}${pathPart}`;
+    if (queryPart) url.search = queryPart;
     return url.toString();
   } catch {
     return path;
