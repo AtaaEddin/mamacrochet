@@ -108,6 +108,17 @@ public static class TestUsers
     }
 
     /// <summary>PATCH a JSON body with the CSRF header.</summary>
+    public static async Task<HttpResponseMessage> PutJsonAsync(this HttpClient client, string url, object body)
+    {
+        var token = await GetCsrfTokenAsync(client);
+        var request = new HttpRequestMessage(HttpMethod.Put, url)
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.Add(CsrfHeader, token);
+        return await client.SendAsync(request);
+    }
+
     public static async Task<HttpResponseMessage> PatchJsonAsync(
         this HttpClient client,
         string url,
@@ -122,8 +133,12 @@ public static class TestUsers
         return await client.SendAsync(request);
     }
 
-    /// <summary>DELETE with the CSRF header.</summary>
-    public static async Task<HttpResponseMessage> DeleteAsync(this HttpClient client, string url)
+    /// <summary>
+    /// DELETE with the CSRF header. Named so it does not collide with the
+    /// built-in <see cref="HttpClient.DeleteAsync"/> (string→Uri would bind
+    /// to that overload and silently drop the token).
+    /// </summary>
+    public static async Task<HttpResponseMessage> DeleteWithCsrfAsync(this HttpClient client, string url)
     {
         var token = await GetCsrfTokenAsync(client);
         var request = new HttpRequestMessage(HttpMethod.Delete, url);

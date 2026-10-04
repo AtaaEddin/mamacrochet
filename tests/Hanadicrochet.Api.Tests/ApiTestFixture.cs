@@ -60,6 +60,13 @@ public sealed class ApiTestFixture : IDisposable
             builder.UseSetting("Uploads:Root", UploadsRoot);
             builder.UseSetting("AdminSeed:Email", SeedAdminEmail);
             builder.UseSetting("AdminSeed:Password", SeedAdminPassword);
+            // The D16 rate limiter is per-IP and in-memory — the suite shares
+            // one loopback IP, so raise the (config-driven) budgets far above
+            // any test volume. 429 paths are asserted at service level
+            // (sub-plan 02), not over HTTP.
+            builder.UseSetting("RateLimit:Guest", "100000");
+            builder.UseSetting("RateLimit:Auth", "100000");
+            builder.UseSetting("RateLimit:Default", "100000");
         });
 
         // Force app start (migrations + admin/catalog seeding run inline
@@ -79,13 +86,6 @@ public sealed class ApiTestFixture : IDisposable
             throw new InvalidOperationException(
                 "Test configuration overrides were not applied (host configuration mismatch).\n" + dump);
         }
-
-        // The D16 rate limiter is per-IP and in-memory — meaningless (and
-        // flaky) in tests. HTTP 429 paths are not asserted; the guest caps
-        // are asserted at service level (sub-plan 02).
-        Services.GetRequiredService<IOptions<RateLimiterOptions>>().Value.GlobalLimiter =
-            PartitionedRateLimiter.Create<HttpContext, string>(
-                _ => RateLimitPartition.GetNoLimiter("test"));
     }
 
     public WebApplicationFactory<Program> Factory { get; }

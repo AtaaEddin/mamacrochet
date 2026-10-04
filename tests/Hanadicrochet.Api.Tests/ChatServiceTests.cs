@@ -329,7 +329,15 @@ public class ChatServiceTests(ApiTestFixture _fx)
         var stranger = await TestUsers.CreateAsync(_fx, "customer");
         var guest = Guid.NewGuid().ToString();
 
-        var order = new Order { CustomerId = owner.Id, GuestId = guest, AssignedEmployeeId = assigned.Id };
+        var now = DateTime.UtcNow;
+        var order = new Order
+        {
+            CustomerId = owner.Id,
+            GuestId = guest,
+            AssignedEmployeeId = assigned.Id,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
         c.Db.Orders.Add(order);
         var thread = Seed.Thread(
             c.Db, "order", guestId: guest, customerId: owner.Id, orderId: order.Id, assignedEmployeeId: assigned.Id);

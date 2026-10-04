@@ -284,6 +284,12 @@ builder.Services.AddSignalR();
 
 // Rate limits (D16 step 1 — guest caps land in plans 05/06): a tight budget
 // on auth/admin flows, a generous default. Partitioned per client IP.
+// Budgets are config-overridable (the values below are the production
+// defaults); the test suite raises them (plan 20261004-0554/03).
+var rateLimitSection = builder.Configuration.GetSection("RateLimit");
+var guestLimit = rateLimitSection.GetValue("Guest", 5);
+var authLimit = rateLimitSection.GetValue("Auth", 30);
+var defaultLimit = rateLimitSection.GetValue("Default", 300);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -315,10 +321,10 @@ builder.Services.AddRateLimiter(options =>
             && path == "/identity/me";
         var isAuthAction = inAuthArea && !isOwnProfileRead;
         (var bucket, var permitLimit) = isGuestSubmit
-            ? ("guest", 5)
+            ? ("guest", guestLimit)
             : isAuthAction
-                ? ("auth", 30)
-                : ("default", 300);
+                ? ("auth", authLimit)
+                : ("default", defaultLimit);
         return RateLimitPartition.GetFixedWindowLimiter(
             $"{ip}:{bucket}",
             _ => new FixedWindowRateLimiterOptions
