@@ -1,6 +1,6 @@
 # Chat attachment/access/send fixes + hiring dialog overflow
 
-status: proposed
+status: done
 created: 2026-10-03 23:37 (+03)
 owner: agent (requested by owner 2026-10-03)
 
