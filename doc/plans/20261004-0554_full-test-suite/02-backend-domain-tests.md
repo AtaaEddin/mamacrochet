@@ -1,10 +1,37 @@
 # 02 — Backend domain tests (services)
 
-status: proposed
+status: done
 parent: 20261004-0554_full-test-suite
 
 Resolve services from a fresh app DI scope (same scope → same `AppDbContext`
 instance the service uses); seed/assert through that context. Real Postgres.
+
+## Result
+
+143 tests green (`dotnet test`), 0 warnings. Files: `OrderServiceTests.cs`,
+`ChatServiceTests.cs`, `GuestLinkTests.cs`, `ChatTokenServiceTests.cs`,
+`FileSignaturesTests.cs`, `Seed.cs` (shared seeder helpers).
+
+## Real bugs found & fixed (test-driven, app code)
+
+1. **`ChatService.ListMessagesAsync` cursors were untranslatable.** The
+   `before`/`after` WHERE-clauses used `string.CompareOrdinal(m.Id, anchor.Id)`;
+   Npgsql cannot translate it → every "load older"/poll call threw
+   `InvalidOperationException` (500 in production). Replaced with a
+   translatable filter: `At <= anchor.At && Id != anchor.Id` (and the `>`
+   variant), ordering by `(At, Id)`; a same-timestamp tie may be included
+   on the other page (documented), client dedupes by id.
+2. **"Load older" page was returned descending.** Only the initial load was
+   `Reverse()`d to ascending; the `before` page stayed descending while
+   `use-chat.ts` prepends it as-is → oldest message rendered after the next
+   one. Now every descending page (initial + older) is reversed to
+   ascending; the forward (`after`) page is already ascending.
+3. **Fixture leaked test databases (harness, from sub-plan 01).** xUnit v2
+   collection fixtures are disposed through synchronous `IDisposable` only —
+   the fixture implemented `IAsyncDisposable`, so its `DisposeAsync` never
+   ran and each run leaked an `hc_test_*` database. Fixture now implements
+   `IDisposable`; verified: 0 leftover databases and 0 leftover uploads
+   dirs after a full run.
 
 ## OrderServiceTests
 
