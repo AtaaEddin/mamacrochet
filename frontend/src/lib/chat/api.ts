@@ -79,9 +79,21 @@ async function call<T>(
  * closes the device's active visitor thread (staff still see it,
  * `guest_reset`) and opens a fresh one — capped server-side at 5 / 24 h
  * per device (D16).
+ *
+ * In-flight calls are deduped per device (+ reset flag): a double mount
+ * (dev StrictMode double-fires the effect; any future second panel) must
+ * cost exactly ONE `POST /chat/visitor` — D16's guest bucket is shared per
+ * IP. A LATER call (reconnect, after settle) still hits the API: a fresh
+ * thread token is needed then, so only concurrent calls are shared.
  */
+const bootstrapInflight =
+  new Map<string, Promise<ChatResult<VisitorThreadCreated>>>();
+
 export function bootstrapVisitorThread(guestId: string, reset = false) {
-  return call<VisitorThreadCreated>(() =>
+  const key = `${guestId}:${reset ? 1 : 0}`;
+  const existing = bootstrapInflight.get(key);
+  if (existing) return existing;
+  const p = call<VisitorThreadCreated>(() =>
     Chat.bootstrapVisitorThread({
       body: {
         guestId,
@@ -90,7 +102,11 @@ export function bootstrapVisitorThread(guestId: string, reset = false) {
         reset,
       },
     }),
-  );
+  ).finally(() => {
+    bootstrapInflight.delete(key);
+  });
+  bootstrapInflight.set(key, p);
+  return p;
 }
 
 // ---- Threads ----------------------------------------------------------------

@@ -213,8 +213,25 @@ export function StaffVisitorsView() {
     }
   };
 
-  const openThread = (id: string) => {
+  const openThreadId = (id: string) => {
     router.push({ pathname: "/chat", query: { thread: id } });
+  };
+
+  // Sub-plan 02: an explicit open by non-admin staff of an UNCLAIMED
+  // conversation claims it first (first-wins) — otherwise the thread fetch
+  // 403s for an employee who isn't the assignee. Closed-but-unclaimed is
+  // covered too (an unclaimed closed thread is still unreadable for them;
+  // claiming a finished one just records who handled it).
+  const openThread = (it: ThreadItem) => {
+    if (!isAdmin && !it.assigneeName) {
+      void (async () => {
+        const r = await chat.claimThread(it.id);
+        if (r.ok) openThreadId(it.id);
+        else fail(it.id);
+      })();
+      return;
+    }
+    openThreadId(it.id);
   };
 
   const openNewConversation = () => {
@@ -232,7 +249,9 @@ export function StaffVisitorsView() {
     setNcPicking(null);
     if (r.ok) {
       setNcOpen(false);
-      openThread(r.data.id);
+      // The created thread is already assigned to its creator (staff
+      // CreateThreadAsync), so no claim is needed here.
+      openThreadId(r.data.id);
     } else {
       setNcPickError(r.error.message || t("ncPickFailed"));
     }
@@ -425,7 +444,7 @@ export function StaffVisitorsView() {
               <div className="flex items-start justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => openThread(it.id)}
+                  onClick={() => openThread(it)}
                   className="min-w-0 flex-1 rounded-md text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   <span className="flex flex-wrap items-center gap-2">
@@ -508,7 +527,7 @@ export function StaffVisitorsView() {
                     size="sm"
                     variant="secondary"
                     disabled={isBusy}
-                    onClick={() => openThread(it.id)}
+                    onClick={() => openThread(it)}
                   >
                     {t("vOpen")}
                   </Button>

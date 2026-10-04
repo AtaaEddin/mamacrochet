@@ -118,10 +118,27 @@ function ChatScreen() {
         initialProductId={workParam}
         onInitialProductSent={dropWork}
         withProductRail
+        canOpenUnclaimed={!isStaff(me) || me.roles.includes("admin")}
         backLabel={t("back")}
         onBack={backToPreviousOrHome}
         onCloseThread={() => router.replace(pathname)}
-        onOpenThread={(id) => router.replace(`${pathname}?thread=${id}`)}
+        onOpenThread={(item) => {
+          // Sub-plan 02: a non-admin staff member taking an unclaimed
+          // conversation claims it first (first-wins); a lost race shows
+          // the 409 message instead of a 403 deep in the thread.
+          if (isStaff(me) && !me.roles.includes("admin") && !item.assigneeName) {
+            void (async () => {
+              const r = await chatApi.claimThread(item.id);
+              if (r.ok) {
+                router.replace(`${pathname}?thread=${item.id}`);
+              } else {
+                setNotice(r.error.message);
+              }
+            })();
+            return;
+          }
+          router.replace(`${pathname}?thread=${item.id}`);
+        }}
         onAutoOpenThread={(id) => router.replace(`${pathname}?thread=${id}`)}
         onNewConversation={
           isStaff(me)

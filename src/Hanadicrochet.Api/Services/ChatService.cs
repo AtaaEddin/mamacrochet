@@ -985,9 +985,33 @@ public sealed class ChatService(
                 null);
         }
 
+        // First-wins (06-chat.md, D14): the conditional update takes the
+        // thread only while it is unclaimed — of two staff claiming at the
+        // same moment, exactly one wins and the loser gets a clean 409.
+        var now = DateTime.UtcNow;
+        var claimed = await db.ChatThreads
+            .Where(t => t.Id == threadId && t.AssignedEmployeeId == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.AssignedEmployeeId, employee.Id)
+                .SetProperty(t => t.UpdatedAt, now), ct);
+        if (claimed == 0)
+        {
+            var other = await db.ChatThreads.AsNoTracking()
+                .Where(t => t.Id == threadId)
+                .Select(t => t.AssignedEmployee)
+                .FirstOrDefaultAsync(ct);
+            return new ChatThreadResult(new ApiError("conflict", other is null
+                    ? "This conversation is no longer available."
+                    : $"This conversation was just claimed by {other.DisplayName}."),
+                null);
+        }
+
+        // The DB row is already updated; mirror it on the tracked entity
+        // (navigation set explicitly — ExecuteUpdateAsync skips fixup) so
+        // the DTO below carries the new assignee.
         thread.AssignedEmployeeId = employee.Id;
-        thread.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
+        thread.AssignedEmployee = employee;
+        thread.UpdatedAt = now;
         await BroadcastAsync(thread.Id, "threadUpdated", ToThreadDto(thread, employee), ct);
         return new ChatThreadResult(null, ToThreadDto(thread, employee));
     }

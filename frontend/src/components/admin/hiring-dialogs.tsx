@@ -127,7 +127,7 @@ export function DetailDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClosed()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="flex max-h-[80dvh] max-w-2xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display">
             {t("applicant")}: {a.name}
@@ -153,7 +153,7 @@ export function DetailDialog({
             <YarnLoader className="size-8" />
           </div>
         ) : (
-          <div className="grid gap-5 text-sm">
+          <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto pr-1 text-sm">
             <section aria-label={t("contact")}>
               <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                 <div>
@@ -257,23 +257,24 @@ export function DetailDialog({
                 ))}
               </ol>
             </section>
-
-            <DialogFooter className="gap-2 sm:justify-end">
-              <DialogClose render={<Button variant="outline" />} type="button">
-                {t("cancel")}
-              </DialogClose>
-              {isNew ? (
-                <>
-                  <Button variant="outline" onClick={() => onDecline(app)}>
-                    {t("decline")}
-                  </Button>
-                  <Button onClick={() => onAccept(app)}>{t("acceptOpen")}</Button>
-                </>
-              ) : (
-                <StatusBadge status={a.status} />
-              )}
-            </DialogFooter>
           </div>
+        )}
+        {detail && (
+          <DialogFooter className="gap-2 sm:justify-end">
+            <DialogClose render={<Button variant="outline" />} type="button">
+              {t("cancel")}
+            </DialogClose>
+            {isNew ? (
+              <>
+                <Button variant="outline" onClick={() => onDecline(app)}>
+                  {t("decline")}
+                </Button>
+                <Button onClick={() => onAccept(app)}>{t("acceptOpen")}</Button>
+              </>
+            ) : (
+              <StatusBadge status={a.status} />
+            )}
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

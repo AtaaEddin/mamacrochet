@@ -52,6 +52,16 @@ const POLL_MS = 5_000;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_FILES = 5;
 
+/**
+ * Sub-plan 04: how long a guest send may WAIT for the bootstrap (thread
+ * not yet created) before giving up with an error. The bootstrap POST has
+ * no transport timeout, so on a wedged mobile network this is the guard
+ * against pinning the composer in its in-flight state forever. The text
+ * stays in the composer either way.
+ */
+const SEND_WAIT_TIMEOUT_MS = 30_000;
+const WAIT_TIMEOUT_MESSAGE = "Still connecting to the chat — please try again.";
+
 export const CHAT_FILE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,application/pdf";
 export const CHAT_FILE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
 
@@ -121,6 +131,17 @@ export function useChat(options: {
   // One-shot "reset the guest thread" flag: set by resetGuestThread(),
   // consumed by the bootstrap effect on its next run.
   const resetRef = useRef(false);
+  // Sub-plan 04: the current thread id without a stale closure — the send
+  // pipeline reads it (it may have landed while a previous send awaited).
+  const activeThreadIdRef = useRef<string | null>(null);
+  // Sub-plan 04: one per bootstrap cycle (guest mode): resolved when the
+  // thread id lands, rejected on bootstrap failure or a superseded cycle.
+  // A send issued before the thread exists WAITS on it (never dropped).
+  const readyRef = useRef<{
+    promise: Promise<void>;
+    resolve: () => void;
+    reject: (reason: Error) => void;
+  } | null>(null);
 
   // Ref mirrors sync in effects (ref writes during render are disallowed).
   useEffect(() => {
@@ -184,6 +205,10 @@ export function useChat(options: {
           setStatus("error");
           setError(result.error.message);
         }
+        // Sub-plan 04: wake any send waiting on this cycle — the bootstrap
+        // error is already shown; it keeps the text, retry recovers.
+        // (A reset failure keeps the OLD thread, so sends don't wait here.)
+        readyRef.current?.reject(new Error("bootstrap failed"));
       }
     })();
     return () => {
@@ -191,9 +216,35 @@ export function useChat(options: {
     };
   }, [mode, openedThreadId, runKey]);
 
+  // ---- Thread-ready promise (sub-plan 04) ----------------------------------
+  // One per bootstrap cycle (mount / reconnect / reset — all bump runKey).
+  // The cleanup rejects the old one so a send waiting across a reconnect
+  // fails fast instead of hanging.
+  useEffect(() => {
+    if (mode !== "guest") return;
+    let resolve!: () => void;
+    let reject!: (reason: Error) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    // StrictMode double-mount rejects the first cycle before any send()
+    // waits on it — keep that rejection from surfacing as unhandled.
+    promise.catch(() => {});
+    readyRef.current = { promise, resolve, reject };
+    return () => reject(new Error("superseded"));
+  }, [mode, runKey]);
+
+  useEffect(() => {
+    if (thread?.id) readyRef.current?.resolve();
+  }, [thread?.id]);
+
   // ---- Thread session (history + socket + fallback poll) --------------------
 
   const activeThreadId = mode === "guest" ? thread?.id ?? null : openedThreadId;
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
 
   // Reset the session when the thread (or a manual reconnect) changes —
   // the render-phase state adjustment React documents for prop changes.
@@ -364,10 +415,40 @@ export function useChat(options: {
 
   const send = useCallback(
     async (input: SendInput) => {
-      if (!activeThreadId) return false;
       const text = input.text.trim();
       if (text.length === 0 && input.files.length === 0 && !input.productId
         && !(input.attachments?.length ?? 0)) return false;
+
+      // Sub-plan 04: never drop a send. Guest mode before the bootstrap
+      // lands: WAIT for the thread (the composer shows its normal in-flight
+      // state the whole time) instead of early-returning. User mode with no
+      // thread open: the panel disables the composer, so this only guards.
+      let threadId = activeThreadIdRef.current;
+      if (!threadId && mode === "guest") {
+        const ready = readyRef.current;
+        if (!ready) return false;
+        let timedOut = false;
+        let timer: number | undefined;
+        const timeout = new Promise<never>((_, rej) => {
+          timer = window.setTimeout(() => {
+            timedOut = true;
+            rej(new Error("timeout"));
+          }, SEND_WAIT_TIMEOUT_MS);
+        });
+        try {
+          await Promise.race([ready.promise, timeout]);
+        } catch {
+          // Bootstrap failed (its error is already shown — don't
+          // overwrite it) or the safety cap: keep the text, return false.
+          if (timedOut) setError(WAIT_TIMEOUT_MESSAGE);
+          return false;
+        } finally {
+          window.clearTimeout(timer);
+        }
+        threadId = activeThreadIdRef.current;
+        if (!threadId) return false;
+      }
+      if (!threadId) return false;
       setError(null);
 
       // Uploads first — a failed upload never sends a half message. A retry
@@ -376,7 +457,7 @@ export function useChat(options: {
       let attachments: chat.ChatAttachment[] = [];
       if (input.files.length > 0) {
         const upload = await chat.uploadThreadAttachments(
-          activeThreadId,
+          threadId,
           auth(),
           input.files,
         );
@@ -385,6 +466,11 @@ export function useChat(options: {
           return false;
         }
         attachments = upload.data;
+        // Per-send consumption (sub-plan 04): only THIS send's files are
+        // consumed. A chip attached mid-flight survives the completion of
+        // an earlier send; once uploaded, the files live on the server
+        // keyed by id — a later send failure reuses them, never the chips.
+        setPendingFiles((prev) => prev.filter((f) => !input.files.includes(f)));
       } else if (input.attachments) {
         attachments = input.attachments;
       }
@@ -417,7 +503,7 @@ export function useChat(options: {
         try {
           await conn.invoke(
             "SendMessage",
-            activeThreadId,
+            threadId,
             text,
             input.productId ?? null,
             attachments.map((a) => a.id),
@@ -431,7 +517,7 @@ export function useChat(options: {
 
       if (!viaSocket) {
         const result = await chat.sendThreadMessage(
-          activeThreadId,
+          threadId,
           auth(),
           {
             body: text,
@@ -461,10 +547,11 @@ export function useChat(options: {
         );
       }
 
-      setPendingFiles([]);
+      // No blanket setPendingFiles([]) here: chips are removed only when
+      // THIS send's upload succeeds (see above).
       return true;
     },
-    [activeThreadId, auth, mode, upsertMessage],
+    [auth, mode, upsertMessage],
   );
 
   const retry = useCallback(

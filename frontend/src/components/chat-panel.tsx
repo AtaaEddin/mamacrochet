@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import { fileSrc } from "@/lib/api/client";
 import { productTitle, type ProductDto } from "@/lib/catalog/localize";
 import { toWorkDisplay } from "@/lib/catalog/display";
 import { fetchChatProducts } from "@/lib/chat/products";
@@ -76,6 +77,7 @@ export function ChatPanel({
   onInitialProductSent,
   onGuestThread,
   withProductRail = false,
+  canOpenUnclaimed = true,
   backLabel,
   onBack,
   onCloseThread,
@@ -96,14 +98,22 @@ export function ChatPanel({
   onInitialProductSent?: () => void;
   onGuestThread?: (threadId: string) => void;
   withProductRail?: boolean;
+  /**
+   * Sub-plan 02: may this user open unclaimed (assignee-less) threads
+   * directly? Admins + customers: yes. Plain employees: no — auto-open
+   * skips them, and an explicit open claims first (page/inbox wrap
+   * onOpenThread for the claim).
+   */
+  canOpenUnclaimed?: boolean;
   /** Top-bar Back — aria-label + title. */
   backLabel: string;
   /** Page-level Back (previous page, or Home). */
   onBack: () => void;
   /** Mobile: Back from an open thread returns to the conversation list. */
   onCloseThread?: () => void;
-  /** Open a conversation from the list (user mode). */
-  onOpenThread?: (threadId: string) => void;
+  /** Open a conversation from the list (user mode); the page decides any
+   *  staff claim-first logic (sub-plan 02). */
+  onOpenThread?: (item: chatApi.ChatThreadListItem) => void;
   /** List-header action (sub-plan 02: "New conversation"). */
   onNewConversation?: () => void;
   /**
@@ -200,11 +210,16 @@ export function ChatPanel({
     ) {
       return;
     }
-    const latest = threads.find((item) => !item.isClosed);
+    // Sub-plan 02: auto-open must never grab an unclaimed visitor thread
+    // for a plain employee (landing at /chat is not taking work); the
+    // assignee-less rows in their list stay for an explicit, claiming open.
+    const latest = threads.find(
+      (item) => !item.isClosed && (canOpenUnclaimed || item.assigneeName !== null),
+    );
     if (!latest) return;
     autoOpenedRef.current = true;
     onAutoOpenThread?.(latest.id);
-  }, [mode, threadId, initialProductId, threads, onAutoOpenThread]);
+  }, [mode, threadId, initialProductId, canOpenUnclaimed, threads, onAutoOpenThread]);
 
   // ---- Product data (picker + product bubbles) ------------------------------
 
@@ -341,6 +356,10 @@ export function ChatPanel({
   };
 
   const closed = chat.thread?.isClosed ?? false;
+  // Sub-plan 04: user mode with no thread open — the composer can't
+  // deliver (the send would have nowhere to go); disable it instead of
+  // letting send() silently no-op.
+  const composerBlocked = closed || (mode === "user" && !threadId);
 
   const chips = [t("chipCustom"), t("chipTrack"), t("chipDelivery")];
 
@@ -478,7 +497,7 @@ export function ChatPanel({
                   <li key={item.id} className="group flex items-center">
                     <button
                       type="button"
-                      onClick={() => onOpenThread?.(item.id)}
+                      onClick={() => onOpenThread?.(item)}
                       aria-current={threadId === item.id ? "true" : undefined}
                       className={cn(
                         "min-w-0 flex-1 rounded-2xl border p-3 text-start transition-colors",
@@ -786,6 +805,7 @@ export function ChatPanel({
               />
               <button
                 type="button"
+                disabled={composerBlocked}
                 onClick={() => {
                   setPickerOpen((v) => !v);
                   setPickerQuery("");
@@ -794,7 +814,7 @@ export function ChatPanel({
                 aria-expanded={pickerOpen}
                 title={t("pickerLabel")}
                 className={cn(
-                  "grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                  "grid size-11 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                   pickerOpen
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -804,10 +824,11 @@ export function ChatPanel({
               </button>
               <button
                 type="button"
+                disabled={composerBlocked}
                 onClick={() => fileRef.current?.click()}
                 aria-label={t("attach")}
                 title={t("attach")}
-                className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
               >
                 <Paperclip className="size-4.5" aria-hidden="true" />
               </button>
@@ -823,11 +844,12 @@ export function ChatPanel({
                 }}
                 placeholder={t("placeholder")}
                 aria-label={t("placeholder")}
+                disabled={composerBlocked}
                 className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] leading-snug placeholder:text-muted-foreground focus:outline-none"
               />
               <button
                 type="submit"
-                disabled={sending}
+                disabled={sending || composerBlocked}
                 aria-label={t("send")}
                 title={t("send")}
                 className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
@@ -1099,12 +1121,12 @@ function Attachments({
             <button
               key={a.url}
               type="button"
-              onClick={() => lightbox({ url: a.url, label: a.originalName })}
+              onClick={() => lightbox({ url: fileSrc(a.url), label: a.originalName })}
               className="overflow-hidden rounded-xl border border-border/60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
               aria-label={a.originalName}
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- chat files are API files */}
-              <img src={a.url} alt={a.originalName} className="h-28 w-28 object-cover" />
+              <img src={fileSrc(a.url)} alt={a.originalName} className="h-28 w-28 object-cover" />
             </button>
           ))}
         </div>
@@ -1112,7 +1134,7 @@ function Attachments({
       {pdfs.map((a) => (
         <a
           key={a.url}
-          href={a.url}
+          href={fileSrc(a.url)}
           target="_blank"
           rel="noreferrer"
           className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
