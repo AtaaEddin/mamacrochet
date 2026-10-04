@@ -70,14 +70,16 @@ export function AuthBadge() {
 
   return (
     <div className="flex items-center gap-2">
-      <Link
-        href="/orders"
-        aria-label={t("myOrders")}
-        title={t("myOrders")}
-        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      >
-        <Package className="size-5" aria-hidden="true" />
-      </Link>
+      {isStaff ? null : (
+        <Link
+          href="/orders"
+          aria-label={t("myOrders")}
+          title={t("myOrders")}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <Package className="size-5" aria-hidden="true" />
+        </Link>
+      )}
       {isStaff ? (
         <>
         <Link

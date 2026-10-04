@@ -125,6 +125,17 @@ Customer self-service accounts + staff accounts with RBAC, and admin user manage
       assignment + password-reset (audited) — UI page pending with the frontend task
 - [ ] (deferred — future email plan D13) verification / forgot-email / reset flows
 
+## Bug fixes
+
+- **2026-10-04 — header showed the customer “My orders” icon to staff/admin**
+  (found by owner review): the header `Package` link (`/orders`, plan 05 customer
+  status board) rendered for **every** signed-in user, so employees/admins saw a
+  “My orders” entry that is meaningless for team accounts (they get an empty
+  customer list). Staff/admin have their own order surfaces instead
+  (`/staff/orders`, `/admin/orders`). Fix: the `Package` icon renders for
+  customers only (`!isStaff`); staff keep “Staff orders” + “Products (team)”,
+  admin additionally gets “Admin orders” / “Team desk” / “Join requests”.
+
 ## Acceptance
 
 - Register→login flow works with no email involved; admin password reset works
