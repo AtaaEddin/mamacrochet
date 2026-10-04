@@ -201,6 +201,22 @@ Product management (admin + employee) and a public, mobile-first catalog.
   `$orderby`, rejected in `$filter` with `Field 'x' cannot be filtered.`) — used for
   `createdAt` on the public catalog.
 
+## Bug fixes
+
+- **2026-10-04 — staff/public product list: `$filter` category + multi-clause filters 400'd**
+  (found while verifying admin product add end-to-end):
+  1. The staff list builder sent `category eq '<id>'`, but the staff binder registers the
+     field as `categoryId` (the public binder uses `category`) → 400 `Unknown field` the
+     moment an admin picked a category in the staff product list filter.
+  2. Both builders emitted the OData **v3** `and(a, b)` function form whenever 2+ clauses
+     were active (category+search, category+listed-only, search+listed-only …) — the D19
+     parser implements the OData **v4.01** infix `and` and rejects `and(` with
+     `Unexpected token 'and'` → the public works page (search + category) and the staff
+     list (any 2 active filters) 400'd and showed the error panel.
+     Fix (frontend only, API is the D19 source of truth): staff builder uses `categoryId eq`,
+     both builders join clauses with infix ` and` (same shape the orders builders use).
+     Live-verified: single + combined filters on `/staff/products` and `/catalog/products`.
+
 ## Acceptance
 
 - Employee can create a product with 5 images, hide/show it, edit price/units — mobile UI.
