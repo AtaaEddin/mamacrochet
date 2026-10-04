@@ -42,12 +42,13 @@ export function buildProductsQuery(opts: CatalogQuery = {}) {
   const q = opts.titleSearch?.trim();
   if (q) clauses.push(`contains(title, '${escapeOData(q)}')`);
 
-  // OData `and()` function form (keeps the pre-migration wire shape).
+  // OData v4.01 infix `and` (the D19 subset — `and(a, b)` is the OData v3
+  // convention and the parser rejects it).
   let filter: string | undefined;
   const first = clauses[0];
   if (first !== undefined) {
     const second = clauses[1];
-    filter = second !== undefined ? `and(${first}, ${second})` : first;
+    filter = second !== undefined ? `${first} and ${second}` : first;
   }
 
   return {

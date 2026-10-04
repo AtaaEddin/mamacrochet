@@ -59,21 +59,23 @@ function buildProductsQuery(opts: StaffProductQuery = {}) {
   const page = Math.max(1, opts.page ?? 1);
 
   const clauses: string[] = [];
-  if (opts.categoryId) clauses.push(`category eq '${opts.categoryId}'`);
+  // The staff binder registers the field as `categoryId` (the public catalog
+  // binder uses `category` — do not mix the two wire names).
+  if (opts.categoryId) clauses.push(`categoryId eq '${opts.categoryId}'`);
   if (opts.isListed !== null && opts.isListed !== undefined) {
     clauses.push(`isListed eq ${opts.isListed ? "true" : "false"}`);
   }
   const q = opts.titleSearch?.trim();
   if (q) clauses.push(`contains(title, '${escapeOData(q)}')`);
 
-  // OData `and()` function form (the staff binder accepts both it and the
-  // infix `and` — this keeps the pre-migration wire shape).
+  // OData v4.01 infix `and` (the D19 subset — `and(a, b)` is the OData v3
+  // convention and the parser rejects it).
   let filter: string | undefined;
   const first = clauses[0];
   if (first !== undefined) {
     filter = first;
     for (let i = 1; i < clauses.length; i++) {
-      filter = `and(${filter}, ${clauses[i]})`;
+      filter = `${filter} and ${clauses[i]}`;
     }
   }
 
