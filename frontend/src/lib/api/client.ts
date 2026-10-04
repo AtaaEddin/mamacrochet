@@ -281,10 +281,19 @@ export function avatarSrc(avatarUrl: string | null | undefined): string | null {
   return fileSrc(avatarUrl);
 }
 
-/** Resolve any API path (e.g. hiring files) against the API base. */
+/**
+ * Resolve any API path (e.g. hiring files) against the API base. Same rule
+ * as `catalog/display.ts`: a same-origin base (prod `/api`) is a path
+ * prefix to join, not a URL base (which would drop the prefix).
+ */
 export function fileSrc(apiPath: string): string {
+  if (API_BASE_URL.startsWith("/")) {
+    return `${API_BASE_URL.replace(/\/+$/, "")}${apiPath}`;
+  }
   try {
-    return new URL(apiPath, API_BASE_URL).toString();
+    const url = new URL(API_BASE_URL);
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}${apiPath}`;
+    return url.toString();
   } catch {
     return apiPath;
   }

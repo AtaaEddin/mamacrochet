@@ -27,14 +27,23 @@ export interface WorkDisplay {
  * Resolve an API file path (`/files/...`) against the browser-facing API base
  * so the same `src` works in dev (cross-origin `http://localhost:8085`) and
  * prod (same-origin under `/api`).
+ *
+ * A same-origin base (`/api`) is joined as a PATH PREFIX: `new URL(path, base)`
+ * would drop the prefix (spec: an absolute path input replaces the base's
+ * path), which would 404 every file in the prod deployment.
  */
 export function fileSrc(path: string | null | undefined): string | null {
   if (!path) return null;
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085";
+  if (base.startsWith("/")) {
+    return `${base.replace(/\/+$/, "")}${path}`;
+  }
   try {
-    return new URL(
-      path,
-      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085",
-    ).toString();
+    const url = new URL(base);
+    // Join as a path prefix: `new URL(path, base)` would replace the base's
+    // path and drop any subpath (e.g. a cross-origin `/api` deployment).
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}${path}`;
+    return url.toString();
   } catch {
     return path;
   }
