@@ -1,6 +1,6 @@
 # 03 — Hiring detail dialog: cap height, scroll body, pin header/footer
 
-status: proposed
+status: done
 
 Frontend only. One component: `hiring-dialogs.tsx` → `DetailDialog`.
 Source: API-client plan, notes item 3.

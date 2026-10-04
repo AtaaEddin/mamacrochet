@@ -1,6 +1,6 @@
 # 01 — Chat attachment images render (wrap URLs in fileSrc)
 
-status: proposed
+status: done
 
 Frontend only. One component: `chat-panel.tsx` → `Attachments` (+ its
 lightbox). Source: API-client plan, notes item 1.

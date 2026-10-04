@@ -1,6 +1,6 @@
 # 04 — Chat send races: per-send file clearing + no drop before the thread exists
 
-status: proposed
+status: done
 
 Frontend only: `lib/chat/api.ts`, `lib/chat/use-chat.ts`,
 `components/chat-panel.tsx`. Source: API-client plan, notes items 4 + 5.

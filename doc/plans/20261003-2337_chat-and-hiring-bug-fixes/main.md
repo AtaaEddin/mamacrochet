@@ -121,3 +121,38 @@ list/open paths and 04 is the send pipeline). Suggested: 01 → 03 (trivial) →
   light + dark, en + ar — scenarios in each sub-plan's DoD.
 - Plan files updated (status/decisions) · `COMMITS.md` appended · clean
   commit(s).
+
+## Verification (2026-10-04, live Aspire stack, Playwright)
+
+- **Core pass** `frontend/scripts/verify-chat-hiring-bugs.mjs` — 43/43 PASS
+  (guest/staff/admin, mobile + desktop, light + dark; the 404→render, the
+  403→claim-on-open, the dialog cap, and the send-race fixes).
+- **Extras pass** `frontend/scripts/verify-chat-hiring-bugs-extras.mjs` —
+  62/62 PASS. Covers the remaining checklist items of all four sub-plans and
+  the full ar/RTL dimension:
+  - **01:** image + PDF render on the GUEST and the STAFF side, lightbox
+    opens, PDF pill is an absolute signed link, zero 4xx/5xx on `/files/**`,
+    ar renders without horizontal overflow.
+  - **02:** employee claims by clicking the `/chat` **list** row (not the
+    inbox); **closed**-unclaimed variant opens + claims without 403; customer
+    auto-open of their own thread is unchanged; ar list-click claim; zero 403
+    responses on `/chat/**` for the whole sub.
+  - **03:** dialog at the SHORT 900×620 viewport (body scrolls, Accept pinned
+    visible, footer visible at top and bottom), app seeded through the REAL
+    public form with 2 files + long text (image loads, PDF pill, history
+    reachable), mobile dark ≤ 80dvh, ar/RTL fits 390 px with قبول pinned,
+    Accept flow → one-time-password dialog, Decline flow → `declined`.
+  - **04:** pre-bootstrap send lands exactly once (UI + DB); in-flight file —
+    chip A consumed by send 1, chip B survives and goes with send 2, one
+    attachment per message in the DB; bootstrap FAILURE → retry control, text
+    kept, error shown, retry + resend works; closed thread (user mode) →
+    composer replaced by the "conversation is closed" note.
+- **Discovered during verification (pre-existing, OUT of scope — not fixed):**
+  the mobile **site header** overflows the document by ~108 px (ar) / ~111 px
+  (en) at a 390 px viewport whenever a **staff** user is signed in: row 1 holds
+  the `shrink-0` logo + the two 44 px staff icon buttons (`AuthBadge`) + the
+  chat CTA with its unread badge, which exceeds the 358 px content width
+  (`site-header.tsx` — the "~20 px of headroom" comment covers the guest
+  state only). Affects every staff page on phones in both LTR and RTL.
+  Candidate for a small separate plan (e.g. hide one staff icon under
+  `sm`/merge into a menu, or make the CTA badge truncate).

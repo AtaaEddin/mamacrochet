@@ -1,6 +1,6 @@
 # 02 — Staff can open unclaimed visitor threads (claim-on-open) + first-wins claim
 
-status: proposed
+status: done
 
 Frontend (three files) + one small backend method (`ChatService.ClaimThreadAsync`).
 Source: API-client plan, notes item 2.
