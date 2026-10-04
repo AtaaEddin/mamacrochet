@@ -108,6 +108,11 @@ Rationale (researched 2026-10-03; sources in `04-product-cta-new-conversation.md
   thread; guest device-thread once + no dup).
 - `05-rail-link-and-ar-name.md` — works-rail "browse the full list" becomes
   a real link to `/works`; ar.json حنادي → هنادي (10×) + verify script.
+  **Done 2026-10-03** (typecheck + lint 0 warn; browser-verified via
+  `frontend/scripts/verify-rail-link-and-ar-name.mjs` — rail foot navigates
+  to `/works` in en+ar, light+dark; ar UI shows هنادي in launcher/works
+  subtitle/chat panel, no حنادي. `verify-fab-exit.mjs` 28/28 incl.
+  auto-open-aware `T` section).
 
 ## Definition of done (all sub-plans)
 

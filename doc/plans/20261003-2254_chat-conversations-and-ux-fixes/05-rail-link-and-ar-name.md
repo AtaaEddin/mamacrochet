@@ -1,6 +1,6 @@
 # 05 — Works-rail "browse the full list" becomes a link + ar name هنادي
 
-status: proposed
+status: done
 
 Frontend only. Asks 3 and 5.
 
@@ -33,8 +33,27 @@ every piece can be yours.") is a plain `<p>`. Make it a real `Link` to
 
 ## Definition of done
 
-- `pnpm typecheck` · `pnpm lint` green.
-- Browser-verified (en + ar, mobile + desktop, light + dark): rail foot
-  navigates to `/works` (clickable, focusable, RTL-correct); `ar` UI shows
-  هنادي in the metadata/launcher/chat strings (spot-check
-  `document.title`-level metadata + chat panel title + works subtitle).
+- `pnpm typecheck` · `pnpm lint` green. ✅
+- Browser-verified via `frontend/scripts/verify-rail-link-and-ar-name.mjs`
+  (playwright-core vs system Chromium) — 29/29 pass:
+  - **rail foot link** (desktop; the rail is `hidden` below `lg`), en + ar,
+    light + dark: exactly one `/works` link in the rail, `href` points at
+    `/works`, the element is focusable (native `<a>` tab stop), and clicking
+    navigates to `/<locale>/works`. RTL: the link sits at the rail foot and
+    navigates correctly in `ar` (dir=rtl). ✅
+  - **Arabic name** (ar pages, mobile + desktop, light + dark): the works
+    subtitle shows هنادي; the chat launcher (FAB) `aria-label` is
+    «تحدّثي مع هنادي»; the chat panel `section` `aria-label` is
+    «الدردشة مع هنادي»; and **no** حنادي appears anywhere in the rendered
+    `/ar/works` or `/ar/chat` UI. ✅
+  - Note on "document.title-level metadata": `Metadata.name` = "هنادي
+    كروشيه" feeds the title template `%s · ${name}`, but no route sets its
+    own `<title>` (all use the default), so the app name never lands in
+    `document.title`. The name is verified where it actually renders
+    (launcher / works subtitle / chat panel label) plus the `ar.json` value.
+- `verify-fab-exit.mjs` still passes (28/28): FAB `aria-label` updated to
+  هنادي. Its signed-in `T` section was also made auto-open-aware (sub-plan
+  03): `/chat` now lands in THREAD mode (the single linked thread
+  auto-opens, one-shot), so the flow is thread-mode Back → list → the
+  linked thread row is shown, instead of the pre-auto-open
+  list→click→thread order. ✅
