@@ -1,6 +1,6 @@
 # Full test suite (backend + frontend)
 
-status: in-progress
+status: done
 created: 2026-10-04 05:54 (+03)
 owner: agent (user request: "write full test suite")
 
@@ -26,8 +26,8 @@ opt-in Playwright smoke (e2e) run against the live Aspire dev stack.
 | 01 | Backend test harness (project, fixture, test DB, helpers) | 01-backend-test-harness.md | done |
 | 02 | Backend domain tests (services: orders, chat, tokens, links, signatures) | 02-backend-domain-tests.md | done |
 | 03 | Backend endpoint tests (HTTP: identity, catalog, orders, chat, hiring, admin, files) | 03-backend-endpoint-tests.md | done |
-| 04 | Frontend unit tests (Vitest + Testing Library) | 04-frontend-unit-tests.md | proposed |
-| 05 | Frontend e2e smoke (Playwright-core, opt-in, live dev stack) | 05-frontend-e2e.md | proposed |
+| 04 | Frontend unit tests (Vitest + Testing Library) | 04-frontend-unit-tests.md | done |
+| 05 | Frontend e2e smoke (Playwright-core, opt-in, live dev stack) | 05-frontend-e2e.md | done |
 
 ## Decisions
 
@@ -65,6 +65,16 @@ opt-in Playwright smoke (e2e) run against the live Aspire dev stack.
   prefix and would 404 in production. Both implementations now join a
   same-origin base as a path prefix (absolute bases: pathname join).
   Pinned by the `catalog/display` tests.
+- **Bug found by the e2e smoke (sub-plan 05, fixed)**: the same two `fileSrc`
+  implementations joined API paths through `url.pathname`, which
+  percent-encodes the `?` of signed URLs (chat attachments) into the path
+  (`file.png%3Fsig=…`) — every signed chat image would 404. Both now split
+  the query off and set it via `url.search`; pinned in
+  `catalog/display.test.ts` (frontend suite 62 → 63). E2E-only environment
+  quirks (Chromium h2 prior-knowledge on the HTTP/1.1-only dev API,
+  per-IP guest submit budget 5/min, Playwright file inputs on `sr-only`
+  inputs) are handled in the harness — no app changes; see
+  `05-frontend-e2e.md` → Result.
 
 ## Out of scope
 
