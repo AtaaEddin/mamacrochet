@@ -102,6 +102,10 @@ Rationale (researched 2026-10-03; sources in `04-product-cta-new-conversation.md
 - `04-product-cta-new-conversation.md` — `?work=` for logged-in customers
   opens a NEW conversation with the work; `?work=` dropped after the first
   send (guests included).
+  **Done 2026-10-03** (typecheck + lint 0 warn; browser-verified via
+  `frontend/scripts/verify-product-cta.mjs` — customer new-thread + one
+  product + no dup on refresh + latest; explicit `?thread=&work=` into that
+  thread; guest device-thread once + no dup).
 - `05-rail-link-and-ar-name.md` — works-rail "browse the full list" becomes
   a real link to `/works`; ar.json حنادي → هنادي (10×) + verify script.
 

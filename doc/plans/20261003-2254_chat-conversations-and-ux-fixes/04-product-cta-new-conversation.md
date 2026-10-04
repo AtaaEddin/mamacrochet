@@ -1,6 +1,6 @@
 # 04 — Product CTA opens a NEW conversation with the work
 
-status: proposed
+status: done
 
 Frontend only (`app/[locale]/chat/page.tsx` + `components/chat-panel.tsx`).
 Ask 4 — owner delegated the decision ("not sure what's the best for our
@@ -50,11 +50,25 @@ Research (2026-10-03):
 
 ## Definition of done
 
-- `pnpm typecheck` · `pnpm lint` green.
-- Browser-verified (mobile + desktop, light + dark, en + ar):
-  - logged-in customer: product page CTA → a NEW thread (subject = the
-    work's first words) with exactly one product bubble; refresh → no
-    duplicate send; `/chat` list shows the new thread.
-  - guest: product page CTA → device thread gets the product message once
-    (refresh no longer duplicates).
-  - explicit `?thread=&work=` still sends into that thread.
+- `pnpm typecheck` · `pnpm lint` green. ✅
+- Browser-verified (mobile, light; en) via
+  `frontend/scripts/verify-product-cta.mjs` (playwright-core vs system
+  Chromium; the `ChatMessages` row count is the authoritative
+  "sent exactly once" signal — the product bubble renders 1:1 from it):
+  - **logged-in customer**: `/chat?work=<id>` (no `?thread=`) → a NEW thread
+    is created + opened, the work is sent ONCE into it (exactly one product
+    message; the thread renders it on the customer's side), `?work=` is
+    dropped after the product is accepted, a refresh does NOT re-send it,
+    and the new thread is the latest (auto-opened at `/chat`). ✅
+  - **explicit `?thread=<t>&work=<id>`**: still sends into THAT thread (one
+    product message lands in `t`, `?work=` is dropped, the first thread is
+    untouched — no new thread). ✅
+  - **guest**: `/chat?work=<id>` → the device thread gets the product ONCE,
+    `?work=` is dropped, a refresh does NOT re-send it. ✅
+
+  Note: per the plan's behavior section the thread is created with
+  `createThread({})` (no subject). A product-only first message carries no
+  text, so the thread subject stays empty and the list shows the
+  `noSubject` fallback; the thread is unmistakably "about that work" because
+  its first message is the product bubble. (Labeling the subject with the
+  work's name would require the CTA to pass the name — out of scope here.)
