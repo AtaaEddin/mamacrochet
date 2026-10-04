@@ -1,6 +1,6 @@
 # Chat conversation management (delete / new) + chat UX fixes
 
-status: in-progress
+status: done
 created: 2026-10-03 22:54 (+03)
 owner: agent (requested by owner 2026-10-03)
 
