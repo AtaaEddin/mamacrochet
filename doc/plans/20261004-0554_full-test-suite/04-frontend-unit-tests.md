@@ -1,6 +1,6 @@
 # 04 — Frontend unit tests (Vitest)
 
-status: proposed
+status: done
 parent: 20261004-0554_full-test-suite
 
 ## Tooling
@@ -61,3 +61,48 @@ Pure libs first (no mocks), then module-mocked hook tests:
 - `pnpm test` green; `pnpm typecheck` + `pnpm lint` green (new deps pinned).
 - No production code changes (tests only). If a test exposes a bug →
   separate plan.
+
+## Result (done)
+
+62 tests, 11 files, all green (`pnpm test` = 62/62, stable across runs):
+
+- Pure libs (zero mocks, 47): `guest-id` (5), `orders/status` (5),
+  `chat/return-to` (5), `auth` (5), `api/errors` (5), `api/odata` (2),
+  `catalog/query` (7), `catalog/display` (6), `catalog/localize` (7).
+- Module-mocked: `chat/api` bootstrap dedupe (5 — concurrent N → 1 API
+  call, later call re-hits, `reset` separate key, error envelope, network
+  error) · `use-chat` hook (10 — history + live, socket send + broadcast
+  de-dupe by `clientId`, socket-down → polling + REST fallback, REST
+  failure → `failed` flag + error, file chips consumed only on THIS
+  send's ack, socket close → polling vs `threadUpdated(closed)` → closed,
+  `loadOlder` prepend + de-dupe, guest send waits on bootstrap (never
+  dropped), bootstrap failure → error, failed-bootstrap send keeps text).
+- Tooling: `vitest@5.0.3`, `jsdom@30.1.2`, `@testing-library/react@16.3.3`,
+  `@testing-library/dom@10.4.1`, `@testing-library/jest-dom@7.0.1`,
+  `@vitejs/plugin-react@6.1.1` (all pinned exact). `vitest.config.ts` (jsdom,
+  globals, `@` alias, setup `src/test/setup.ts` with jest-dom matchers +
+  `crypto.randomUUID` polyfill + RTL cleanup).
+- Draft-vs-reality notes (all resolved against the code, no app changes):
+  - `fileSrc` in **two** modules (`catalog/display.ts`, `api/client.ts`)
+    resolves `/files/...` against `NEXT_PUBLIC_API_URL` — the prod build
+    uses `/api` (Caddy subpath, see `deploy/docker-compose.yml`);
+    `new URL(path, base)` DROPS the base's path prefix (spec), so prod
+    would 404 every file/avatar/hiring/chat image. **Real bug found by
+    the tests → fixed in this plan** (same-origin base joined as a path
+    prefix; absolute bases join pathnames) — the test that found it pins
+    the `/api` prefix behavior.
+  - `guest-id` SSR guard test dropped: jsdom cannot simulate an absent
+    `window` in the same worker — the 5 browser-path cases cover the
+    function; the guard is one `typeof window` line.
+  - `return-to`: protocol-relative `//x` is NOT rejected (only non-`/`-first
+    values are) — harmless: the value only ever comes from same-origin
+    `pathname + search`; the test pins the rejection that exists.
+  - `use-chat` fake signalr: the session's `fetchThread` overwrites the
+    bootstrapped thread — guest-mode tests pin `fetchThread` to the same
+    thread id the bootstrap mock returns.
+  - Coverage NOT covered (deliberate, suite stays lean): guest 409
+    re-bootstrap path and poll-tick ordering (timer-driven; covered
+    indirectly by the REST-fallback tests); `api/client.ts` `client()`
+    non-JSON/X-Api-Client guard (would need a fetch mock rig for one
+    branch); `display.ts`/`localize.ts` i18n wrapper variants (pure pick
+    logic is covered, the `useTranslations` glue is one line each).

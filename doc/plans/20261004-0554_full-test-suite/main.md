@@ -53,7 +53,18 @@ opt-in Playwright smoke (e2e) run against the live Aspire dev stack.
   not part of `pnpm test`) to keep CI/DoD green on a bare clone.
 - **No behavior changes**: tests only. If a test exposes a real bug, the fix
   goes to a new plan (AGENTS.md: "never expand silently") — documented in the
-  sub-plan + COMMITS note.
+  sub-plan + COMMITS note. One exception was taken (same precedent as
+  sub-plan 02): a test-discovered real bug was fixed in-plan, noted below.
+- **Bug found by the tests (sub-plan 04, fixed)**: `fileSrc` in
+  `frontend/src/lib/catalog/display.ts` **and** `frontend/src/lib/api/client.ts`
+  built file URLs with `new URL(path, NEXT_PUBLIC_API_URL)`. The prod
+  deployment sets `NEXT_PUBLIC_API_URL=/api` (`deploy/docker-compose.yml`,
+  Caddy same-origin subpath); per the URL spec an absolute path input
+  **replaces** the base's path — so every `/files/...` URL (product images,
+  avatars, hiring files, order receipts, chat attachments) lost its `/api`
+  prefix and would 404 in production. Both implementations now join a
+  same-origin base as a path prefix (absolute bases: pathname join).
+  Pinned by the `catalog/display` tests.
 
 ## Out of scope
 
