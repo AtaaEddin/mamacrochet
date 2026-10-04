@@ -4,4 +4,7 @@
     <Project Path="src/Hanadicrochet.AppHost/Hanadicrochet.AppHost.csproj" />
     <Project Path="src/Hanadicrochet.ServiceDefaults/Hanadicrochet.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj" />
+  </Folder>
 </Solution>
