@@ -73,6 +73,7 @@ export function ChatPanel({
   mode,
   threadId,
   initialProductId = null,
+  onInitialProductSent,
   onGuestThread,
   withProductRail = false,
   backLabel,
@@ -88,6 +89,11 @@ export function ChatPanel({
   threadId: string | null;
   /** A work the visitor arrived with (e.g. ?work=) — sent once, as a product message. */
   initialProductId?: string | null;
+  /**
+   * Sub-plan 04: called once the ?work= product message is accepted, so the
+   * page can drop ?work= from the URL (a refresh then never re-sends it).
+   */
+  onInitialProductSent?: () => void;
   onGuestThread?: (threadId: string) => void;
   withProductRail?: boolean;
   /** Top-bar Back — aria-label + title. */
@@ -182,15 +188,23 @@ export function ChatPanel({
   // not on "pick a conversation". One-shot per mount: going Back to the
   // list (which removes `?thread=`) must not re-trigger it. The API list is
   // already ordered by last activity desc (ListThreadsAsync).
+  // SKIPPED for ?work=: the page creates a fresh conversation for the work
+  // (sub-plan 04), so auto-opening an old thread would race it.
   useEffect(() => {
-    if (mode !== "user" || threadId || autoOpenedRef.current || threads === null) {
+    if (
+      mode !== "user" ||
+      threadId ||
+      initialProductId ||
+      autoOpenedRef.current ||
+      threads === null
+    ) {
       return;
     }
     const latest = threads.find((item) => !item.isClosed);
     if (!latest) return;
     autoOpenedRef.current = true;
     onAutoOpenThread?.(latest.id);
-  }, [mode, threadId, threads, onAutoOpenThread]);
+  }, [mode, threadId, initialProductId, threads, onAutoOpenThread]);
 
   // ---- Product data (picker + product bubbles) ------------------------------
 
@@ -251,7 +265,12 @@ export function ChatPanel({
     if (!initialProductId || sentInitialRef.current) return;
     if (chat.status === "live" && !chat.loadingHistory) {
       sentInitialRef.current = true;
-      void chat.send({ text: "", productId: initialProductId, files: [] });
+      void (async () => {
+        // Sub-plan 04: once the work is accepted, drop ?work= from the URL so
+        // a refresh never re-sends it (the one-shot guard stays as backstop).
+        const ok = await chat.send({ text: "", productId: initialProductId, files: [] });
+        if (ok) onInitialProductSent?.();
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.status, chat.loadingHistory, initialProductId]);
