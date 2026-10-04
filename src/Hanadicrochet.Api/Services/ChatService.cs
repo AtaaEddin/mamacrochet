@@ -692,9 +692,14 @@ public sealed class ChatService(
         if (!string.IsNullOrEmpty(before))
         {
             var anchor = await baseQuery.FirstAsync(m => m.Id == before, ct);
+            // Strictly older than the anchor. The id tie-break for equal
+            // timestamps is not expressible in translatable SQL (string '<'
+            // has no C# operator), so a same-timestamp message (other than
+            // the anchor) may be included even though it ties with it; the
+            // ordering (At, Id) keeps the page deterministic and the client
+            // dedupes by message id.
             query = baseQuery
-                .Where(m => m.At < anchor.At
-                    || (m.At == anchor.At && string.CompareOrdinal(m.Id, anchor.Id) < 0))
+                .Where(m => m.At <= anchor.At && m.Id != anchor.Id)
                 .OrderByDescending(m => m.At)
                 .ThenByDescending(m => m.Id);
             hasNewer = true; // the caller moved backwards — there are newer messages
@@ -703,8 +708,7 @@ public sealed class ChatService(
         {
             var anchor = await baseQuery.FirstAsync(m => m.Id == after, ct);
             query = baseQuery
-                .Where(m => m.At > anchor.At
-                    || (m.At == anchor.At && string.CompareOrdinal(m.Id, anchor.Id) > 0))
+                .Where(m => m.At >= anchor.At && m.Id != anchor.Id)
                 .OrderBy(m => m.At)
                 .ThenBy(m => m.Id);
             hasNewer = false; // polling forward: HasNewer says "more beyond the page"
@@ -725,9 +729,12 @@ public sealed class ChatService(
             fetched.RemoveAt(fetched.Count - 1);
         }
 
-        if (string.IsNullOrEmpty(before))
+        // Initial load and "load older" pages come back descending; flip them
+        // to ascending so the client renders/prepends them as-is. The forward
+        // ("after") page is already ascending.
+        if (string.IsNullOrEmpty(after) || before is not null)
         {
-            fetched.Reverse(); // ascending for rendering
+            fetched.Reverse();
         }
 
         return new ChatMessagePageResult(null, new MessagePageDto(

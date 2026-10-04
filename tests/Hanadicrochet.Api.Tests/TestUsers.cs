@@ -19,7 +19,7 @@ public static class TestUsers
         $"{prefix}-{Guid.NewGuid():N}@example.com";
 
     public static string UniqueName(string prefix = "Test") =>
-        $"{prefix} {Guid.NewGuid():N}"[..40];
+        $"{prefix} {Guid.NewGuid():N}";
 
     /// <summary>
     /// Creates a user directly in the database. <paramref name="role"/> is
@@ -35,9 +35,12 @@ public static class TestUsers
     {
         using var scope = fx.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var userEmail = email ?? UniqueEmail(role);
         var user = new AppUser
         {
-            Email = email ?? UniqueEmail(role),
+            // Identity needs a username; the email doubles as it (unique).
+            UserName = userEmail,
+            Email = userEmail,
             DisplayName = displayName ?? UniqueName(role),
             Phone = phone,
             IsEmployee = role is "employee" or "admin",

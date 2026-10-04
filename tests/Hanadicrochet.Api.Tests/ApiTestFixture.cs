@@ -24,7 +24,11 @@ public sealed class ApiCollectionDefinition : ICollectionFixture<ApiTestFixture>
 /// dedicated Postgres database (created here, dropped on dispose). See plan
 /// 20261004-0554_full-test-suite, sub-plan 01.
 /// </summary>
-public sealed class ApiTestFixture : IAsyncDisposable
+/// <remarks>
+/// xUnit v2 collection fixtures are disposed through the synchronous
+/// <see cref="IDisposable"/> only, so all cleanup happens there.
+/// </remarks>
+public sealed class ApiTestFixture : IDisposable
 {
     public const string MaintConnectionString =
         "Host=127.0.0.1;Port=5432;Username=postgres;Password=postgres;Database=postgres";
@@ -107,17 +111,17 @@ public sealed class ApiTestFixture : IAsyncDisposable
     /// same instance services in that scope receive.</summary>
     public IServiceScope CreateScope() => Services.CreateScope();
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        await Factory.DisposeAsync();
+        Factory.Dispose();
 
         try
         {
             using var conn = new NpgsqlConnection(MaintConnectionString);
-            await conn.OpenAsync();
+            conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = $"DROP DATABASE IF EXISTS {DbName} WITH (FORCE);";
-            await cmd.ExecuteNonQueryAsync();
+            cmd.ExecuteNonQuery();
         }
         catch (NpgsqlException)
         {
