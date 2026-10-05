@@ -192,8 +192,11 @@ public sealed class QueryBinder
             case var type when type == typeof(decimal):
                 return value switch
                 {
+                    // Non-nullable value type: 'field eq null' is invalid
+                    // OData for these fields — 400, not an unhandled
+                    // ArgumentException from Expression.Constant(null, T).
+                    FilterValue.NullValue => throw NullOnNonNullable(field),
                     FilterValue.NumberValue n => Expression.Constant(n.Value, typeof(decimal)),
-                    FilterValue.NullValue => Expression.Constant(null, typeof(decimal)),
                     _ => throw new QuerySpecException(
                         $"Field '{field.Name}' expects a number."),
                 };
@@ -201,9 +204,9 @@ public sealed class QueryBinder
             case var type when type == typeof(int):
                 return value switch
                 {
+                    FilterValue.NullValue => throw NullOnNonNullable(field),
                     FilterValue.NumberValue n when n.Value == Math.Truncate(n.Value)
                         => Expression.Constant((int)n.Value, typeof(int)),
-                    FilterValue.NullValue => Expression.Constant(null, typeof(int)),
                     _ => throw new QuerySpecException(
                         $"Field '{field.Name}' expects a whole number."),
                 };
@@ -211,8 +214,8 @@ public sealed class QueryBinder
             case var type when type == typeof(bool):
                 return value switch
                 {
+                    FilterValue.NullValue => throw NullOnNonNullable(field),
                     FilterValue.BoolValue b => Expression.Constant(b.Value, typeof(bool)),
-                    FilterValue.NullValue => Expression.Constant(null, typeof(bool)),
                     _ => throw new QuerySpecException(
                         $"Field '{field.Name}' expects true or false."),
                 };
@@ -220,6 +223,7 @@ public sealed class QueryBinder
             case var type when type == typeof(DateTime):
                 return value switch
                 {
+                    FilterValue.NullValue => throw NullOnNonNullable(field),
                     FilterValue.DateValue d => Expression.Constant(d.Value, typeof(DateTime)),
                     FilterValue.StringValue s when DateTime.TryParse(
                         s.Value,
@@ -228,7 +232,6 @@ public sealed class QueryBinder
                             | System.Globalization.DateTimeStyles.AdjustToUniversal,
                         out var parsed)
                         => Expression.Constant(parsed, typeof(DateTime)),
-                    FilterValue.NullValue => Expression.Constant(null, typeof(DateTime)),
                     _ => throw new QuerySpecException(
                         $"Field '{field.Name}' expects an ISO date."),
                 };
@@ -237,4 +240,7 @@ public sealed class QueryBinder
                 throw new QuerySpecException($"Field '{field.Name}' has an unsupported type.");
         }
     }
+
+    private static QuerySpecException NullOnNonNullable(FieldSpec field) =>
+        new($"Field '{field.Name}' is not nullable; 'eq null' is not supported.");
 }

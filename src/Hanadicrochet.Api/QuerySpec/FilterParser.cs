@@ -20,8 +20,12 @@ namespace Hanadicrochet.Api.QuerySpec;
 /// </summary>
 internal static class FilterParser
 {
+    // No '^' anchor: the pattern is matched at an explicit start position
+    // (Regex.Match(input, i)) where '^' would still anchor to index 0 and
+    // silently fail for every date literal that is not the first token
+    // (found by FilterParserTests, plan 20261005-1348/01).
     private static readonly Regex DatePattern = new(
-        @"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?",
+        @"\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?",
         RegexOptions.Compiled);
 
     public static FilterNode Parse(string input)

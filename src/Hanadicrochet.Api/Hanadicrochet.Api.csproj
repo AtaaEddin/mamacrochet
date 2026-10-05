@@ -21,4 +21,10 @@
     <ProjectReference Include="..\Hanadicrochet.ServiceDefaults\Hanadicrochet.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <!-- Test-only: lets the endpoint/unit test suite reach internal types
+       (QuerySpec parser, LikeExpressions). Plan 20261005-1348/01. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hanadicrochet.Api.Tests" />
+  </ItemGroup>
+
 </Project>
