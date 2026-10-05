@@ -34,8 +34,30 @@ path. A proxied (orange-cloud) upgrade is documented as an option, not the defau
      behind a dynamic-IP or CGNAT connection: get a static IP from the ISP, or use a
      short-TTL A record kept fresh by a small update script (separate follow-up plan if
      needed).
-3. **Router** — forward TCP **80 + 443** to the Pi (Caddy is the only container that
-   publishes ports; both must be reachable from the internet).
+3. **Router** — two things:
+   - Give the Pi a **stable LAN IP** (a DHCP reservation by MAC in the router admin is
+     the simplest; a static LAN IP on the Pi also works) — otherwise a DHCP lease
+     change silently breaks the port forward and the site dies without an error.
+   - Forward TCP **80 + 443** to that reserved IP (Caddy is the only container that
+     publishes ports; both must be reachable from the internet).
+
+## Pre-check (2 minutes, do before buying the domain)
+
+On the Pi:
+
+```bash
+curl -s ifconfig.me          # what the internet sees
+ip -6 addr | grep global     # any public IPv6?
+```
+
+Compare `ifconfig.me` with the **WAN IP shown in the router admin**:
+
+- **Same** (and not in `100.64.0.0/10`) → real public v4: static → the A record is
+  set-and-forget; dynamic → DDNS or a static-IP add-on (step 2 caveat).
+- **Different** → **CGNAT**: no usable public v4, port forwarding is impossible.
+  Cleanest path is usually IPv6 — add an `AAAA` record for the Pi's global v6 address
+  (and allow inbound 80/443 for v6 in the router); if there is no global v6 either,
+  get a static IP from the ISP or write a follow-up plan for a different approach.
 
 ## Deployment wiring (on the Pi)
 
