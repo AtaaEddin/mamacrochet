@@ -42,7 +42,7 @@ frontend tests), but a coverage audit (coverlet + @vitest/coverage-v8,
 | # | Scope | File | Status |
 |---|-------|------|--------|
 | 01 | Backend QuerySpec unit tests (FilterParser/QueryBinder/LikeExpressions/QueryOptions) | 01-backend-queryspec.md | done |
-| 02 | Backend hub + sweep services (ChatHub, ChatSweep, OrderSweep) | 02-backend-hub-sweeps.md | proposed |
+| 02 | Backend hub + sweep services (ChatHub, ChatSweep, OrderSweep) | 02-hub-sweeps.md | done |
 | 03 | Backend files & admin (ProductImages, AdminSeeder, StaffCustomerEndpoints, FileEndpoints) | 03-backend-files-admin.md | proposed |
 | 04 | Backend remainder to ≥90% per file (ChatService, ProductAdminService, UserAdminService, HiringService, listings/bindners, endpoint error paths) | 04-backend-remainder.md | proposed |
 | 05 | Frontend lib modules → 100% lines (client, errors, orders/api, staff/api, chat/*, catalog/*, hooks, sample-works, utils) | 05-frontend-lib.md | proposed |
@@ -72,7 +72,22 @@ frontend tests), but a coverage audit (coverlet + @vitest/coverage-v8,
   reflection and assert real side effects on the test DB (a stale visitor
   thread gets closed, orphan attachments purged, stale guest order
   auto-cancelled). The 15–20 s startup delay + 24 h interval keep them out of
-  the normal test window, so no flakiness.
+  the normal test window, so no flakiness. The uncovered remainder is the
+  hosted-service `ExecuteAsync` loop (20 s delay + 24 h tick) — deliberately
+  not driven in tests.
+- **Hub client mechanics (sub-plan 02):** the .NET 10 SignalR client's SSE
+  transport opens THREE HTTP flows (negotiate POST, event-stream GET, and a
+  *streaming send* POST with unbounded `ReadOnlySequenceContent`) — so a
+  plain "forward requests through the logged-in `HttpClient`" wrapper hangs
+  (buffering the send stream) and the client forbids re-sent request
+  messages. Working recipe: build the hub connection with
+  `HttpTransportType.ServerSentEvents` + `HttpMessageHandlerFactory` that
+  returns a `DelegatingHandler` over `Factory.Server.CreateHandler()`, and
+  share one `CookieContainer` (send + store Set-Cookie manually — the raw
+  handler exposes it, `HttpClient` pipelines hide it) between that handler
+  and a regular REST client used for login. Cookies authenticate the hub
+  exactly like a browser; guests authenticate via `?access_token=`. See
+  `ChatHubTests.TestServerHandler`.
 - **Frontend components:** Testing Library on jsdom (already set up).
   Purely presentational SVG illustrations and `src/components/ui/*` (shadcn
   passthroughs) are the documented exception; pages are covered by the
