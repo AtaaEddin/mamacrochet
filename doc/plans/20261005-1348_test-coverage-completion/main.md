@@ -43,7 +43,7 @@ frontend tests), but a coverage audit (coverlet + @vitest/coverage-v8,
 |---|-------|------|--------|
 | 01 | Backend QuerySpec unit tests (FilterParser/QueryBinder/LikeExpressions/QueryOptions) | 01-backend-queryspec.md | done |
 | 02 | Backend hub + sweep services (ChatHub, ChatSweep, OrderSweep) | 02-hub-sweeps.md | done |
-| 03 | Backend files & admin (ProductImages, AdminSeeder, StaffCustomerEndpoints, FileEndpoints) | 03-backend-files-admin.md | proposed |
+| 03 | Backend files & admin (ProductImages, AdminSeeder, StaffCustomerEndpoints, FileEndpoints) | 03-backend-files-admin.md | done |
 | 04 | Backend remainder to ≥90% per file (ChatService, ProductAdminService, UserAdminService, HiringService, listings/bindners, endpoint error paths) | 04-backend-remainder.md | proposed |
 | 05 | Frontend lib modules → 100% lines (client, errors, orders/api, staff/api, chat/*, catalog/*, hooks, sample-works, utils) | 05-frontend-lib.md | proposed |
 | 06 | Frontend components → every hand-written component tested | 06-frontend-components.md | proposed |
@@ -96,10 +96,16 @@ frontend tests), but a coverage audit (coverlet + @vitest/coverage-v8,
 - **No app-behavior changes** — tests + test tooling + coverage config only.
   If a test exposes a real bug: fix only if trivial and behavior-preserving
   for existing tests (same precedent as 20261004-0554); otherwise new plan.
-  Two such bugs were found in sub-plan 01 (both fixed in-plan, both with all
-  pre-existing 208 tests staying green): FilterParser's `^`-anchored date
-  regex broke every non-first-token date literal; QueryBinder turned
-  `nonNullableField eq null` into a 500 instead of a 400. See 01's Result.
+  Three such bugs were found (all fixed in-plan, all with the whole
+  pre-existing suite staying green): sub-plan 01 — FilterParser's
+  `^`-anchored date regex broke every non-first-token date literal, and
+  QueryBinder turned `nonNullableField eq null` into a 500 instead of a
+  400; sub-plan 03 — `ChatService.SearchCustomersAsync` escaped LIKE
+  metacharacters but called the 2-arg `EF.Functions.Like` overload, which
+  Npgsql translates to `LIKE @p ESCAPE ''` (empty escape char), so any
+  search term containing `_`, `%` or `[` matched nothing — fixed by
+  passing the backslash escape explicitly on all three columns. See the
+  sub-plan Results.
 - **Design-time code** (`DesignTimeDbContextFactory`, `ConfigurationLoader`)
   is an exception: it only runs under the EF CLI (`dotnet ef migrations`),
   never in-process; its behavior is exercised every time a migration is

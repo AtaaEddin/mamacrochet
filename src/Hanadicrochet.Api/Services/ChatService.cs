@@ -342,10 +342,13 @@ public sealed class ChatService(
                 .Replace("_", "\\_")
                 .Replace("[", "\\[");
             var pattern = $"%{escaped}%";
+            // The 2-arg Like overload would emit ESCAPE '' and make the
+            // backslashes above literal — the escape char is mandatory.
+            const string likeEscape = "\\";
             q = q.Where(u =>
-                EF.Functions.Like(u.DisplayName, pattern)
-                || (u.Phone != null && EF.Functions.Like(u.Phone, pattern))
-                || (u.Email != null && EF.Functions.Like(u.Email, pattern)));
+                EF.Functions.Like(u.DisplayName, pattern, likeEscape)
+                || (u.Phone != null && EF.Functions.Like(u.Phone, pattern, likeEscape))
+                || (u.Email != null && EF.Functions.Like(u.Email, pattern, likeEscape)));
         }
 
         var total = await q.CountAsync(ct);
