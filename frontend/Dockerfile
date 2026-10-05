@@ -4,16 +4,27 @@
 #   docker build -f frontend/Dockerfile --build-arg NEXT_PUBLIC_SITE_URL=https://… .
 # NEXT_PUBLIC_* values are inlined at BUILD time, so rebuild the image when
 # the public URL changes.
+#
+# The `pnpm` stage primes corepack ONCE (pnpm tarball + pnpm-native binary,
+# resolved from the pinned package.json) and every pnpm-using stage copies the
+# corepack home in — otherwise each stage re-downloads pnpm from the registry
+# (corepack caches per layer), which makes builds flaky on slow/unstable lines.
+FROM node:22-alpine AS pnpm
+WORKDIR /app
+COPY frontend/package.json ./
+RUN corepack enable && pnpm --version
 
 FROM node:22-alpine AS deps
 WORKDIR /app
 RUN corepack enable
+COPY --from=pnpm /root/.cache/node/corepack /root/.cache/node/corepack
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable # pnpm shim (the version is pinned in package.json)
+COPY --from=pnpm /root/.cache/node/corepack /root/.cache/node/corepack
 ENV NEXT_TELEMETRY_DISABLED=1
 # Public config, inlined into the client bundle at build time.
 ARG NEXT_PUBLIC_API_URL=/api

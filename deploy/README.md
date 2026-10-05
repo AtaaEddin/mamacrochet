@@ -17,7 +17,9 @@ internet ──► caddy (:80/:443) ──► web (:3000, Next standalone)
 | `docker-compose.yml` | the 4 containers: healthchecks, volumes, no public ports except caddy |
 | `Caddyfile`          | reverse proxy + TLS; `/api/*` → api, rest → web      |
 | `.env.example`       | configuration template (copy to `.env`, gitignored)  |
-| `deploy.sh`          | one-shot deploy (env check → images → up → health)   |
+| `pipeline.sh`        | **preferred** deploy: tests → backup → clean → deploy → clean |
+| `docker-compose.test.yml` | ephemeral test stack (test-postgres + api-tests + web-tests) |
+| `deploy.sh`          | deploy only (env check → images → up → health) — no tests |
 | `backup.sh`          | pg_dump + uploads tar, keeps newest `KEEP_BACKUPS`   |
 | `restore.md`         | restore procedure (db + uploads)                     |
 
@@ -34,10 +36,44 @@ All base images are multi-arch — building on the Pi produces ARM64 images.
 cd deploy
 cp .env.example .env      # set POSTGRES_PASSWORD, CADDY_SITE, MM_SITE_URL
 # 3. Deploy
-./deploy.sh
+./pipeline.sh             # tests → backup → clean → deploy → clean
 ```
 
-`deploy.sh` prints the URL. Plain-HTTP mode (`CADDY_SITE=http://`) serves
+`pipeline.sh` (or plain `./deploy.sh`) prints the URL.
+
+## Deploy pipeline (`pipeline.sh`, plan 20261004-1823/01)
+
+One command, run **on the target machine**:
+
+1. **Build bases** — `sdk:10.0-noble` + `node:22-alpine` present as tagged images
+   (pulled once when missing; they must stay tagged — BuildKit + our
+   `builder prune` would otherwise re-fetch them from the registry every run).
+2. **Tests** — the API suite (xUnit, in a `dotnet/sdk:10.0` container against an
+   ephemeral `postgres:16-alpine`, no volume) + the UI suite (`pnpm test` / Vitest
+   in `node:22-alpine`), from `docker-compose.test.yml`. Nothing is installed on
+   the host; nothing publishes ports; the test Postgres data dies with `down`.
+3. **Backup** — `backup.sh` (skipped when no prod postgres is running yet).
+4. **Clean (pre)** — `compose down` + prune stopped containers / unused
+   networks. **Volumes are never touched** (postgres data, uploads, Caddy
+   TLS).
+5. **Deploy** — `deploy.sh` (build → `up -d` → wait for healthy).
+6. **Clean (post)** — prune the old release's now-dangling image layers +
+   swapped-out containers.
+
+- **No automatic `docker builder prune`** (discovered): on classic Docker it
+  wipes the last completed build's cache, forcing a full network
+  `pnpm install` / `dotnet build` re-run on the next steady-state run. Run
+  `docker builder prune -f` manually when disk gets tight.
+
+- A test failure aborts **before** the old stack is stopped — the live site keeps
+  serving; re-run after fixing.
+- `SKIP_TESTS=1 ./pipeline.sh` skips the test phase (air-gapped Pi / quick re-run).
+- The Playwright e2e smoke is **not** in the pipeline (needs the dev stack + a
+  browser; run it on the dev machine as usual).
+- Timing (Pi): first run also pulls `sdk:10.0` + `node:22-alpine` (~1 GB-class);
+  steady state is build + 208 backend tests + 63 frontend tests — expect minutes.
+  The air-gapped `images/*.tar` path pairs with `SKIP_TESTS=1` (the suites need
+  internet for NuGet/pnpm, or ship the test images too). Plain-HTTP mode (`CADDY_SITE=http://`) serves
 `http://<ip>:<HTTP_PORT>`; with a real domain Caddy obtains Let's Encrypt
 certs automatically (port 443 must be reachable).
 
@@ -68,6 +104,11 @@ the recovery path; as a last resort update the user's hash in Postgres
 
 On the dev machine, push/`rsync` the repo to the host, then on the host:
 
+```bash
+./deploy/pipeline.sh   # tests → backup → clean → deploy → clean
+```
+
+(Quick manual path, skips tests + backup:
 ```bash
 cd deploy && docker compose build api web && docker compose up -d
 ```

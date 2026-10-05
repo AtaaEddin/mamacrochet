@@ -30,8 +30,15 @@ public sealed class ApiCollectionDefinition : ICollectionFixture<ApiTestFixture>
 /// </remarks>
 public sealed class ApiTestFixture : IDisposable
 {
-    public const string MaintConnectionString =
-        "Host=127.0.0.1;Port=5432;Username=postgres;Password=postgres;Database=postgres";
+    /// <summary>
+    /// Maintenance connection (creates/drops the throwaway test database).
+    /// Host/port/user/password are env-overridable so the deploy pipeline's
+    /// Docker test stack can point at its ephemeral <c>test-postgres</c>
+    /// service (plan 20261004-1823/01); defaults are the Aspire dev Postgres.
+    /// </summary>
+    public static readonly string MaintConnectionString =
+        $"Host={Env("TEST_DB_HOST", "127.0.0.1")};Port={Env("TEST_DB_PORT", "5432")}"
+        + $";Username={Env("TEST_DB_USER", "postgres")};Password={Env("TEST_DB_PASSWORD", "postgres")};Database=postgres";
 
     public const string SeedAdminEmail = "seed-admin@hanadicrochet.test";
     public const string SeedAdminPassword = "SeedAdmin123!";
@@ -42,7 +49,8 @@ public sealed class ApiTestFixture : IDisposable
     {
         DbName = "hc_test_" + Guid.NewGuid().ToString("N")[..8];
         ConnectionString =
-            $"Host=127.0.0.1;Port=5432;Username=postgres;Password=postgres;Database={DbName}";
+            $"Host={Env("TEST_DB_HOST", "127.0.0.1")};Port={Env("TEST_DB_PORT", "5432")}"
+            + $";Username={Env("TEST_DB_USER", "postgres")};Password={Env("TEST_DB_PASSWORD", "postgres")};Database={DbName}";
 
         using (var conn = new NpgsqlConnection(MaintConnectionString))
         {
@@ -140,4 +148,7 @@ public sealed class ApiTestFixture : IDisposable
             // Best-effort cleanup.
         }
     }
+
+    private static string Env(string name, string fallback)
+        => Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : fallback;
 }

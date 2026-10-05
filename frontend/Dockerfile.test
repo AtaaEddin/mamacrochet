@@ -1,0 +1,23 @@
+# hanadicrochet frontend test runner (plan 20261004-1823/01) — DEPLOY-PIPELINE ONLY.
+#
+# Build context is the REPO ROOT (see deploy/docker-compose.test.yml):
+#   ./deploy/pipeline.sh
+# Runs `pnpm test` (Vitest unit suite, jsdom — no browser). The Playwright
+# e2e smoke is deliberately NOT part of this image (needs the live dev stack).
+#
+# The `pnpm` stage primes corepack once (pnpm tarball + pnpm-native binary, per
+# the pinned package.json). The home dir is then copied into the run stage so
+# no stage re-downloads pnpm (corepack re-fetches per layer; flaky on slow lines).
+FROM node:22-alpine AS pnpm
+WORKDIR /app
+COPY frontend/package.json ./
+RUN corepack enable && pnpm --version
+
+FROM node:22-alpine
+WORKDIR /app
+RUN corepack enable
+COPY --from=pnpm /root/.cache/node/corepack /root/.cache/node/corepack
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ ./
+CMD ["pnpm", "test"]

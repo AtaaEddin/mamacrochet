@@ -1,0 +1,45 @@
+# hanadicrochet test stack (plan 20261004-1823/01) — EPHEMERAL, never production.
+#
+# Used only by deploy/pipeline.sh:
+#   docker compose -f deploy/docker-compose.test.yml build
+#   docker compose -f deploy/docker-compose.test.yml up --exit-code-from api-tests test-postgres api-tests
+#   docker compose -f deploy/docker-compose.test.yml up --exit-code-from web-tests web-tests
+#   docker compose -f deploy/docker-compose.test.yml down
+#
+# - test-postgres has NO named volume: its data is ephemeral and dies with
+#   `down` (the suite creates + drops its own database).
+# - Nothing publishes ports; nothing persists.
+
+name: hanadicrochet-tests
+
+services:
+  test-postgres:
+    image: postgres:16-alpine
+    environment:
+      # Matches the fixture defaults (see ApiTestFixture.cs).
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  api-tests:
+    build:
+      context: ..
+      dockerfile: tests/Hanadicrochet.Api.Tests/Dockerfile
+    image: hanadicrochet-api-tests:latest
+    environment:
+      # The fixture reads TEST_DB_HOST/PORT/USER/PASSWORD (defaults
+      # 127.0.0.1:5432, postgres/postgres — the Aspire dev Postgres).
+      TEST_DB_HOST: test-postgres
+    depends_on:
+      test-postgres:
+        condition: service_healthy
+
+  web-tests:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile.test
+    image: hanadicrochet-web-tests:latest

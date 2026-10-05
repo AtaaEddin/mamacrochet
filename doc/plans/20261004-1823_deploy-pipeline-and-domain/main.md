@@ -1,6 +1,6 @@
 # Deploy pipeline + Cloudflare domain
 
-status: proposed
+status: in-progress
 created: 2026-10-04 18:23 (+03)
 owner: agent (user request: "pipeline on deployment: first run tests API + UI, then clean
 resources on the target machine (Raspberry Pi), then deploy (build docker, etc.); I'll get a
@@ -24,7 +24,7 @@ identity yet — no domain, no HTTPS. This plan:
 
 | #  | Scope                                                                          | File                          | Status    |
 |----|------------------------------------------------------------------------------|-------------------------------|-----------|
-| 01 | Deploy pipeline on the target machine: test → backup → clean → deploy → post-clean | 01-deploy-pipeline.md | proposed |
+| 01 | Deploy pipeline on the target machine: test → backup → clean → deploy → post-clean | 01-deploy-pipeline.md | done |
 | 02 | Cloudflare domain: registration, DNS, HTTPS via Caddy, `.env` wiring, verification, optional proxied upgrade | 02-cloudflare-domain.md | proposed |
 
 ## Decisions
