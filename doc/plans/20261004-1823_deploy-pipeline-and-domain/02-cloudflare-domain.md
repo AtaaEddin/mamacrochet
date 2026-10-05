@@ -30,10 +30,16 @@ path. A proxied (orange-cloud) upgrade is documented as an option, not the defau
    | CNAME | `www` | `<apex domain>`    | **DNS only** (grey) |
 
    Add an `AAAA` record if the Pi has a public IPv6 address.
-   - **Dynamic-IP caveat:** the A record presumes a stable public IP. If the Pi sits
-     behind a dynamic-IP or CGNAT connection: get a static IP from the ISP, or use a
-     short-TTL A record kept fresh by a small update script (separate follow-up plan if
-     needed).
+   - **Dynamic-IP caveat** — the A record presumes a stable public IP. What the
+     pre-check outcome means for keeping the record correct:
+
+     | Outcome        | Record maintenance                                   |
+     |----------------|------------------------------------------------------|
+     | Static public v4 | Set the A record **once** — never touched again.   |
+     | Dynamic public v4 | **Automated, not manual:** a small DDNS updater on the Pi (script + systemd timer, ~10 min) checks the public IP and updates the A record via the Cloudflare API **only when it changed** — set up once, then unattended (a few calls per year at most). Separate follow-up plan covers script + timer + API token (`Zone.DNS:Edit`), with a short-TTL A record. |
+     | CGNAT (no public v4) | Use the **AAAA** record for the Pi's global IPv6 (prefix is usually stable) — one record, no updater. |
+
+     Alternative to DDNS on a dynamic line: buy a static-IP add-on from the ISP.
 3. **Router** — two things:
    - Give the Pi a **stable LAN IP** (a DHCP reservation by MAC in the router admin is
      the simplest; a static LAN IP on the Pi also works) — otherwise a DHCP lease
@@ -123,4 +129,6 @@ TLS (Universal SSL), static-asset caching. Enable only **after** the DNS-only pa
 ## Open
 
 - The actual domain name — owner's choice; no plan work depends on the literal name.
-- Dynamic-IP handling if the Pi has no stable public IP (follow-up plan if needed).
+- Dynamic-IP handling if the Pi has no stable public IP: DDNS follow-up plan
+  (Pi script + systemd timer + Cloudflare API token `Zone.DNS:Edit`, short-TTL A
+  record) — written only if the pre-check shows a dynamic v4 line.
