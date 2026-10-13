@@ -9,6 +9,8 @@ description: hanadicrochet self-hosted deployment — Docker Compose on a Raspbe
 
 One machine: Raspberry Pi (ARM64) or old PC (x64), Docker, low power
 (≤ ~1 GB RAM idle). Everything self-hosted. **Aspire is dev-only and never ships.**
+On Windows 11 the host runs Docker Desktop (WSL 2) — setup/backup/domain details:
+doc/plans/20261013-1545_windows11-hosting/.
 
 ## Production — 4 containers only
 
