@@ -158,7 +158,7 @@ public static class HiringEndpoints
             var result = await service.AcceptAsync(id, request, actorId, actor?.DisplayName ?? "admin");
             if (result.Error is not null)
             {
-                return result.Error.Code == "hiring_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : result.Error.Code is "already_decided" or "email_taken"
                         ? Results.Conflict(result.Error)
@@ -185,7 +185,7 @@ public static class HiringEndpoints
             var result = await service.DeclineAsync(id, request.Note, actorId, actor?.DisplayName ?? "admin");
             if (result.Error is not null)
             {
-                return result.Error.Code == "hiring_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : result.Error.Code == "already_decided"
                         ? Results.Conflict(result.Error)

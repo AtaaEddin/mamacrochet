@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Text.Json.Nodes;
 using Hanadicrochet.Api.Data;
@@ -267,5 +268,185 @@ public class HiringEndpointsTests(ApiTestFixture fx)
         var boss = await TestUsers.LoginAsync(fx, admin.Email!);
         var rejected = await boss.GetAsync("/admin/hiring?status=bogus");
         await EndpointHttp.Error(rejected, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    // ===== batch 04C: remaining validation + admin error paths =====
+
+    private async Task<string> SubmitRawAsync(HttpClient client, Multipart form)
+    {
+        var response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, "/hiring") { Content = form.Content });
+        var body = await EndpointHttp.Json(response, HttpStatusCode.OK);
+        return body!["id"]!.ToString()!;
+    }
+
+    /// <summary>Six one-letter entries pass the count check but are all filtered out,
+    /// so the cleaned language list is empty and rejected.</summary>
+    [Fact]
+    public async Task Submit_LanguagesAllTooShort_400()
+    {
+        var client = fx.CreateClient();
+        var form = Application(languages: "a, b, c, d, e, f");
+        var response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, "/hiring") { Content = form.Content });
+        await EndpointHttp.Error(response, HttpStatusCode.BadRequest, "invalid_language");
+    }
+
+    /// <summary>More than HiringFiles.MaxFiles files is rejected before any disk write.</summary>
+    [Fact]
+    public async Task Submit_TooManyFiles_400()
+    {
+        var client = fx.CreateClient();
+        var mp = new Multipart()
+            .Field("name", "Max Files")
+            .Field("email", TestUsers.UniqueEmail("many"))
+            .Field("phone", "+31 6 10000006")
+            .Field("country", "NL")
+            .Field("languages", "English");
+        for (var i = 0; i < 4; i++)
+        {
+            mp.File("files", FileFixtures.Pdf, $"cv-{i}.pdf", "application/pdf");
+        }
+
+        var response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, "/hiring") { Content = mp.Content });
+        await EndpointHttp.Error(response, HttpStatusCode.BadRequest, "too_many_files");
+    }
+
+    /// <summary>A plain-text upload is rejected (unsupported_file_type).</summary>
+    [Fact]
+    public async Task Submit_UnsupportedFileType_400()
+    {
+        var client = fx.CreateClient();
+        var form = Application(file: FileFixtures.PlainText, fileName: "notes.txt");
+        var response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, "/hiring") { Content = form.Content });
+        await EndpointHttp.Error(response, HttpStatusCode.BadRequest, "unsupported_file_type");
+    }
+
+    /// <summary>Re-applying with the same e-mail updates the same row (no duplicate),
+    /// appends the new file and deletes the previous files from disk.</summary>
+    [Fact]
+    public async Task Submit_Reapply_UpdatesSameRow_DeletesOldFiles()
+    {
+        var client = fx.CreateClient();
+        var email = TestUsers.UniqueEmail("reapply");
+        var id = await SubmitRawAsync(client, Application(email: email, file: FileFixtures.Pdf, fileName: "cv.pdf"));
+
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var detail1 = await EndpointHttp.Json(
+            await admin.GetAsync($"/admin/hiring/{id}"), HttpStatusCode.OK);
+        var oldName = detail1!["application"]!["files"]!.AsArray()[0]!["fileName"]!.ToString()!.Split('/').Last();
+
+        var id2 = await SubmitRawAsync(client, Application(
+            email: email, file: FileFixtures.Jpeg, fileName: "portfolio.jpg"));
+        Assert.Equal(id, id2);
+
+        var detail2 = await EndpointHttp.Json(
+            await admin.GetAsync($"/admin/hiring/{id}"), HttpStatusCode.OK);
+        var files = detail2!["application"]!["files"]!.AsArray();
+        Assert.Single(files);
+        var newName = files[0]!["fileName"]!.ToString()!.Split('/').Last();
+        Assert.NotEqual(oldName, newName);
+
+        var dir = Path.Combine(fx.UploadsRoot, "hiring", id);
+        Assert.False(File.Exists(Path.Combine(dir, oldName)));
+        Assert.True(File.Exists(Path.Combine(dir, newName)));
+    }
+
+    /// <summary>A stored name that fails IsValidStoredName (poked in the DB) is skipped
+    /// on disk delete but still removed from the metadata.</summary>
+    [Fact]
+    public async Task Submit_Reapply_InvalidStoredName_SkipsDiskDelete()
+    {
+        var client = fx.CreateClient();
+        var email = TestUsers.UniqueEmail("badname");
+        var id = await SubmitRawAsync(client, Application(
+            email: email, file: FileFixtures.Pdf, fileName: "cv.pdf"));
+
+        using var scope = fx.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var fileRow = await db.HiringApplicationFiles.FirstAsync(f => f.ApplicationId == id);
+        fileRow.StoredName = "not-a-valid name.exe";
+        await db.SaveChangesAsync();
+
+        var id2 = await SubmitRawAsync(client, Application(
+            email: email, file: FileFixtures.Pdf, fileName: "cv2.pdf"));
+        Assert.Equal(id, id2);
+
+        using var scope2 = fx.Services.CreateScope();
+        var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
+        var remaining = await db2.HiringApplicationFiles
+            .Where(f => f.ApplicationId == id).CountAsync();
+        Assert.Equal(1, remaining);
+    }
+
+    /// <summary>Unknown (but well-formed) id on accept: 404 hiring_not_found.</summary>
+    [Fact]
+    public async Task Admin_Accept_UnknownId_404()
+    {
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var missing = Guid.NewGuid().ToString("N");
+        var response = await admin.PostJsonAsync(
+            $"/admin/hiring/{missing}/accept",
+            new { email = "probe@x.test", displayName = "Probe", language = "en" });
+        await EndpointHttp.Error(response, HttpStatusCode.NotFound, "not_found");
+    }
+
+    /// <summary>Accept with a malformed e-mail: 400 invalid.</summary>
+    [Fact]
+    public async Task Admin_Accept_InvalidEmail_400()
+    {
+        var client = fx.CreateClient();
+        var id = await SubmitAsync(client);
+
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var response = await admin.PostJsonAsync(
+            $"/admin/hiring/{id}/accept",
+            new { email = "not-an-email", displayName = "Probe", language = "en" });
+        await EndpointHttp.Error(response, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    /// <summary>Unknown (but well-formed) id on decline: 404 hiring_not_found.</summary>
+    [Fact]
+    public async Task Admin_Decline_UnknownId_404()
+    {
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var missing = Guid.NewGuid().ToString("N");
+        var response = await admin.PostJsonAsync($"/admin/hiring/{missing}/decline", new { note = (string?)null });
+        await EndpointHttp.Error(response, HttpStatusCode.NotFound, "not_found");
+    }
+
+    /// <summary>A decline note over 1000 chars is rejected.</summary>
+    [Fact]
+    public async Task Admin_Decline_LongNote_400()
+    {
+        var client = fx.CreateClient();
+        var id = await SubmitAsync(client);
+
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var note = new string('x', 1001);
+        var response = await admin.PostJsonAsync($"/admin/hiring/{id}/decline", new { note });
+        await EndpointHttp.Error(response, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    /// <summary>Non-hex ids (both endpoints): clean 404, no 500.</summary>
+    [Fact]
+    public async Task Admin_Decide_BadIdFormat_404()
+    {
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var accept = await admin.PostJsonAsync(
+            "/admin/hiring/abc/accept",
+            new { email = "probe@x.test", displayName = "Probe", language = "en" });
+        await EndpointHttp.Error(accept, HttpStatusCode.NotFound, "not_found");
+
+        var decline = await admin.PostJsonAsync("/admin/hiring/abc/decline", new { note = (string?)null });
+        await EndpointHttp.Error(decline, HttpStatusCode.NotFound, "not_found");
     }
 }
