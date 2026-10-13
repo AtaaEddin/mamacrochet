@@ -79,6 +79,11 @@ frontend/scripts/gen-api.mjs (OpenAPI spec -> generated SDK)  deploy/  (plan 10:
 
 ## Code rules
 
+- Tests: **every new or changed behavior ships with its tests in the same change** —
+  backend in `tests/Hanadicrochet.Api.Tests` (endpoint tests through the HTTP surface +
+  service-level tests for guards the HTTP layer can't reach), frontend in the matching
+  vitest spec. Cover the happy path **and** the error paths (validation 400, 404,
+  forbidden, conflicts, caps); pure logic → 100%. A feature is not done without its tests.
 - .NET: warnings are **errors** (`Directory.Build.props`); nullable on; schema changes only
   via EF Core migrations; no new infrastructure service without a justifying plan.
 - TypeScript: strict (`frontend/tsconfig.json`); no `any`; no assertions to silence errors; explicit
