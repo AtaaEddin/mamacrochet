@@ -157,6 +157,14 @@ public sealed class ProductAdministrationService(
         }
 
         await db.SaveChangesAsync(ct);
+
+        // Populate the navigation for the response DTO (the tracked entity
+        // only carries CategoryId after update).
+        product.Category = await db.Categories
+            .AsNoTracking()
+            .Include(c => c.Translations)
+            .FirstOrDefaultAsync(c => c.Id == product.CategoryId, ct);
+
         return new ProductOperation(null, product);
     }
 
