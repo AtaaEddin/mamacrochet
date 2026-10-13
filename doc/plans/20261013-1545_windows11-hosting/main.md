@@ -1,6 +1,6 @@
 # Hosting on Windows 11 (the "old PC")
 
-status: proposed
+status: in-progress
 created: 2026-10-13 15:45 (+03)
 owner: agent (user request: "another fully hosting plan, as detailed as the Raspberry Pi
 one, but for Windows 11")
@@ -72,7 +72,7 @@ terminal.
 
 | #  | Scope                                                                                          | File                           | Status   |
 |----|-----------------------------------------------------------------------------------------------|--------------------------------|----------|
-| 01 | Machine setup: virtualization check, WSL 2 + Ubuntu, Docker Desktop, `.wslconfig` cap, firewall, power, auto-start | 01-windows11-machine-setup.md  | proposed |
+| 01 | Machine setup: virtualization check, WSL 2 + Ubuntu, Docker Desktop, `.wslconfig` cap, firewall, power, auto-start | 01-windows11-machine-setup.md  | in-progress |
 | 02 | Deploy + backup + restore on Windows: LF line-ending guard (`.gitattributes`), WSL workflow, Task Scheduler backup | 02-deploy-backup-on-windows.md | proposed |
 | 03 | Public domain + HTTPS: router port-forward, firewall 443, Caddy Let's Encrypt, outside-LAN verification | 03-domain-and-https-on-windows.md | proposed |
 

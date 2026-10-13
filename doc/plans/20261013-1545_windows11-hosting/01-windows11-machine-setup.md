@@ -1,6 +1,6 @@
 # 01 — Windows 11 machine setup (WSL 2 + Docker Desktop)
 
-status: proposed
+status: in-progress
 parent: main.md
 
 ## Goal
