@@ -4,6 +4,7 @@ using Hanadicrochet.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Hanadicrochet.Api.Tests;
@@ -256,5 +257,57 @@ public class SweepServiceTests : IClassFixture<ApiTestFixture>
         Assert.Equal(
             OrderStatus.Open,
             (await db2.Orders.AsNoTracking().SingleAsync(o => o.Id == freshGuest.Id)).Status);
+    }
+
+    /// <summary>
+    /// Full hosted lifecycle, both sweeps in one pass: start, wait out the
+    /// real 20 s settle delay, let exactly one RunOnceAsync run, cancel
+    /// inside the 24 h interval wait, then stop (plan 20261005-1348/04
+    /// batch B — drives the ExecuteAsync loop without changing behavior).
+    /// </summary>
+    [Fact]
+    public async Task Sweeps_FirstPassRuns_ThenStopOnCancellation()
+    {
+        var chat = new ChatSweepService(
+            ScopeFactory(), NullLogger<ChatSweepService>.Instance);
+        var order = new OrderSweepService(
+            ScopeFactory(), NullLogger<OrderSweepService>.Instance);
+        using var cts = new CancellationTokenSource();
+
+        await Task.WhenAll(chat.StartAsync(cts.Token), order.StartAsync(cts.Token));
+
+        // 20 s settle delay + one real RunOnceAsync; generous margin so the
+        // pass is over before cancellation.
+        await Task.Delay(TimeSpan.FromSeconds(30));
+        cts.Cancel();
+
+        await Task.WhenAll(
+            chat.StopAsync(CancellationToken.None),
+            order.StopAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ChatSweep_ScopeFactoryThrows_LogsAndSurvives()
+    {
+        var sweep = new ChatSweepService(
+            new ThrowingScopeFactory(), NullLogger<ChatSweepService>.Instance);
+
+        // RunOnceAsync must swallow non-cancellation failures (log only).
+        await RunOnceAsync(sweep);
+    }
+
+    [Fact]
+    public async Task OrderSweep_ScopeFactoryThrows_LogsAndSurvives()
+    {
+        var sweep = new OrderSweepService(
+            new ThrowingScopeFactory(), NullLogger<OrderSweepService>.Instance);
+
+        await RunOnceAsync(sweep);
+    }
+
+    private sealed class ThrowingScopeFactory : IServiceScopeFactory
+    {
+        public IServiceScope CreateScope() =>
+            throw new InvalidOperationException("scope factory failure");
     }
 }

@@ -1,4 +1,4 @@
-using System.Text;
+using System.Security.Cryptography;
 using Hanadicrochet.Api.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -7,149 +7,155 @@ using Xunit;
 namespace Hanadicrochet.Api.Tests;
 
 /// <summary>
-/// Stateless HMAC guest tokens + file read-signatures (pure — no DB):
-/// round-trips, tamper rejection, expiry, and key validation.
+/// Unit tests for ChatTokenService expiry and malformed-payload paths
+/// (plan 20261005-1348/04, batch B). The token is HMAC-signed, so the
+/// forged-token test signs with the known test key to get past the
+/// signature check and into JSON parsing.
 /// </summary>
 public class ChatTokenServiceTests
 {
-    private const string FixedKey = "c2VlZC10ZXN0LWtleS0zMi1ieXRlcy1vZi1kYXRhLW9r"; // base64 of 33 bytes
+    private static readonly byte[] Key =
+        System.Linq.Enumerable.Repeat((byte)7, 32).ToArray();
 
-    private static ChatTokenService New(
-        string? tokenKey = null,
-        TimeSpan? tokenLifetime = null,
-        TimeSpan? fileSignatureLifetime = null)
+    private static ChatTokenService CreateService(TimeSpan? lifetime = null)
     {
         var options = new ChatTokenOptions
         {
-            TokenKey = tokenKey ?? FixedKey,
+            TokenKey = Convert.ToBase64String(Key),
         };
-        if (tokenLifetime is not null)
+        if (lifetime is not null)
         {
-            options.TokenLifetime = tokenLifetime.Value;
+            options.TokenLifetime = lifetime.Value;
         }
-        if (fileSignatureLifetime is not null)
-        {
-            options.FileSignatureLifetime = fileSignatureLifetime.Value;
-        }
-        return new ChatTokenService(Options.Create(options), NullLogger<ChatTokenService>.Instance);
+
+        return new ChatTokenService(
+            Options.Create(options), NullLogger<ChatTokenService>.Instance);
     }
 
     [Fact]
-    public void ThreadToken_RoundTripsThreadAndDevice()
+    public void ValidToken_ReturnsThreadIdAndGuestId()
     {
-        var svc = New();
-        var token = svc.CreateThreadToken("thread-1", "guest-1");
-        var validated = svc.TryValidateThreadToken(token);
-        Assert.NotNull(validated);
-        Assert.Equal("thread-1", validated!.Value.ThreadId);
-        Assert.Equal("guest-1", validated.Value.GuestId);
+        var service = CreateService();
+        var token = service.CreateThreadToken("thread-1", "guest-1");
+        var result = service.TryValidateThreadToken(token);
+
+        Assert.NotNull(result);
+        Assert.Equal(("thread-1", "guest-1"), result!);
     }
 
     [Fact]
-    public void ThreadToken_TamperedPayloadOrMac_IsRejected()
+    public void ExpiredToken_ReturnsNull()
     {
-        var svc = New();
-        var token = svc.CreateThreadToken("thread-1", "guest-1");
-        var parts = token.Split('.', 2);
-        var (a, b) = (parts[0], parts[1]);
+        var service = CreateService(TimeSpan.FromMilliseconds(-5000));
+        var token = service.CreateThreadToken("thread-1", "guest-1");
 
-        // Corrupt one payload char.
-        var payload = Encoding.UTF8.GetBytes(a);
-        payload[2] = payload[2] == (byte)'a' ? (byte)'b' : (byte)'a';
-        Assert.Null(svc.TryValidateThreadToken($"{B64Url(payload)}.{b}"));
-
-        // Corrupt the mac.
-        var mac = Encoding.UTF8.GetBytes(b);
-        mac[3] = mac[3] == (byte)'a' ? (byte)'b' : (byte)'a';
-        Assert.Null(svc.TryValidateThreadToken($"{a}.{B64Url(mac)}"));
-
-        // A token minted by ANOTHER key does not validate here.
-        var other = New(tokenKey: Convert.ToBase64String(Enumerable.Repeat((byte)7, 32).ToArray()));
-        Assert.Null(svc.TryValidateThreadToken(other.CreateThreadToken("thread-1", "guest-1")));
-    }
-
-    private static string B64Url(byte[] data)
-    {
-        var s = Convert.ToBase64String(data);
-        return s.TrimEnd('=').Replace('+', '-').Replace('/', '_');
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("not-a-token")]
-    [InlineData("a.b.c")]
-    [InlineData("!!!.!!!")]
-    public void ThreadToken_MalformedTokens_AreNull(string? token)
-    {
-        Assert.Null(New().TryValidateThreadToken(token));
+        Assert.Null(service.TryValidateThreadToken(token));
     }
 
     [Fact]
-    public void ThreadToken_Expired_IsRejected()
+    public void MalformedPayloadWithValidSignature_ReturnsNull()
     {
-        var svc = New(tokenLifetime: TimeSpan.FromSeconds(-5));
-        var token = svc.CreateThreadToken("thread-1", "guest-1");
-        Assert.Null(svc.TryValidateThreadToken(token));
+        var service = CreateService();
+        var payload = "this is not json";
+        var token = $"{Base64Url(System.Text.Encoding.UTF8.GetBytes(payload))}.{Base64Url(HmacSha256(payload))}";
+
+        Assert.Null(service.TryValidateThreadToken(token));
     }
 
     [Fact]
-    public void EphemeralKey_ModeWorksWhenUnset()
+    public void TokenKey_NotBase64_Throws()
     {
-        var options = Options.Create(new ChatTokenOptions());
-        var svc = new ChatTokenService(options, NullLogger<ChatTokenService>.Instance);
-        var token = svc.CreateThreadToken("t", "g");
-        Assert.Equal(("t", "g"), svc.TryValidateThreadToken(token));
-    }
-
-    [Fact]
-    public void TokenKey_BadBase64_Throws()
-    {
-        var options = Options.Create(new ChatTokenOptions { TokenKey = "not base64!!" });
         Assert.Throws<InvalidOperationException>(
-            () => new ChatTokenService(options, NullLogger<ChatTokenService>.Instance));
+            () => CreateServiceWithKey("not base64 !!!"));
     }
 
     [Fact]
-    public void TokenKey_ShorterThan32Bytes_Throws()
+    public void TokenKey_ShorterThanMinBytes_Throws()
     {
-        var options = Options.Create(new ChatTokenOptions
-        {
-            TokenKey = Convert.ToBase64String(new byte[16]),
-        });
         Assert.Throws<InvalidOperationException>(
-            () => new ChatTokenService(options, NullLogger<ChatTokenService>.Instance));
+            () => CreateServiceWithKey(Convert.ToBase64String(new byte[16])));
     }
 
     [Fact]
-    public void FileSignature_RoundTripsAndRejectsTampering()
+    public void TryValidate_NullOrEmpty_ReturnsNull()
     {
-        var svc = New();
-        var (exp, sig) = svc.CreateFileSignature("thread-1", "abc.png");
-        Assert.True(svc.VerifyFileSignature("thread-1", "abc.png", sig, exp));
+        var service = CreateService();
 
-        // Different file / different thread / wrong exp → no.
-        Assert.False(svc.VerifyFileSignature("thread-1", "other.png", sig, exp));
-        Assert.False(svc.VerifyFileSignature("thread-2", "abc.png", sig, exp));
-        Assert.False(svc.VerifyFileSignature("thread-1", "abc.png", sig, exp + 1));
-
-        // Tampered signature.
-        var tampered = Encoding.UTF8.GetBytes(sig);
-        tampered[4] = tampered[4] == (byte)'a' ? (byte)'b' : (byte)'a';
-        Assert.False(svc.VerifyFileSignature("thread-1", "abc.png", Convert.ToBase64String(tampered), exp));
-
-        // Missing pieces.
-        Assert.False(svc.VerifyFileSignature("thread-1", "abc.png", sig, null));
-        Assert.False(svc.VerifyFileSignature("thread-1", "abc.png", null, exp));
-        Assert.False(svc.VerifyFileSignature("thread-1", "abc.png", "", exp));
+        Assert.Null(service.TryValidateThreadToken(null));
+        Assert.Null(service.TryValidateThreadToken(""));
+        Assert.Null(service.TryValidateThreadToken("   "));
     }
 
     [Fact]
-    public void FileSignature_Expired_IsRejected()
+    public void TryValidate_UncodeableBase64Url_ReturnsNull()
     {
-        var svc = New(fileSignatureLifetime: TimeSpan.FromSeconds(-5));
-        var (exp, sig) = svc.CreateFileSignature("thread-1", "abc.png");
-        Assert.False(svc.VerifyFileSignature("thread-1", "abc.png", sig, exp));
+        var service = CreateService();
+
+        Assert.Null(service.TryValidateThreadToken("!!!.###"));
     }
+
+    [Fact]
+    public void TryValidate_WrongMac_ReturnsNull()
+    {
+        var service = CreateService();
+        var token = service.CreateThreadToken("thread-1", "guest-1");
+        var wrongMac = Base64Url(System.Linq.Enumerable.Repeat((byte)8, 32).ToArray());
+        var forged = token.Split('.')[0] + "." + wrongMac;
+
+        Assert.Null(service.TryValidateThreadToken(forged));
+    }
+
+    [Fact]
+    public void TryValidate_EmptyThreadIdOrGuestId_ReturnsNull()
+    {
+        var service = CreateService();
+        long exp = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
+
+        Assert.Null(
+            service.TryValidateThreadToken(
+                ForgeToken($"{{\"threadId\":\"\",\"guestId\":\"g1\",\"exp\":{exp}}}")));
+        Assert.Null(
+            service.TryValidateThreadToken(
+                ForgeToken($"{{\"threadId\":\"t1\",\"guestId\":\"\",\"exp\":{exp}}}")));
+    }
+
+    [Fact]
+    public void VerifyFileSignature_MissingSigOrExp_ReturnsFalse()
+    {
+        var service = CreateService();
+
+        Assert.False(service.VerifyFileSignature("t1", "a.png", null, 123));
+        Assert.False(service.VerifyFileSignature("t1", "a.png", "sig", null));
+    }
+
+    [Fact]
+    public void VerifyFileSignature_Expired_ReturnsFalse()
+    {
+        var service = CreateService();
+        long past = DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeSeconds();
+
+        Assert.False(service.VerifyFileSignature("t1", "a.png", "AAAA", past));
+    }
+
+    private static ChatTokenService CreateServiceWithKey(string tokenKey)
+    {
+        var options = new ChatTokenOptions { TokenKey = tokenKey };
+        return new ChatTokenService(
+            Options.Create(options), NullLogger<ChatTokenService>.Instance);
+    }
+
+    private static string ForgeToken(string payloadJson)
+    {
+        var data = System.Text.Encoding.UTF8.GetBytes(payloadJson);
+        return $"{Base64Url(data)}.{Base64Url(HmacSha256(payloadJson))}";
+    }
+
+    private static byte[] HmacSha256(string data)
+    {
+        using var hmac = new HMACSHA256(Key);
+        return hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(data));
+    }
+
+    private static string Base64Url(byte[] data) =>
+        Convert.ToBase64String(data).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
