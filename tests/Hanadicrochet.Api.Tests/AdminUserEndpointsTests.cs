@@ -204,6 +204,146 @@ public class AdminUserEndpointsTests(ApiTestFixture fx)
     }
 
     [Fact]
+    public async Task Patch_Unknown_404()
+    {
+        var (admin, _) = await NewAdminAsync();
+
+        var response = await admin.PatchJsonAsync($"/admin/users/{Guid.NewGuid():N}", new
+        {
+            displayName = "Nobody",
+            phone = (string?)null,
+            country = (string?)null,
+            language = "en",
+            roles = new[] { "customer" },
+            assignedEmployeeId = (string?)null,
+            isActive = true,
+        });
+        await EndpointHttp.Error(response, HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
+    public async Task Patch_SelfModification_403()
+    {
+        var (admin, adminUser) = await NewAdminAsync();
+        var employee = await TestUsers.CreateAsync(fx, "employee");
+
+        // Changing the acting admin's own roles/status/assignment is
+        // forbidden (no locking yourself out of the back office).
+        var self = await admin.PatchJsonAsync($"/admin/users/{adminUser.Id}", new
+        {
+            displayName = adminUser.DisplayName,
+            phone = adminUser.Phone,
+            country = adminUser.Country,
+            language = "en",
+            roles = new[] { "admin", "employee" },
+            assignedEmployeeId = employee.Id,
+            isActive = true,
+        });
+        await EndpointHttp.Error(self, HttpStatusCode.Forbidden, "self_modification");
+    }
+
+    [Fact]
+    public async Task Patch_Assign_InvalidEmployee_400()
+    {
+        var (admin, _) = await NewAdminAsync();
+        var email = TestUsers.UniqueEmail("assign");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var scope = fx.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await db.Users.FirstAsync(u => u.Email == email);
+
+        // A nonexistent employee id is rejected before any change.
+        var bogus = await admin.PatchJsonAsync($"/admin/users/{user.Id}", new
+        {
+            displayName = user.DisplayName,
+            phone = user.Phone,
+            country = user.Country,
+            language = "en",
+            roles = new[] { "customer" },
+            assignedEmployeeId = Guid.NewGuid().ToString("N"),
+            isActive = true,
+        });
+        await EndpointHttp.Error(bogus, HttpStatusCode.BadRequest, "invalid_employee");
+
+        // An inactive employee is not assignable either.
+        var inactive = await TestUsers.CreateAsync(fx, "employee");
+        var deactivated = await admin.PatchJsonAsync($"/admin/users/{inactive.Id}", new
+        {
+            displayName = inactive.DisplayName,
+            phone = inactive.Phone,
+            country = inactive.Country,
+            language = "en",
+            roles = new[] { "employee" },
+            assignedEmployeeId = (string?)null,
+            isActive = false,
+        });
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+
+        var toInactive = await admin.PatchJsonAsync($"/admin/users/{user.Id}", new
+        {
+            displayName = user.DisplayName,
+            phone = user.Phone,
+            country = user.Country,
+            language = "en",
+            roles = new[] { "customer" },
+            assignedEmployeeId = inactive.Id,
+            isActive = true,
+        });
+        await EndpointHttp.Error(toInactive, HttpStatusCode.BadRequest, "invalid_employee");
+    }
+
+    [Fact]
+    public async Task Patch_Assign_Ok_Audits()
+    {
+        var (admin, _) = await NewAdminAsync();
+        var email = TestUsers.UniqueEmail("assignok");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var employee = await TestUsers.CreateAsync(fx, "employee");
+        var scope = fx.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await db.Users.FirstAsync(u => u.Email == email);
+
+        var ok = await EndpointHttp.Json(
+            await admin.PatchJsonAsync($"/admin/users/{user.Id}", new
+            {
+                displayName = user.DisplayName,
+                phone = user.Phone,
+                country = user.Country,
+                language = "en",
+                roles = new[] { "customer" },
+                assignedEmployeeId = employee.Id,
+                isActive = true,
+            }),
+            HttpStatusCode.OK);
+        Assert.Equal(employee.Id, ok!["assignedEmployeeId"]!.ToString());
+
+        // The assignment lands in the admin trace.
+        var audit = await db.AdminAuditLogs
+            .FirstOrDefaultAsync(a => a.TargetUserId == user.Id && a.Action == "user.assigned");
+        Assert.NotNull(audit);
+        Assert.Equal($"employee={employee.Id}", audit.Note);
+    }
+
+    [Fact]
+    public async Task PasswordReset_Unknown_404()
+    {
+        var (admin, _) = await NewAdminAsync();
+
+        var response = await admin.PostJsonAsync(
+            $"/admin/users/{Guid.NewGuid():N}/password-reset", new { });
+        await EndpointHttp.Error(response, HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
+    public async Task Delete_Unknown_404()
+    {
+        var (admin, _) = await NewAdminAsync();
+
+        var response = await admin.DeleteWithCsrfAsync($"/admin/users/{Guid.NewGuid():N}");
+        await EndpointHttp.Error(response, HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
     public async Task List_Search_ByDisplayName()
     {
         var (admin, _) = await NewAdminAsync();

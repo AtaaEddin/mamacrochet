@@ -117,7 +117,7 @@ public static class AdminUserEndpoints
             var result = await service.UpdateAsync(id, request, actor);
             if (result.Error is not null)
             {
-                return result.Error.Code == "user_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : result.Error.Code == "self_modification"
                         ? Results.Json(result.Error, statusCode: StatusCodes.Status403Forbidden)

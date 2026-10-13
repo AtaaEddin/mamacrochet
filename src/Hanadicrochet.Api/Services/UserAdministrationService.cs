@@ -136,14 +136,19 @@ public sealed class UserAdministrationService(UserManager<AppUser> userManager, 
             return new ResetPasswordResult(ApiError.NotFound("user_not_found"), null);
         }
 
+        // Remove-then-add: AddPasswordAsync refuses users that still have a
+        // password. The flag is set only AFTER a successful add, because the
+        // store persists eagerly — on a failed add the user's old password
+        // is already gone, but the row must not end up flagged.
         var temporaryPassword = TempPasswords.Generate();
-        target.MustChangePassword = true;
         await userManager.RemovePasswordAsync(target);
         var added = await userManager.AddPasswordAsync(target, temporaryPassword);
         if (!added.Succeeded)
         {
-            return new ResetPasswordResult(UserAdministrationService.FromIdentityResult(added), null);
+            return new ResetPasswordResult(FromIdentityResult(added), null);
         }
+
+        target.MustChangePassword = true;
 
         // Security-stamp rotation invalidates the user's existing sessions.
         await userManager.UpdateSecurityStampAsync(target);

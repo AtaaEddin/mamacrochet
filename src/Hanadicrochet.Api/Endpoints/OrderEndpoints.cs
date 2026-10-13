@@ -63,7 +63,7 @@ public static class OrderEndpoints
                 ct);
             if (result.Error is not null)
             {
-                return result.Error.Code == "product_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : result.Error.Code == "guest_cap"
                         ? Results.Conflict(result.Error)
@@ -227,7 +227,7 @@ public static class OrderEndpoints
             var result = await service.ConfirmDeliveryAsync(id, user, ct);
             if (result.Error is not null)
             {
-                return result.Error.Code == "order_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : Results.Conflict(result.Error);
             }
@@ -262,7 +262,7 @@ public static class OrderEndpoints
             {
                 return result.Error.Code == "already_rated" || result.Error.Code == "not_finished"
                     ? Results.Conflict(result.Error)
-                    : result.Error.Code == "order_not_found"
+                    : result.Error.Code == "not_found"
                         ? Results.NotFound(result.Error)
                         : Results.BadRequest(result.Error);
             }
@@ -418,7 +418,7 @@ public static class OrderEndpoints
                 user.IsAdmin ? "admin" : "employee", ct);
             if (result.Error is not null)
             {
-                return result.Error.Code == "order_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : Results.BadRequest(result.Error);
             }
@@ -530,7 +530,7 @@ public static class OrderEndpoints
             var result = await service.AssignAsync(id, request.EmployeeId, user.DisplayName, ct);
             if (result.Error is not null)
             {
-                return result.Error.Code == "order_not_found"
+                return result.Error.Code == "not_found"
                     ? Results.NotFound(result.Error)
                     : Results.BadRequest(result.Error);
             }
@@ -596,7 +596,7 @@ public static class OrderEndpoints
             user.Id, user.DisplayName, user.IsAdmin ? "admin" : "employee", ct);
         if (result.Error is not null)
         {
-            return result.Error.Code == "order_not_found"
+            return result.Error.Code == "not_found"
                 ? Results.NotFound(result.Error)
                 : result.Error.Code == "invalid_status_change"
                     ? Results.Conflict(result.Error)
@@ -656,7 +656,7 @@ public static class OrderEndpoints
             user.Id, user.DisplayName, user.IsAdmin ? "admin" : "employee", ct);
         if (result.Error is not null)
         {
-            return result.Error.Code == "order_not_found"
+            return result.Error.Code == "not_found"
                 ? Results.NotFound(result.Error)
                 : result.Error.Code == "invalid_status_change"
                     ? Results.Conflict(result.Error)

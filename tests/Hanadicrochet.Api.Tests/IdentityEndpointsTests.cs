@@ -22,6 +22,30 @@ public class IdentityEndpointsTests(ApiTestFixture fx)
     // ---- register ---------------------------------------------------------
 
     [Fact]
+    public async Task Register_InvalidInputs_400()
+    {
+        var client = fx.CreateClient();
+
+        // Name too short.
+        var shortName = await client.PostJsonAsync(
+            "/identity/register",
+            new { name = "A", email = TestUsers.UniqueEmail(), password = "Passw0rd!x" });
+        await EndpointHttp.Error(shortName, HttpStatusCode.BadRequest, "invalid");
+
+        // Missing e-mail.
+        var noEmail = await client.PostJsonAsync(
+            "/identity/register",
+            new { name = "Ada Lovelace", email = "", password = "Passw0rd!x" });
+        await EndpointHttp.Error(noEmail, HttpStatusCode.BadRequest, "invalid");
+
+        // Missing password.
+        var noPassword = await client.PostJsonAsync(
+            "/identity/register",
+            new { name = "Ada Lovelace", email = TestUsers.UniqueEmail(), password = "" });
+        await EndpointHttp.Error(noPassword, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    [Fact]
     public async Task Register_WeakPassword_400()
     {
         var client = fx.CreateClient();
@@ -64,6 +88,36 @@ public class IdentityEndpointsTests(ApiTestFixture fx)
     }
 
     // ---- login ------------------------------------------------------------
+
+    [Fact]
+    public async Task Login_EmptyCredentials_401()
+    {
+        var client = fx.CreateClient();
+
+        var noEmail = await client.PostJsonAsync(
+            "/identity/login", new { email = "", password = "Passw0rd!x" });
+        await EndpointHttp.Error(noEmail, HttpStatusCode.Unauthorized, "bad_credentials");
+
+        var noPassword = await client.PostJsonAsync(
+            "/identity/login",
+            new { email = TestUsers.UniqueEmail(), password = "" });
+        await EndpointHttp.Error(noPassword, HttpStatusCode.Unauthorized, "bad_credentials");
+    }
+
+    [Fact]
+    public async Task Logout_SignsOut_204()
+    {
+        var email = TestUsers.UniqueEmail("logout");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var client = await TestUsers.LoginAsync(fx, email);
+
+        var loggedOut = await client.PostJsonAsync("/identity/logout", new { });
+        Assert.Equal(HttpStatusCode.NoContent, loggedOut.StatusCode);
+
+        // The cookie is gone: /me is anonymous again.
+        var me = await client.GetAsync("/identity/me");
+        await EndpointHttp.Error(me, HttpStatusCode.Unauthorized, "unauthenticated");
+    }
 
     [Fact]
     public async Task Login_BadCredentials_401_NoUserLeak()
@@ -196,6 +250,36 @@ public class IdentityEndpointsTests(ApiTestFixture fx)
     // ---- change password ----------------------------------------------------
 
     [Fact]
+    public async Task ChangePassword_EmptyFields_400()
+    {
+        var email = TestUsers.UniqueEmail("pwempty");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var client = await TestUsers.LoginAsync(fx, email);
+
+        var noCurrent = await client.PostJsonAsync(
+            "/identity/change-password", new { current = "", next = "BrandNew1!x" });
+        await EndpointHttp.Error(noCurrent, HttpStatusCode.BadRequest, "invalid");
+
+        var noNext = await client.PostJsonAsync(
+            "/identity/change-password", new { current = "Passw0rd!x", next = "" });
+        await EndpointHttp.Error(noNext, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    [Fact]
+    public async Task ChangePassword_WeakNext_400()
+    {
+        var email = TestUsers.UniqueEmail("pwweak");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var client = await TestUsers.LoginAsync(fx, email);
+
+        // The password policy rejects the new password: 400 with the
+        // identity error code, and the old password still works.
+        var weak = await client.PostJsonAsync(
+            "/identity/change-password", new { current = "Passw0rd!x", next = "1" });
+        await EndpointHttp.Error(weak, HttpStatusCode.BadRequest, "PasswordTooShort");
+    }
+
+    [Fact]
     public async Task ChangePassword_WrongCurrent_400()
     {
         var email = TestUsers.UniqueEmail("pw");
@@ -258,6 +342,54 @@ public class IdentityEndpointsTests(ApiTestFixture fx)
     }
 
     // ---- avatar ----------------------------------------------------------------
+
+    [Fact]
+    public async Task Avatar_Empty_And_OverSize_400()
+    {
+        var email = TestUsers.UniqueEmail("avatar");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var client = await TestUsers.LoginAsync(fx, email);
+
+        var empty = new Multipart()
+            .File("file", Array.Empty<byte>(), "empty.png", "image/png");
+        var noBytes = await empty.PostAsync(
+            client, "/identity/me/avatar", await TestUsers.GetCsrfTokenAsync(client));
+        await EndpointHttp.Error(noBytes, HttpStatusCode.BadRequest, "invalid_image");
+
+        // The cap is 1 MB (exclusive).
+        var big = new Multipart()
+            .File("file", new byte[1_048_577], "big.png", "image/png");
+        var over = await big.PostAsync(
+            client, "/identity/me/avatar", await TestUsers.GetCsrfTokenAsync(client));
+        await EndpointHttp.Error(over, HttpStatusCode.BadRequest, "invalid_image");
+    }
+
+    [Fact]
+    public async Task Avatar_Replace_DeletesOldFile()
+    {
+        var email = TestUsers.UniqueEmail("avatar");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var client = await TestUsers.LoginAsync(fx, email);
+
+        var first = await EndpointHttp.Json(
+            await new Multipart().File("file", FileFixtures.Png, "one.png", "image/png")
+                .PostAsync(client, "/identity/me/avatar", await TestUsers.GetCsrfTokenAsync(client)),
+            HttpStatusCode.OK);
+        var firstUrl = first!["avatarUrl"]!.ToString()!;
+
+        var second = await EndpointHttp.Json(
+            await new Multipart().File("file", FileFixtures.Jpeg, "two.jpg", "image/jpeg")
+                .PostAsync(client, "/identity/me/avatar", await TestUsers.GetCsrfTokenAsync(client)),
+            HttpStatusCode.OK);
+        var secondUrl = second!["avatarUrl"]!.ToString()!;
+        Assert.NotEqual(firstUrl, secondUrl);
+
+        // The replaced file is removed from the avatar directory; the new
+        // one is on disk.
+        var directory = Path.Combine(fx.UploadsRoot, "avatars");
+        Assert.False(File.Exists(Path.Combine(directory, Path.GetFileName(firstUrl))));
+        Assert.True(File.Exists(Path.Combine(directory, Path.GetFileName(secondUrl))));
+    }
 
     [Fact]
     public async Task Avatar_Upload_Serves_And_TextRejected()

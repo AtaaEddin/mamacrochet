@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Hanadicrochet.Api.Data;
+using Hanadicrochet.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -103,14 +104,14 @@ public class OrderEndpointsTests(ApiTestFixture fx)
         var r3 = await PostGuestOrderAsync(client, GuestOrder(spec: ""));
         await EndpointHttp.Error(r3, HttpStatusCode.BadRequest, "invalid");
 
-        // Catalog without a product.
+        // Catalog without a product → the product lookup fails.
         var r4 = await PostGuestOrderAsync(client, GuestOrder(kind: "catalog"));
-        await EndpointHttp.Error(r4, HttpStatusCode.BadRequest, "not_found");
+        await EndpointHttp.Error(r4, HttpStatusCode.NotFound, "not_found");
 
         // Unknown product.
         var r5 = await PostGuestOrderAsync(
             client, GuestOrder(kind: "catalog", productId: Guid.NewGuid().ToString("N")));
-        await EndpointHttp.Error(r5, HttpStatusCode.BadRequest, "not_found");
+        await EndpointHttp.Error(r5, HttpStatusCode.NotFound, "not_found");
 
         // Missing guest id.
         var r6 = await PostGuestOrderAsync(client, GuestOrder(withGuestId: false));
@@ -431,6 +432,416 @@ public class OrderEndpointsTests(ApiTestFixture fx)
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
     }
 
+    [Fact]
+    public async Task Customer_Detail_Unknown_404_And_Foreign_404()
+    {
+        var email = TestUsers.UniqueEmail("detail");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var customer = await TestUsers.LoginAsync(fx, email);
+
+        // A well-formed id with no row.
+        var unknown = await customer.GetAsync($"/orders/{Guid.NewGuid():N}");
+        await EndpointHttp.Error(unknown, HttpStatusCode.NotFound, "not_found");
+
+        // Someone else's order is indistinguishable from a missing one.
+        var foreign = await CreateOpenAsync();
+        var denied = await customer.GetAsync($"/orders/{foreign}");
+        await EndpointHttp.Error(denied, HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
+    public async Task Customer_Cancel_AlreadyCancelled_409()
+    {
+        var guestId = Guid.NewGuid().ToString();
+        var email = TestUsers.UniqueEmail("cancel2");
+        var created = await PostGuestOrderAsync(
+            fx.CreateClient(), GuestOrder(guestId: guestId, email: email));
+        var id = (await EndpointHttp.Json(created, HttpStatusCode.OK))!["id"]!.ToString()!;
+
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var customer = await TestUsers.LoginAsync(fx, email);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await customer.PostJsonAsync("/identity/guest-link", new { guestId })).StatusCode);
+
+        var cancelled = await customer.PostJsonAsync($"/orders/{id}/cancel", new { reason = "Gone." });
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+
+        // Terminal states are one-way: a second cancel is a conflict.
+        var again = await customer.PostJsonAsync($"/orders/{id}/cancel", new { reason = "Really." });
+        await EndpointHttp.Error(again, HttpStatusCode.Conflict, "invalid_status_change");
+    }
+
+    [Fact]
+    public async Task Customer_ConfirmDelivery_Errors()
+    {
+        var guestId = Guid.NewGuid().ToString();
+        var email = TestUsers.UniqueEmail("confirm");
+        var created = await PostGuestOrderAsync(
+            fx.CreateClient(), GuestOrder(guestId: guestId, email: email));
+        var id = (await EndpointHttp.Json(created, HttpStatusCode.OK))!["id"]!.ToString()!;
+
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var customer = await TestUsers.LoginAsync(fx, email);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await customer.PostJsonAsync("/identity/guest-link", new { guestId })).StatusCode);
+
+        // Unknown order → 404 (no information leak).
+        var unknown = await customer.PostJsonAsync(
+            $"/orders/{Guid.NewGuid():N}/confirm-delivery", new { });
+        await EndpointHttp.Error(unknown, HttpStatusCode.NotFound, "not_found");
+
+        // Nothing has been delivered yet → conflict, never 500.
+        var early = await customer.PostJsonAsync($"/orders/{id}/confirm-delivery", new { });
+        await EndpointHttp.Error(early, HttpStatusCode.Conflict, "invalid_status_change");
+    }
+
+    [Fact]
+    public async Task Customer_Rating_Errors()
+    {
+        var guestId = Guid.NewGuid().ToString();
+        var email = TestUsers.UniqueEmail("rating");
+        var created = await PostGuestOrderAsync(
+            fx.CreateClient(), GuestOrder(guestId: guestId, email: email));
+        var id = (await EndpointHttp.Json(created, HttpStatusCode.OK))!["id"]!.ToString()!;
+
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var customer = await TestUsers.LoginAsync(fx, email);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await customer.PostJsonAsync("/identity/guest-link", new { guestId })).StatusCode);
+
+        // Unknown order → 404.
+        var unknown = await customer.PostJsonAsync(
+            $"/orders/{Guid.NewGuid():N}/rating", new { score = 5 });
+        await EndpointHttp.Error(unknown, HttpStatusCode.NotFound, "not_found");
+
+        // An open order cannot be rated yet → 409.
+        var early = await customer.PostJsonAsync(
+            $"/orders/{id}/rating", new { score = 5 });
+        await EndpointHttp.Error(early, HttpStatusCode.Conflict, "not_finished");
+    }
+
+    [Fact]
+    public async Task Customer_Rating_AlreadyRated_409()
+    {
+        var (order, customer, _, _) = await CreateClosedOrderAsync();
+
+        var first = await EndpointHttp.Json(
+            await customer.PostJsonAsync($"/orders/{order}/rating", new { score = 5 }),
+            HttpStatusCode.OK);
+        Assert.Equal((byte)5, first!["rating"]!.GetValue<byte>());
+
+        // One rating per order.
+        var second = await customer.PostJsonAsync(
+            $"/orders/{order}/rating", new { score = 4 });
+        await EndpointHttp.Error(second, HttpStatusCode.Conflict, "already_rated");
+    }
+
+    [Fact]
+    public async Task Staff_Detail_Errors()
+    {
+        var (order, _, worker) = await CreateAssignedOrderAsync();
+
+        // Unknown → 404.
+        var unknown = await worker.GetAsync($"/staff/orders/{Guid.NewGuid():N}");
+        await EndpointHttp.Error(unknown, HttpStatusCode.NotFound, "not_found");
+
+        // An order handled by a different employee stays hidden.
+        var stranger = await TestUsers.CreateAsync(fx, "employee");
+        var otherWorker = await TestUsers.LoginAsync(fx, stranger.Email!);
+        var denied = await otherWorker.GetAsync($"/staff/orders/{order}");
+        await EndpointHttp.Error(denied, HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
+    public async Task Staff_Status_Notes_Payment_Delivery_Unknown_404()
+    {
+        var (_, _, worker) = await CreateAssignedOrderAsync();
+        var bogus = $"{Guid.NewGuid():N}";
+
+        var status = await worker.PostJsonAsync(
+            $"/staff/orders/{bogus}/status", new { status = "in_progress" });
+        await EndpointHttp.Error(status, HttpStatusCode.NotFound, "not_found");
+
+        var notes = await worker.PostJsonAsync(
+            $"/staff/orders/{bogus}/notes", new { text = "Hello?" });
+        await EndpointHttp.Error(notes, HttpStatusCode.NotFound, "not_found");
+
+        var pay = new Multipart()
+            .Field("amount", "40.00")
+            .Field("method", "bank transfer")
+            .File("receipt", FileFixtures.Pdf, "receipt.pdf", "application/pdf");
+        var payment = await pay.PostAsync(
+            worker, $"/staff/orders/{bogus}/payment", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(payment, HttpStatusCode.NotFound, "not_found");
+
+        var deliv = new Multipart()
+            .Field("method", "courier")
+            .Field("actualAt", DateTime.UtcNow.ToString("o"));
+        var delivery = await deliv.PostAsync(
+            worker, $"/staff/orders/{bogus}/delivery", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(delivery, HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
+    public async Task Staff_Notes_ClosedOrder_400()
+    {
+        var (order, _, _, worker) = await CreateClosedOrderAsync();
+
+        var denied = await worker.PostJsonAsync(
+            $"/staff/orders/{order}/notes", new { text = "Too late for notes." });
+        await EndpointHttp.Error(denied, HttpStatusCode.BadRequest, "order_closed");
+    }
+
+    [Fact]
+    public async Task Staff_Delivery_Errors()
+    {
+        var (order, _, worker) = await CreateReadyForPaymentAsync();
+
+        // Not paid yet → 409 (delivery follows payment).
+        var early = new Multipart()
+            .Field("method", "courier")
+            .Field("actualAt", DateTime.UtcNow.ToString("o"));
+        var notPaid = await early.PostAsync(
+            worker, $"/staff/orders/{order}/delivery", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(notPaid, HttpStatusCode.Conflict, "invalid_status_change");
+
+        // Pay it, so the remaining checks are reachable.
+        var pay = new Multipart()
+            .Field("amount", "40.00")
+            .Field("method", "bank transfer")
+            .File("receipt", FileFixtures.Pdf, "receipt.pdf", "application/pdf");
+        await EndpointHttp.Json(
+            await pay.PostAsync(
+                worker, $"/staff/orders/{order}/payment",
+                await TestUsers.GetCsrfTokenAsync(worker)),
+            HttpStatusCode.OK);
+
+        // Missing method → 400 (the order is paid, the form is not).
+        var noMethod = new Multipart().Field("actualAt", DateTime.UtcNow.ToString("o"));
+        var invalid = await noMethod.PostAsync(
+            worker, $"/staff/orders/{order}/delivery", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(invalid, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    [Fact]
+    public async Task Staff_Attachments_Errors()
+    {
+        var (order, _, worker) = await CreateAssignedOrderAsync();
+
+        // Unknown order → 404 (checked before the files).
+        var unknown = new Multipart()
+            .Field("kind", "wip")
+            .File("files", FileFixtures.Png, "wip.png", "image/png");
+        var r1 = await unknown.PostAsync(
+            worker, $"/staff/orders/{Guid.NewGuid():N}/attachments",
+            await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(r1, HttpStatusCode.NotFound, "not_found");
+
+        // Known order, no files at all → 400.
+        var none = new Multipart().Field("kind", "wip");
+        var r2 = await none.PostAsync(
+            worker, $"/staff/orders/{order}/attachments", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(r2, HttpStatusCode.BadRequest, "invalid");
+
+        // A zero-byte part is skipped by the binder → still "no files".
+        var zero = new Multipart()
+            .Field("kind", "wip")
+            .File("files", Array.Empty<byte>(), "empty.png", "image/png");
+        var r3 = await zero.PostAsync(
+            worker, $"/staff/orders/{order}/attachments", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(r3, HttpStatusCode.BadRequest, "invalid");
+
+        // Not an image → file_invalid.
+        var text = new Multipart()
+            .Field("kind", "wip")
+            .File("files", FileFixtures.PlainText, "notes.txt", "text/plain");
+        var r4 = await text.PostAsync(
+            worker, $"/staff/orders/{order}/attachments", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(r4, HttpStatusCode.BadRequest, "file_invalid");
+
+        // The cap is five photos per order.
+        var many = new Multipart().Field("kind", "wip");
+        for (var i = 0; i < OrderService.MaxSampleFiles + 1; i++)
+        {
+            many.File("files", FileFixtures.Png, $"p{i}.png", "image/png");
+        }
+
+        var r5 = await many.PostAsync(
+            worker, $"/staff/orders/{order}/attachments", await TestUsers.GetCsrfTokenAsync(worker));
+        await EndpointHttp.Error(r5, HttpStatusCode.BadRequest, "attachment_too_many");
+    }
+
+    [Fact]
+    public async Task Admin_Assign_Errors()
+    {
+        var (order, admin, _) = await CreateAssignedOrderAsync();
+
+        // Unknown order → 404.
+        var unknown = await admin.PatchJsonAsync(
+            $"/staff/orders/{Guid.NewGuid():N}/assignment",
+            new { employeeId = (string?)null });
+        await EndpointHttp.Error(unknown, HttpStatusCode.NotFound, "not_found");
+
+        // A bogus employee id → 400 (checked before touching the order).
+        var bad = await admin.PatchJsonAsync(
+            $"/staff/orders/{order}/assignment",
+            new { employeeId = Guid.NewGuid().ToString("N") });
+        await EndpointHttp.Error(bad, HttpStatusCode.BadRequest, "invalid");
+    }
+
+    [Fact]
+    public async Task Admin_OrderDetail_And_Status()
+    {
+        var (order, _, worker) = await CreateAssignedOrderAsync();
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var boss = await TestUsers.LoginAsync(fx, adminUser.Email!);
+
+        // Unknown → 404.
+        var unknown = await boss.GetAsync($"/admin/orders/{Guid.NewGuid():N}");
+        await EndpointHttp.Error(unknown, HttpStatusCode.NotFound, "not_found");
+
+        // Valid → 200 (admins see every order).
+        var detail = await EndpointHttp.Json(
+            await boss.GetAsync($"/admin/orders/{order}"), HttpStatusCode.OK);
+        Assert.Equal(order, detail!["id"]!.ToString());
+
+        // Unknown status word → 400 (the admin note is fine, the word is not).
+        var word = await boss.PostJsonAsync($"/admin/orders/{order}/status",
+            new { status = "shipped", note = "Trying a wrong word." });
+        await EndpointHttp.Error(word, HttpStatusCode.BadRequest, "invalid");
+
+        // Admins need a written reason for every status change → 400.
+        var noNote = await boss.PostJsonAsync(
+            $"/admin/orders/{order}/status", new { status = "in_progress" });
+        await EndpointHttp.Error(noNote, HttpStatusCode.BadRequest, "invalid");
+
+        // Valid jump → 200.
+        var progressed = await EndpointHttp.Json(
+            await boss.PostJsonAsync(
+                $"/admin/orders/{order}/status",
+                new { status = "in_progress", note = "Started the sample." }),
+            HttpStatusCode.OK);
+        Assert.Equal("in_progress", progressed!["status"]!.ToString());
+
+        // Staff cannot skip to paid (no receipt on file) → 409.
+        var skip = await worker.PostJsonAsync(
+            $"/staff/orders/{order}/status", new { status = "paid" });
+        await EndpointHttp.Error(skip, HttpStatusCode.Conflict, "invalid_status_change");
+
+        // Delivery before payment → 409 (admin route, proof optional).
+        var early = new Multipart()
+            .Field("method", "courier")
+            .Field("actualAt", DateTime.UtcNow.ToString("o"));
+        var notPaid = await early.PostAsync(
+            boss, $"/admin/orders/{order}/delivery", await TestUsers.GetCsrfTokenAsync(boss));
+        await EndpointHttp.Error(notPaid, HttpStatusCode.Conflict, "invalid_status_change");
+    }
+
+    [Fact]
+    public async Task OrderFiles_ContentTypes_Access_AndMissing()
+    {
+        // 1) A guest order with sample images in three formats.
+        var guestId = Guid.NewGuid().ToString();
+        var email = TestUsers.UniqueEmail("files");
+        var form = GuestOrder(guestId: guestId, email: email)
+            .File("files", FileFixtures.Jpeg, "sample.jpg", "image/jpeg")
+            .File("files", FileFixtures.Png, "sample.png", "image/png")
+            .File("files", FileFixtures.WebP, "sample.webp", "image/webp");
+        var created = await PostGuestOrderAsync(fx.CreateClient(), form);
+        var order = (await EndpointHttp.Json(created, HttpStatusCode.OK))!["id"]!.ToString()!;
+
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var customer = await TestUsers.LoginAsync(fx, email);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await customer.PostJsonAsync("/identity/guest-link", new { guestId })).StatusCode);
+
+        // The customer reads their own samples; the content type comes from
+        // the stored extension (magic-byte detection), never the client.
+        var detail = await EndpointHttp.Json(
+            await customer.GetAsync($"/orders/{order}"), HttpStatusCode.OK);
+        var samples = detail!["attachments"]!.AsArray()
+            .Where(a => a!["kind"]!.ToString() == "sample")
+            .ToList();
+        Assert.Equal(3, samples.Count);
+
+        foreach (var (suffix, contentType) in new[]
+                 {
+                     (".jpg", "image/jpeg"), (".png", "image/png"), (".webp", "image/webp"),
+                 })
+        {
+            var attachment = samples.First(
+                a => a!["url"]!.ToString()!.EndsWith(suffix));
+            var response = await customer.GetAsync(attachment!["url"]!.ToString()!);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(contentType, response.Content.Headers.ContentType!.MediaType);
+        }
+
+        // Well-formed but unknown file name → 404.
+        var missing = await customer.GetAsync($"/files/orders/{order}/{Guid.NewGuid():N}.jpg");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+
+        // 2) A staff receipt is staff-only and serves as PDF.
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var staff = await TestUsers.CreateAsync(fx, "employee");
+        var worker = await TestUsers.LoginAsync(fx, staff.Email!);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await admin.PatchJsonAsync(
+                $"/staff/orders/{order}/assignment", new { employeeId = staff.Id })).StatusCode);
+        await EndpointHttp.Json(
+            await worker.PostJsonAsync(
+                $"/staff/orders/{order}/status", new { status = "in_progress" }),
+            HttpStatusCode.OK);
+        await EndpointHttp.Json(
+            await worker.PostJsonAsync(
+                $"/staff/orders/{order}/status",
+                new { status = "ready_for_payment", finalPrice = 10.0m }),
+            HttpStatusCode.OK);
+
+        var pay = new Multipart()
+            .Field("amount", "10.00")
+            .Field("method", "bank transfer")
+            .File("receipt", FileFixtures.Pdf, "receipt.pdf", "application/pdf");
+        await EndpointHttp.Json(
+            await pay.PostAsync(
+                worker, $"/staff/orders/{order}/payment",
+                await TestUsers.GetCsrfTokenAsync(worker)),
+            HttpStatusCode.OK);
+
+        var staffDetail = await EndpointHttp.Json(
+            await worker.GetAsync($"/staff/orders/{order}"), HttpStatusCode.OK);
+        var receipt = staffDetail!["attachments"]!.AsArray()
+            .First(a => a!["kind"]!.ToString() == "receipt")!;
+        var receiptUrl = receipt["url"]!.ToString()!;
+
+        var pdf = await EndpointHttp.Bytes(worker, receiptUrl, HttpStatusCode.OK);
+        Assert.NotEmpty(pdf);
+
+        // The customer cannot read staff files.
+        var denied = await customer.GetAsync(receiptUrl);
+        Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
+
+        // 3) A row without the file on disk → 404, never 500.
+        var wip = new Multipart()
+            .Field("kind", "wip")
+            .File("files", FileFixtures.Png, "wip.png", "image/png");
+        var uploaded = await EndpointHttp.Json(
+            await wip.PostAsync(
+                worker, $"/staff/orders/{order}/attachments",
+                await TestUsers.GetCsrfTokenAsync(worker)),
+            HttpStatusCode.OK);
+        var wipUrl = uploaded!["attachments"]!.AsArray().Last()!["url"]!.ToString()!;
+        File.Delete(Path.Combine(fx.UploadsRoot, "orders", order, Path.GetFileName(wipUrl)));
+
+        var gone = await worker.GetAsync(wipUrl);
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+    }
+
     // ---- helpers -----------------------------------------------------------
 
     private async Task<string> CreateOpenAsync()
@@ -455,6 +866,78 @@ public class OrderEndpointsTests(ApiTestFixture fx)
         Assert.Equal(HttpStatusCode.OK, assigned.StatusCode);
 
         return (order, admin, worker);
+    }
+
+    /// <summary>
+    /// A guest order (customer-linked) driven to closed by the admin override
+    /// workflow: no receipt (written reason) and no delivery proof.
+    /// </summary>
+    private async Task<(string Order, HttpClient Customer, HttpClient Admin, HttpClient Worker)> CreateClosedOrderAsync()
+    {
+        var guestId = Guid.NewGuid().ToString();
+        var email = TestUsers.UniqueEmail("closed");
+        var created = await PostGuestOrderAsync(
+            fx.CreateClient(), GuestOrder(guestId: guestId, email: email));
+        var order = (await EndpointHttp.Json(created, HttpStatusCode.OK))!["id"]!.ToString()!;
+
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+        var customer = await TestUsers.LoginAsync(fx, email);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await customer.PostJsonAsync("/identity/guest-link", new { guestId })).StatusCode);
+
+        var adminUser = await TestUsers.CreateAsync(fx, "admin");
+        var admin = await TestUsers.LoginAsync(fx, adminUser.Email!);
+        var staff = await TestUsers.CreateAsync(fx, "employee");
+        var worker = await TestUsers.LoginAsync(fx, staff.Email!);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await admin.PatchJsonAsync(
+                $"/staff/orders/{order}/assignment", new { employeeId = staff.Id })).StatusCode);
+
+        await EndpointHttp.Json(
+            await admin.PostJsonAsync(
+                $"/admin/orders/{order}/status",
+                new { status = "in_progress", note = "Started the sample." }),
+            HttpStatusCode.OK);
+        await EndpointHttp.Json(
+            await admin.PostJsonAsync(
+                $"/admin/orders/{order}/status",
+                new
+                {
+                    status = "ready_for_payment",
+                    note = "Price agreed in chat.",
+                    finalPrice = 30.0m,
+                }),
+            HttpStatusCode.OK);
+
+        var pay = new Multipart()
+            .Field("amount", "30.00")
+            .Field("method", "cash (shop visit)")
+            .Field("note", "Paid in person at the studio.");
+        await EndpointHttp.Json(
+            await pay.PostAsync(
+                admin, $"/admin/orders/{order}/payment",
+                await TestUsers.GetCsrfTokenAsync(admin)),
+            HttpStatusCode.OK);
+
+        var deliv = new Multipart()
+            .Field("method", "picked up in store")
+            .Field("actualAt", DateTime.UtcNow.ToString("o"))
+            .Field("description", "Collected at the studio.");
+        await EndpointHttp.Json(
+            await deliv.PostAsync(
+                admin, $"/admin/orders/{order}/delivery",
+                await TestUsers.GetCsrfTokenAsync(admin)),
+            HttpStatusCode.OK);
+
+        await EndpointHttp.Json(
+            await admin.PostJsonAsync(
+                $"/admin/orders/{order}/status",
+                new { status = "closed", note = "Handed over; closing." }),
+            HttpStatusCode.OK);
+
+        return (order, customer, admin, worker);
     }
 
     /// <summary>Assigned guest order pushed to ready_for_payment by staff.</summary>
