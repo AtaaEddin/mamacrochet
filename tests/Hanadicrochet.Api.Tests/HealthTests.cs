@@ -18,6 +18,9 @@ public class HealthTests(ApiTestFixture _fx)
         var body = await response.Content.ReadFromJsonAsync<JsonNode?>();
         Assert.Equal("ok", body?["status"]?.ToString());
         Assert.Equal("connected", body?["database"]?.ToString());
+        // Plan 20261121-1452/01: the image pipeline reports its native library
+        // here, because a missing libvips silently breaks every upload.
+        Assert.Equal("ready", body?["images"]?.ToString());
     }
 
     [Fact]

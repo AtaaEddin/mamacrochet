@@ -55,6 +55,19 @@ while :; do
   sleep 5
 done
 
+# --- 4b. Image pipeline gate --------------------------------------------------
+# /health also reports whether the image pipeline can encode (plan
+# 20261121-1452/01). The api image gets libvips from the distro (`apk add
+# vips`), not from NuGet, so a broken layer, a wrong architecture or a missing
+# shared library would otherwise only show up when a product photo is
+# uploaded. Fail the deploy now, while the fix is still cheap.
+health_json=$(docker compose exec -T api wget -qO- http://127.0.0.1:8085/health || true)
+if [[ "$health_json" != *'"images":"ready"'* ]]; then
+  echo "health: ${health_json:-<no response>}" >&2
+  docker compose exec -T api vips --version || true
+  die "the api cannot run the image pipeline — every upload would fail. Check that the api image built with 'apk add vips' (rebuild: docker compose build --no-cache api)."
+fi
+
 # --- 5. Status -----------------------------------------------------------------
 echo
 docker compose ps

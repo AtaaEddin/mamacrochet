@@ -17,6 +17,7 @@ internet ──► caddy (:80/:443) ──► web (:3000, Next standalone)
 | `docker-compose.yml` | the 4 containers: healthchecks, volumes, no public ports except caddy |
 | `Caddyfile`          | reverse proxy + TLS; `/api/*` → api, rest → web      |
 | `.env.example`       | configuration template (copy to `.env`, gitignored)  |
+| `preflight.sh`       | host check before the first deploy: 64-bit OS, Docker, RAM/swap, disk, ports, `.env` |
 | `pipeline.sh`        | **preferred** deploy: tests → backup → clean → deploy → clean |
 | `docker-compose.test.yml` | ephemeral test stack (test-postgres + api-tests + web-tests) |
 | `deploy.sh`          | deploy only (env check → images → up → health) — no tests |
@@ -35,7 +36,9 @@ All base images are multi-arch — building on the Pi produces ARM64 images.
 # 2. Configure
 cd deploy
 cp .env.example .env      # set POSTGRES_PASSWORD, CADDY_SITE, MM_SITE_URL
-# 3. Deploy
+# 3. Check the host (read-only; catches a 32-bit OS, no swap, full disk, busy ports)
+./preflight.sh
+# 4. Deploy
 ./pipeline.sh             # tests → backup → clean → deploy → clean
 ```
 
@@ -73,9 +76,15 @@ One command, run **on the target machine**:
 - Timing (Pi): first run also pulls `sdk:10.0` + `node:22-alpine` (~1 GB-class);
   steady state is build + 208 backend tests + 63 frontend tests — expect minutes.
   The air-gapped `images/*.tar` path pairs with `SKIP_TESTS=1` (the suites need
-  internet for NuGet/pnpm, or ship the test images too). Plain-HTTP mode (`CADDY_SITE=http://`) serves
-`http://<ip>:<HTTP_PORT>`; with a real domain Caddy obtains Let's Encrypt
-certs automatically (port 443 must be reachable).
+  internet for NuGet/pnpm, or ship the test images too).
+- Plain-HTTP mode (`CADDY_SITE=http://`) serves `http://<ip>:<HTTP_PORT>`; with a
+  real domain Caddy obtains Let's Encrypt certs automatically (port 443 must be
+  reachable).
+- **Sign-in on plain HTTP**: browsers drop `Secure` cookies on a non-secure
+  address such as `http://192.168.x.x`, so a LAN-only install must set
+  `AUTH_REQUIRE_HTTPS=false` in `.env` (see `.env.example`). Without it the
+  login POST returns 200 but the session never sticks. Leave it unset once the
+  site has a domain (Caddy + HTTPS).
 
 ## Admin account (auto-seeded)
 

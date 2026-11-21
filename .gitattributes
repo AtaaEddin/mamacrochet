@@ -1,0 +1,17 @@
+# Line endings (plan 20261121-1452/03).
+#
+# The app is developed on Windows and deployed on Linux (Raspberry Pi). Shell
+# scripts and container/config files MUST be LF in the working tree as well as
+# in the blobs: a CRLF `#!/usr/bin/env bash` fails with
+# "bad interpreter: /usr/bin/env bash^M" when the tree is copied to the Pi
+# (git clone is fine either way — these rules keep every checkout identical).
+#
+# Checked with: git ls-files --eol deploy/
+
+*.sh        text eol=lf
+*.env*      text eol=lf
+Dockerfile  text eol=lf
+*.dockerfile text eol=lf
+Caddyfile   text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf

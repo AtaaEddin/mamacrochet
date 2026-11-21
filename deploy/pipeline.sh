@@ -30,7 +30,7 @@ TEST_COMPOSE=(docker compose -f docker-compose.test.yml)
 # then wipe them — forcing a registry re-fetch on EVERY run (which fails on
 # flaky lines and re-downloads ~1 GB on a fresh Pi). Tagged = prune-proof.
 # Pulled only when missing: steady-state runs never touch the registry here.
-BUILDBASES=(mcr.microsoft.com/dotnet/sdk:10.0-noble node:22-alpine)
+BUILDBASES=(mcr.microsoft.com/dotnet/sdk:10.0 node:22-alpine)
 echo
 echo "== [1/6] Build bases =="
 for base in "${BUILDBASES[@]}"; do

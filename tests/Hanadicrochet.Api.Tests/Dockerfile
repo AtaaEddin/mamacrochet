@@ -6,7 +6,7 @@
 # finds it via TEST_DB_HOST (set in the compose file) and creates/drops its
 # own database. Nothing here persists.
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-noble
+FROM mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /src
 COPY . .
 RUN dotnet build tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj

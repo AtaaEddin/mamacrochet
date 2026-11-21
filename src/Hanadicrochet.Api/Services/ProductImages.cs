@@ -1,7 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors.Transforms;
+using NetVips;
 
 namespace Hanadicrochet.Api.Services;
 
@@ -9,9 +6,16 @@ namespace Hanadicrochet.Api.Services;
 /// Product image pipeline (plan 04): accept jpg/png/webp (magic-byte check),
 /// process to WebP — main ≤1600px (q82) + thumbnail ≤480px (q80).
 /// Input types follow the plan 03 precedent (avatar uploads); AVIF/HEIC are
-/// intentionally not in release 1 (no built-in ImageSharp codec — native
-/// third-party decoders don't fit the low-power self-host target).
+/// intentionally not in release 1 (the runtime libvips needs extra loaders
+/// for them — not worth the image size on the low-power self-host target).
 /// </summary>
+/// <remarks>
+/// NetVips/libvips replaced ImageSharp in plan 20261121-1452/01: the patched
+/// ImageSharp release enforces a build-time licence key, and libvips (LGPL,
+/// the engine behind sharp/imgproxy) decodes untrusted input without
+/// crashing the process. The runtime image installs the distro libvips
+/// (`apk add vips`); libvips honours EXIF orientation while thumbnailing.
+/// </remarks>
 public static partial class ProductImages
 {
     public const long MaxUploadBytes = 10 * 1024 * 1024; // ~10 MB per file
@@ -35,78 +39,62 @@ public static partial class ProductImages
     {
         // 1) Magic-byte format gate (jpg/png/webp only).
         await using var input = new MemoryStream();
-        source.CopyTo(input);
+        await source.CopyToAsync(input, ct);
         if (input.Length == 0 || input.Length > MaxUploadBytes)
         {
             return null;
         }
-        input.Position = 0;
-        if (DetectKind(input.GetBuffer()!, (int)input.Length) is not (Kind.Jpeg or Kind.Png or Kind.WebP))
+
+        var bytes = input.GetBuffer().AsSpan(0, (int)input.Length).ToArray();
+        if (DetectKind(bytes) is not (Kind.Jpeg or Kind.Png or Kind.WebP))
         {
             return null;
         }
 
-        // 2) Identify (dimensions) — decode failures surface as null too.
-        ImageInfo info;
+        // 2) libvips is synchronous and CPU-bound — keep it off the request thread.
+        return await Task.Run(() => Process(bytes, ct), ct);
+    }
+
+    private static Processed? Process(byte[] bytes, CancellationToken ct)
+    {
         try
         {
-            info = await Image.IdentifyAsync(input, ct);
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-
-        if (info is null
-            || info.Width <= 0 || info.Height <= 0
-            || info.Width > MaxSourceSide || info.Height > MaxSourceSide)
-        {
-            return null;
-        }
-
-        input.Position = 0;
-
-        // 3) Decode + downscale the main image (≤1600 on the long side).
-        using var image = await Image.LoadAsync(input, ct);
-        if (image.Width > MaxMainSide || image.Height > MaxMainSide)
-        {
-            image.Mutate(m => m.ApplyProcessor(new ResizeProcessor(
-                new ResizeOptions
-                {
-                    Mode = ResizeMode.Max,
-                    Size = new Size(MaxMainSide, MaxMainSide),
-                },
-                image.Size)));
-        }
-
-        // 4) Encode main WebP.
-        using var mainStream = new MemoryStream();
-        await image.SaveAsWebpAsync(mainStream, new WebpEncoder { Quality = 82 }, ct);
-
-        // 5) Thumbnail from the processed image (≤480 on the long side).
-        using var thumb = image.Clone(c =>
-        {
-            if (image.Width > MaxThumbSide || image.Height > MaxThumbSide)
+            // Header-only read: dimensions are known before any pixels are decoded.
+            // failOn Warning: libvips otherwise salvages truncated JPEGs (grey
+            // bands) — a corrupt upload must be rejected, not silently stored.
+            using var source = Image.NewFromBuffer(bytes, failOn: Enums.FailOn.Warning);
+            if (source.Width <= 0 || source.Height <= 0
+                || source.Width > MaxSourceSide || source.Height > MaxSourceSide)
             {
-                c.ApplyProcessor(new ResizeProcessor(
-                    new ResizeOptions
-                    {
-                        Mode = ResizeMode.Max,
-                        Size = new Size(MaxThumbSide, MaxThumbSide),
-                    },
-                    image.Size));
+                return null;
             }
-        });
-        using var thumbStream = new MemoryStream();
-        await thumb.SaveAsWebpAsync(thumbStream, new WebpEncoder { Quality = 80 }, ct);
 
-        return new Processed(mainStream.ToArray(), thumbStream.ToArray(), image.Width, image.Height);
+            // 3) Downscale the main image (≤1600 on the long side, never upscaled).
+            ct.ThrowIfCancellationRequested();
+            using var main = source.ThumbnailImage(
+                MaxMainSide, MaxMainSide, size: Enums.Size.Down);
+            var mainBytes = main.WebpsaveBuffer(q: 82);
+
+            // 4) Thumbnail from the processed image (≤480 on the long side).
+            ct.ThrowIfCancellationRequested();
+            using var thumb = main.ThumbnailImage(
+                MaxThumbSide, MaxThumbSide, size: Enums.Size.Down);
+            var thumbBytes = thumb.WebpsaveBuffer(q: 80);
+
+            return new Processed(mainBytes, thumbBytes, main.Width, main.Height);
+        }
+        catch (VipsException)
+        {
+            // Truncated/corrupt payloads fail here rather than crash the process.
+            return null;
+        }
     }
 
     public enum Kind { Unknown, Jpeg, Png, WebP }
 
-    private static Kind DetectKind(byte[] buffer, int length)
+    private static Kind DetectKind(byte[] buffer)
     {
+        var length = buffer.Length;
         if (length >= 3
             && buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF)
         {

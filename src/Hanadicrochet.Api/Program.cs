@@ -196,7 +196,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connect
 // Identity (plan 03): cookie auth for the first-party web + same-origin API.
 // Dev runs cross-origin-but-same-site (localhost:3000 → localhost:8085), so
 // SameSite=Lax still delivers the cookie; Secure is dropped over plain HTTP
-// in dev (SameAsRequest) and enforced in prod behind Caddy's TLS.
+// in dev (SameAsRequest) and enforced in prod behind Caddy's TLS. A LAN-only
+// install without TLS opts out with Auth:RequireHttps=false (plan
+// 20261121-1452/02) — see AuthCookiePolicy for why that is required.
 builder.Services
     .AddIdentity<AppUser, IdentityRole>(options =>
     {
@@ -222,9 +224,9 @@ builder.Services.ConfigureApplicationCookie(cookie =>
     cookie.Cookie.HttpOnly = true;
     cookie.Cookie.SameSite = SameSiteMode.Lax;
     cookie.Cookie.MaxAge = TimeSpan.FromDays(14);
-    cookie.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-        ? CookieSecurePolicy.SameAsRequest
-        : CookieSecurePolicy.Always;
+    cookie.Cookie.SecurePolicy = AuthCookiePolicy.ResolveSecurePolicy(
+        builder.Environment.IsDevelopment(),
+        builder.Configuration);
     cookie.SlidingExpiration = true;
 
     // .NET 10 returns 401/403 with an EMPTY body for "known API" endpoints
@@ -275,6 +277,11 @@ builder.Services.AddHostedService<OrderSweepService>();
 builder.Services.AddHostedService<ChatSweepService>();
 
 builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection(UploadsOptions.SectionName));
+// Plan 20261121-1452/01: the image pipeline depends on the libvips native
+// library, installed by the Docker image rather than bundled. /health probes
+// it so a broken native fails the deploy instead of the first upload.
+builder.Services.AddSingleton(sp =>
+    new ImagePipelineProbe(logger: sp.GetRequiredService<ILogger<ImagePipelineProbe>>()));
 builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.SectionName));
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
@@ -435,11 +442,12 @@ ChatEndpoints.MapChatEndpoints(app);
 app.MapHub<Hanadicrochet.Api.Hubs.ChatHub>("/hubs/chat");
 FileEndpoints.MapFileEndpoints(app, app.Services.GetRequiredService<IOptions<UploadsOptions>>());
 
-app.MapGet("/health", (AppDbContext db) =>
+app.MapGet("/health", (AppDbContext db, ImagePipelineProbe images) =>
 {
     return Results.Ok(new ApiHealth(
         Status: "ok",
-        Database: db.Database.CanConnect() ? "connected" : "unavailable"));
+        Database: db.Database.CanConnect() ? "connected" : "unavailable",
+        Images: images.Ready ? "ready" : "unavailable"));
 })
 .WithName("Health");
 

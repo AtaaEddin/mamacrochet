@@ -27,8 +27,10 @@ description: .NET 10 / ASP.NET Core conventions for the Hanadicrochet.Api backen
 - Auth: ASP.NET Identity (cookies). Role policies Customer/Employee/Admin. Guest
   endpoints take a `guestId`, enforce rate limits + caps, and never trust client
   contact data beyond validation.
-- Uploads: validate type/size **before** processing; ImageSharp for resize/webp/avif +
-  thumbnails; deterministic storage paths on the uploads volume.
+- Uploads: validate type/size **before** processing; NetVips/libvips for resize/webp +
+  thumbnails (no ImageSharp — its patched release needs a build licence key);
+  deterministic storage paths on the uploads volume. Fail corrupt input as `null`, never
+  let a decoder take the process down.
 - SignalR: cookie auth for order threads; short-lived thread token for guest threads;
   re-verify the participant server-side on every hub event (never trust the client).
 - Email: **none in release 1** (future plan D13: `IEmailSender` + outbox table only).

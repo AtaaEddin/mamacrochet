@@ -119,6 +119,38 @@ public sealed class ApiTestFixture : IDisposable
     /// same instance services in that scope receive.</summary>
     public IServiceScope CreateScope() => Services.CreateScope();
 
+    /// <summary>
+    /// A second host sharing this run's database and uploads root, started in
+    /// another environment (e.g. <c>Production</c>) and/or with extra
+    /// configuration. Used to assert startup-only behaviour that the shared
+    /// Development host cannot show (plan 20261121-1452/02). The caller owns
+    /// the factory and must dispose it.
+    /// </summary>
+    public WebApplicationFactory<Program> CreateFactory(
+        string environment,
+        params (string Key, string Value)[] settings)
+    {
+        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment(environment);
+            builder.UseSetting("ConnectionStrings:hanadicrochet", ConnectionString);
+            builder.UseSetting("Uploads:Root", UploadsRoot);
+            builder.UseSetting("AdminSeed:Email", SeedAdminEmail);
+            builder.UseSetting("AdminSeed:Password", SeedAdminPassword);
+            builder.UseSetting("RateLimit:Guest", "100000");
+            builder.UseSetting("RateLimit:Auth", "100000");
+            builder.UseSetting("RateLimit:Default", "100000");
+            foreach (var (key, value) in settings)
+            {
+                builder.UseSetting(key, value);
+            }
+        });
+
+        // Force startup (migrations + seeding) before the caller uses it.
+        _ = factory.CreateClient();
+        return factory;
+    }
+
     public void Dispose()
     {
         Factory.Dispose();

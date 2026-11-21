@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using Hanadicrochet.Api.Services;
 using Xunit;
 
 namespace Hanadicrochet.Api.Tests;
@@ -102,6 +103,40 @@ public class IdentityEndpointsTests(ApiTestFixture fx)
             "/identity/login",
             new { email = TestUsers.UniqueEmail(), password = "" });
         await EndpointHttp.Error(noPassword, HttpStatusCode.Unauthorized, "bad_credentials");
+    }
+
+    // ---- auth cookie over plain HTTP (plan 20261121-1452/02) ---------------
+
+    [Fact]
+    public async Task Login_PlainHttpOptOut_SetsCookieBrowserKeepsOnLanIp()
+    {
+        // A Pi served on http://192.168.x.x with Auth:RequireHttps=false: the
+        // cookie must not be Secure (browsers drop Secure cookies on a plain
+        // HTTP LAN address) and must actually authenticate the next request.
+        var email = TestUsers.UniqueEmail("lanhttp");
+        await TestUsers.CreateAsync(fx, "customer", email: email);
+
+        using var factory = fx.CreateFactory(
+            "Production", (AuthCookiePolicy.RequireHttpsKey, "false"));
+        var client = factory.CreateClient();
+
+        var token = await TestUsers.GetCsrfTokenAsync(client);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/identity/login")
+        {
+            Content = JsonContent.Create(new { Email = email, Password = "Passw0rd!x" }),
+        };
+        request.Headers.Add(TestUsers.CsrfHeader, token);
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var setCookies = response.Headers.TryGetValues("Set-Cookie", out var values)
+            ? values.ToArray()
+            : [];
+        var authCookie = Assert.Single(
+            setCookies, c => c.StartsWith("hc.auth=", StringComparison.Ordinal));
+        Assert.DoesNotContain("secure", authCookie, StringComparison.OrdinalIgnoreCase);
+
+        await EndpointHttp.Json(await client.GetAsync("/identity/me"), HttpStatusCode.OK);
     }
 
     [Fact]

@@ -40,6 +40,10 @@ services:
       # logged once — see README "Admin account").
       AdminSeed__Email: ${ADMIN_SEED_EMAIL:-}
       AdminSeed__Password: ${ADMIN_SEED_PASSWORD:-}
+      # Auth-cookie HTTPS policy (plan 20261121-1452/02). Empty = default
+      # (Secure outside Development). Set AUTH_REQUIRE_HTTPS=false ONLY on a
+      # plain-HTTP LAN install, where browsers would otherwise drop the cookie.
+      Auth__RequireHttps: ${AUTH_REQUIRE_HTTPS:-}
     volumes:
       - ./data/uploads:/data/uploads
     depends_on:

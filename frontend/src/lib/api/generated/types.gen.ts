@@ -20,6 +20,7 @@ export type ApiError = {
 export type ApiHealth = {
     status: string;
     database: string;
+    images: string;
 };
 
 export type CancelOrderRequest = {

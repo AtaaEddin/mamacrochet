@@ -30,6 +30,9 @@ mobile-first.
 ## Development
 
 - Prereqs: .NET 10 SDK, Node 22+, pnpm, Docker
+- One-time per machine: `dotnet dnx --yes aspire.cli@13.6.5 -- setup` — Aspire 13.6+
+  builds the AppHost against a CLI bundle; without it the AppHost build stops with
+  `ASPIRE009` (dev-only; never shipped)
 - One command: `dotnet run --project src/Hanadicrochet.AppHost` → Aspire runs the
   whole dev stack: Postgres + API on :8085 + Next dev on :3000 (see the Aspire
   dashboard in the terminal output)

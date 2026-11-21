@@ -1,39 +1,29 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.PixelFormats;
 using Hanadicrochet.Api.Services;
+using NetVips;
 using Xunit;
 
 namespace Hanadicrochet.Api.Tests;
 
 /// <summary>
 /// Product image pipeline (plan 20261005-1348/03): pure unit tests — real
-/// images generated with ImageSharp, processed through the same
-/// magic-byte gate + WebP encode the endpoint uses.
+/// images generated with libvips, processed through the same magic-byte gate
+/// + WebP encode the endpoint uses.
 /// </summary>
 public class ProductImagesTests
 {
     private static Task<ProductImages.Processed?> Process(byte[] bytes)
         => ProductImages.ProcessAsync(new MemoryStream(bytes), CancellationToken.None);
 
-    private static byte[] Jpeg(int w, int h) =>
-        Encode(w, h, new JpegEncoder { Quality = 90 });
+    private static byte[] Jpeg(int w, int h) => Encode(w, h, ".jpg");
 
-    private static byte[] Png(int w, int h) =>
-        Encode(w, h, new PngEncoder());
+    private static byte[] Png(int w, int h) => Encode(w, h, ".png");
 
-    private static byte[] WebP(int w, int h) =>
-        Encode(w, h, new WebpEncoder { Quality = 90 });
+    private static byte[] WebP(int w, int h) => Encode(w, h, ".webp");
 
-    private static byte[] Encode(
-        int w, int h, SixLabors.ImageSharp.Formats.IImageEncoder encoder)
+    private static byte[] Encode(int w, int h, string suffix)
     {
-        using var img = new Image<Rgb24>(w, h);
-        using var ms = new MemoryStream();
-        img.Save(ms, encoder);
-        return ms.ToArray();
+        using var image = Image.Black(w, h, bands: 3);
+        return image.WriteToBuffer(suffix);
     }
 
     private static void AssertIsWebp(byte[] bytes)
@@ -91,6 +81,19 @@ public class ProductImagesTests
     }
 
     [Fact]
+    public async Task Thumbnail_IsCappedAtThumbSide()
+    {
+        var result = await Process(Png(1600, 800));
+        Assert.NotNull(result);
+        Assert.Equal(1600, result!.Width);
+
+        // 1600×800 thumb → 480×240 (long side capped, aspect kept).
+        using var thumb = Image.NewFromBuffer(result.Thumb);
+        Assert.Equal(480, thumb.Width);
+        Assert.Equal(240, thumb.Height);
+    }
+
+    [Fact]
     public async Task SourceTooWide_BeyondMaxSourceSide_Null()
     {
         // 10001×8 is tiny in memory but breaches MaxSourceSide (10 000).
@@ -123,8 +126,7 @@ public class ProductImagesTests
     [Fact]
     public async Task TruncatedMagic_TwoBytes_Null()
     {
-        // 2 bytes: DetectKind falls through to the "jpg" default, but
-        // Identify cannot decode it → rejected.
+        // 2 bytes: too short for any signature, so the gate rejects it.
         var truncated = new byte[] { 0xFF, 0xD8 };
         Assert.Null(await Process(truncated));
     }
@@ -132,7 +134,7 @@ public class ProductImagesTests
     [Fact]
     public async Task ValidMagic_CorruptBody_Null()
     {
-        // JPEG SOI marker followed by junk: magic passes, Identify fails.
+        // JPEG SOI marker followed by junk: magic passes, decode fails.
         var corrupt = new byte[64];
         corrupt[0] = 0xFF;
         corrupt[1] = 0xD8;
@@ -144,6 +146,15 @@ public class ProductImagesTests
         }
 
         Assert.Null(await Process(corrupt));
+    }
+
+    [Fact]
+    public async Task TruncatedJpeg_Null()
+    {
+        // Valid header, body cut off: dimensions read, decode then fails.
+        var full = Jpeg(800, 600);
+        var result = await Process(full[..(full.Length * 6 / 10)]);
+        Assert.Null(result);
     }
 
     [Fact]

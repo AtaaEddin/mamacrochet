@@ -1,24 +1,30 @@
 using System.Text;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Gif;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.PixelFormats;
+using NetVips;
 
 namespace Hanadicrochet.Api.Tests;
 
 /// <summary>Tiny real file fixtures (the API sniffs magic bytes, not names).</summary>
 public static class FileFixtures
 {
-    public static byte[] Png { get; } = Create(new PngEncoder());
+    /// <summary>1×1 transparent GIF89a — Skia encodes PNG/JPEG/WebP only, and
+    /// the API never decodes GIF (it is rejected by signature).</summary>
+    private static readonly byte[] MinimalGif =
+    [
+        0x47, 0x49, 0x46, 0x38, 0x39, 0x61, // GIF89a
+        0x01, 0x00, 0x01, 0x00, 0x80, 0x00, 0x00,
+        0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00,
+        0x21, 0xF9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00,
+        0x2C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+        0x02, 0x02, 0x44, 0x01, 0x00, 0x3B,
+    ];
 
-    public static byte[] Jpeg { get; } = Create(new JpegEncoder());
+    public static byte[] Png { get; } = Create(".png");
 
-    public static byte[] Gif { get; } = Create(new GifEncoder());
+    public static byte[] Jpeg { get; } = Create(".jpg");
 
-    public static byte[] WebP { get; } = Create(new WebpEncoder());
+    public static byte[] Gif { get; } = MinimalGif;
+
+    public static byte[] WebP { get; } = Create(".webp");
 
     /// <summary>Minimal valid-enough PDF (magic + body; the API only checks
     /// the %PDF header).</summary>
@@ -46,11 +52,9 @@ public static class FileFixtures
 
     public static byte[] PlainText { get; } = Encoding.UTF8.GetBytes("plain text file, not an image or pdf");
 
-    private static byte[] Create(IImageEncoder encoder)
+    private static byte[] Create(string suffix)
     {
-        using var image = new Image<Rgb24>(1, 1);
-        using var ms = new MemoryStream();
-        image.Save(ms, encoder);
-        return ms.ToArray();
+        using var image = Image.Black(1, 1, bands: 3);
+        return image.WriteToBuffer(suffix);
     }
 }

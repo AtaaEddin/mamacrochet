@@ -21,6 +21,12 @@ RUN dotnet publish src/Hanadicrochet.Api/Hanadicrochet.Api.csproj \
     -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
+
+# libvips for the product image pipeline (plan 20261121-1452/01). Alpine's
+# package links libwebp/libjpeg/libpng, so decoding + the WebP encode work
+# with no extra loaders (AVIF/HEIC stay out of release 1).
+RUN apk add --no-cache vips
+
 WORKDIR /app
 ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_URLS=http://+:8085
