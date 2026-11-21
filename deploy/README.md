@@ -44,11 +44,132 @@ cp .env.example .env      # set POSTGRES_PASSWORD, CADDY_SITE, MM_SITE_URL
 
 `pipeline.sh` (or plain `./deploy.sh`) prints the URL.
 
+## First deployment on a Raspberry Pi — step by step
+
+The detailed version of the quickstart, with what to expect at each step and
+what to do when it breaks. Only step 1 is done on your own computer; everything
+else runs **on the Pi** over SSH.
+
+### 1. The host (once, ~10 min)
+
+- **64-bit OS** — Raspberry Pi OS (64-bit) or Debian/Ubuntu for an old PC.
+  A 32-bit OS cannot run these images (`preflight.sh` refuses it).
+- **Docker Engine + compose plugin**:
+  ```bash
+  curl -fsSL https://get.docker.com | sh
+  sudo usermod -aG docker "$USER"   # log out/in for it to take effect
+  ```
+- **SSH on**, and a **DHCP reservation** in your router so the LAN IP never
+  changes (bookmarks, Caddy, and future HTTPS all assume it is stable).
+- **Swap**, if the board has ≤ 2 GB RAM: `preflight.sh` prints the exact
+  `fallocate`/`mkswap` lines.
+
+### 2. Get the code and configure (~5 min)
+
+```bash
+cd ~ && git clone <repo-url> hanadicrochet && cd hanadicrochet/deploy
+cp .env.example .env
+chmod 600 .env
+```
+
+Edit `.env` — for a first LAN install these four matter:
+
+```ini
+CADDY_SITE=http://                      # plain HTTP on the LAN
+HTTP_PORT=80
+POSTGRES_PASSWORD=<paste: openssl rand -base64 24>
+AUTH_REQUIRE_HTTPS=false                # required on http://<lan-ip>, see below
+```
+
+Optionally pin the first admin login: `ADMIN_SEED_EMAIL=you@example.com` and
+`ADMIN_SEED_PASSWORD=<something strong>` (leave both unset to get a generated
+password logged once at first boot).
+
+> **Why `AUTH_REQUIRE_HTTPS=false` matters:** browsers silently drop `Secure`
+> cookies on `http://192.168.x.x`. Without this line the login POST returns 200,
+> the dashboard loads once, and the next click is a 401. Remove the line as soon
+> as the site is served over HTTPS.
+
+### 3. Check the host (1 min)
+
+```bash
+./preflight.sh
+```
+
+Reads only; changes nothing. Fix every **FAIL** before continuing — they are
+exactly the problems that otherwise appear 20 minutes into the build.
+
+### 4. Deploy (30–60 min the first time)
+
+```bash
+./pipeline.sh
+```
+
+What happens, in order:
+
+1. pulls `mcr.microsoft.com/dotnet/sdk:10.0` + `node:22-alpine` (~1 GB, first run only);
+2. builds the test images and runs the **full API suite** (against a throwaway
+   Postgres) and the **UI suite** — a failure here aborts before your live stack
+   is touched;
+3. backs up (skipped on a fresh install, nothing to back up yet);
+4. builds the four images for ARM64 and starts them;
+5. waits for all four healthchecks, then runs the **image-pipeline gate**:
+   `/health` must report `"images":"ready"`, i.e. libvips from the distro can
+   actually encode a WebP. If it cannot, the deploy fails loudly here instead of
+   breaking the first product upload.
+
+On a slow/air-gapped Pi, `SKIP_TESTS=1 ./pipeline.sh` gets the site up and you
+re-run the full pipeline later.
+
+### 5. Confirm and collect the admin password (2 min)
+
+```bash
+docker compose ps                              # expect 4 x running (healthy)
+docker compose exec api wget -qO- http://127.0.0.1:8085/health
+# {"status":"ok","database":"connected","images":"ready"}
+docker compose logs api | grep -i "admin seeded"   # only if ADMIN_SEED_PASSWORD is unset
+```
+
+### 6. Verify from a **second device** on the LAN
+
+From the Pi itself everything looks fine even when the cookie policy is wrong —
+the browser is the test:
+
+1. `http://<pi-ip>/` — catalog loads, images render, languages switch (en/ar/tr).
+2. Sign in at `/staff/login`, then **reload** and **click to another page** — you
+   must still be signed in (this is the cookie fix). You are forced to change
+   the seeded password on first login.
+3. Upload a product photo — this drives libvips end to end.
+4. Place a guest order and send a chat message.
+
+### 7. Operational basics
+
+```cron
+0 3 * * * /home/<user>/hanadicrochet/deploy/backup.sh >> /var/log/hanadicrochet-backup.log 2>&1
+```
+
+Copy at least one backup off the machine occasionally (`rclone`/rsync) —
+backups on the same disk do not survive disk loss.
+
+### When something goes wrong
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `preflight.sh`: `armv7l is 32-bit` | 32-bit OS or 32-bit userland | reinstall the 64-bit image |
+| Build dies with `Killed` / exit 137 | out of memory during `dotnet build` | add 2 GB swap (preflight prints the commands), then re-run |
+| Deploy ends with `cannot run the image pipeline` | `apk add vips` layer missing or lib mismatch | `docker compose exec api vips --version`; rebuild with `docker compose build --no-cache api` |
+| Login appears to work, next page is 401 | `Secure` cookie on `http://<lan-ip>` | set `AUTH_REQUIRE_HTTPS=false` and `./pipeline.sh` again |
+| Browser shows 502/504 | `api` or `web` unhealthy | `docker compose logs --tail=100 api web` |
+| Catalog empty / fetch errors in the browser console | `MM_SITE_URL` or `NEXT_PUBLIC_*` changed without a rebuild | `./pipeline.sh` (inlined at build time) |
+| `pipeline.sh` stops in phase 2 | a test failed | nothing was deployed; fix and re-run |
+| `bind: address already in use` | port 80 taken (e.g. an existing nginx) | set `HTTP_PORT=8080` in `.env` |
+| Pipeline cannot pull images | no internet / flaky line | use the air-gapped `images/*.tar` path below with `SKIP_TESTS=1` |
+
 ## Deploy pipeline (`pipeline.sh`, plan 20261004-1823/01)
 
 One command, run **on the target machine**:
 
-1. **Build bases** — `sdk:10.0-noble` + `node:22-alpine` present as tagged images
+1. **Build bases** — `sdk:10.0` + `node:22-alpine` present as tagged images
    (pulled once when missing; they must stay tagged — BuildKit + our
    `builder prune` would otherwise re-fetch them from the registry every run).
 2. **Tests** — the API suite (xUnit, in a `dotnet/sdk:10.0` container against an
