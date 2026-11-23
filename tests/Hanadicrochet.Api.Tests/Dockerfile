@@ -13,7 +13,16 @@ COPY . .
 # NetVips.Native.linux-x64 (runtimes/linux-x64/native/libvips.so.42) is copied
 # into the output; without a RID, dotnet build omits runtimes/<rid>/native
 # files and FileFixtures fails to load libvips. SelfContained=false keeps the
-# build framework-dependent (the SDK image already ships the .NET runtime).
+# build framework-dependent (the SDK image already ships the .NET runtime),
+# and AppendRuntimeIdentifierToOutputPath=false keeps the output in the plain
+# bin/Debug/net10.0 path.
+#
+# The suite is then RUN with `dotnet test --no-build` and NO RuntimeIdentifier:
+# passing /p:RuntimeIdentifier to `dotnet test` makes vstest try to launch an
+# architecture-specific testhost and die with "Could not find 'dotnet' host for
+# the 'X64' architecture". Building with the RID (above) already puts libvips
+# where the test host can load it.
 RUN dotnet build tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj \
-    -p:RuntimeIdentifier=linux-x64 -p:SelfContained=false
-CMD ["dotnet", "test", "tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj", "--no-build", "--nologo", "-p:RuntimeIdentifier=linux-x64", "-p:SelfContained=false"]
+    -p:RuntimeIdentifier=linux-x64 -p:SelfContained=false \
+    -p:AppendRuntimeIdentifierToOutputPath=false
+CMD ["dotnet", "test", "tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj", "--no-build", "--nologo"]
