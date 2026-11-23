@@ -53,17 +53,38 @@ passing it to `dotnet test`, then only to `dotnet build`:
 ## Fix (final)
 
 Copy the bundled `libvips.so.42` into the test output **explicitly** and keep the build
-RID-free:
+RID-free.
+
+The copy lives in a **build Target**, not a `<None Include="…">` item:
 
 `tests/Hanadicrochet.Api.Tests.csproj`:
 
 ```xml
 <PackageReference Include="NetVips.Native.linux-x64" Version="8.18.7" GeneratePathProperty="true" />
-<None Include="$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42"
-      Condition="'$([MSBuild]::IsOSPlatform(Linux))'"
-      Link="libvips.so.42"
-      CopyToOutputDirectory="PreserveNewest" />
+
+<Target Name="CopyBundledLibVips"
+        AfterTargets="Build"
+        Condition="'$([MSBuild]::IsOSPlatform(Linux))' and Exists('$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42')">
+  <Copy SourceFiles="$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42"
+        DestinationFolder="$(OutDir)"
+        SkipUnchangedFiles="true" />
+</Target>
 ```
+
+## Why a Target, not a `None` item
+
+The `GeneratePathProperty` value (`$(PkgNetVips_Native_linux-x64)`) is written to
+`obj/*.nuget.g.props` **by restore**, and that props file is imported only on a *later*
+evaluation pass of the project. An `Include="$(…)"` on an item is expanded at the very
+*first* evaluation, before restore's output is available, so on the container's single
+`dotnet build` the item silently captured an **empty** path. MSBuild never re-expands an
+item's `Include`` once captured, so nothing was copied → the test run died with
+`DllNotFound libvips.so.42` even though the bundled binary was present. (Locally the
+probe-verification looked green because the evaluation where the property *was* populated
+won the race on that machine.) A `Target` guarded `AfterTargets="Build"` reads the property
+at **execution time** — restore has definitely completed — so it always sees the real path.
+Verified deterministically: a clean, single, RID-free `dotnet build` running edit 20261121-1452/04
+lands `libvips.so.42` flat beside the test dll in `bin/Debug/net10.0/`.
 
 `tests/Hanadicrochet.Api.Tests/Dockerfile` is back to a plain build + test (no RID):
 
@@ -72,7 +93,7 @@ RUN dotnet build tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj --
 CMD ["dotnet", "test", "tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj", "--no-build", "--nologo"]
 ```
 
-- The `None` item (Linux only) copies the bundled `libvips.so.42` **flat** beside the
+- The Target (Linux only) copies the bundled `libvips.so.42` **flat** beside the
   test dll (NetVips resolves `libvips.so.42` from the app base dir — verified). Windows
   is untouched: it still gets libvips transitively from the API project's
   `NetVips.Native.win-x64`.
@@ -89,8 +110,13 @@ CMD ["dotnet", "test", "tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.cs
 
 ## Verification
 
-- Forcing the `None` item on in a RID-free build → `libvips.so.42` lands flat in
-  `bin/Debug/net10.0/` beside the test dll (0 warnings/errors).
-- With the Linux condition active, a RID-free `dotnet build` is clean on Windows
-  (item correctly excluded there).
-- Not run here (no Docker on the dev machine): the full hermetic suite on the Pi.
+- The `CopyBundledLibVips` Target, forced on in a clean single RID-free build,
+  deterministically lands `libvips.so.42` flat in `bin/Debug/net10.0/` beside the
+  test dll (0 warnings/errors) — the property is read at execution time, after
+  restore, so it is never empty.
+- With the Linux condition active, the real RID-free `dotnet build` is clean on
+  Windows (Target correctly excluded there; 0 warnings, 0 errors).
+- Not run here (no Docker on the dev machine): the full hermetic suite must be
+  **re-run on the target after `docker compose -f deploy/docker-compose.test.yml build`**
+  (rebuild the test image so a stale layer from the previous `<None>` iteration is
+  not reused).

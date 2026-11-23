@@ -21,11 +21,16 @@
          fails to launch in the container ("Could not find 'dotnet' host for the
          'X64' architecture"). So we copy the bundled libvips.so.42 into the
          output explicitly (flat, next to the test dll) on Linux only; Windows
-         gets it transitively from the API project's NetVips.Native.win-x64. -->
-    <None Include="$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42"
-          Condition="'$([MSBuild]::IsOSPlatform(Linux))'"
-          Link="libvips.so.42"
-          CopyToOutputDirectory="PreserveNewest" />
+         gets it transitively from the API project's NetVips.Native.win-x64.
+
+         The copy MUST live in a Target, not a &lt;None Include="…"&gt; item. The
+         GeneratePathProperty value ($(PkgNetVips_Native_linux-x64)) is emitted
+         into obj/*.nuget.g.props by restore, which is imported only on a LATER
+         evaluation pass; an itemInclude reads the property at the FIRST pass,
+         where it is still empty — so the item silently resolves to an empty path
+         and libvips.so.42 never lands in the output (DllNotFound in the test
+         container). A Target that reads the property at execution time (after
+         restore) always sees the real path. See plan 20261121-1452/04. -->
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -36,5 +41,17 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Hanadicrochet.Api\Hanadicrochet.Api.csproj" />
   </ItemGroup>
+
+  <!-- Copy the bundled linux-x64 libvips.so.42 flat beside the test dll.
+       Runs after Build (restore has definitely completed, so the generated
+       path property is populated). Linux-only; Windows still gets libvips
+       transitively from the API project's NetVips.Native.win-x64. -->
+  <Target Name="CopyBundledLibVips"
+          AfterTargets="Build"
+          Condition="'$([MSBuild]::IsOSPlatform(Linux))' and Exists('$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42')">
+    <Copy SourceFiles="$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
