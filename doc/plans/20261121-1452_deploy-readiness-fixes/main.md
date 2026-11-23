@@ -20,6 +20,7 @@ defects, not new features.
 - [01 — dependency security patches](01-dependency-security-patches.md) — restore/build green again.
 - [02 — plain-HTTP LAN auth cookie](02-http-lan-auth-cookie.md) — make hosting without TLS work per install.
 - [03 — deploy script hardening](03-deploy-script-hardening.md) — LF guard + base-tag alignment.
+- [04 — Linux API-test container: load libvips](04-linux-test-container-libvips.md) — build the test suite for `linux-x64` so the bundled libvips is copied.
 
 ## Decisions
 
