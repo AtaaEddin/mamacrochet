@@ -12,8 +12,20 @@
     <PackageReference Include="coverlet.msbuild" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <!-- libvips for the Linux test container (Debian: no system vips).
-         Windows picks up NetVips.Native.win-x64 from the API project. -->
-    <PackageReference Include="NetVips.Native.linux-x64" Version="8.18.7" />
+         Windows picks up NetVips.Native.win-x64 from the API project.
+         GeneratePathProperty so the DLLs below can reach the package dir. -->
+    <PackageReference Include="NetVips.Native.linux-x64" Version="8.18.7" GeneratePathProperty="true" />
+    <!-- This is a plain library SDK: unlike the Web-SDK API project, building
+         without a RuntimeIdentifier does NOT copy runtimes/<rid>/native assets,
+         and building WITH one makes vstest emit a RID-specific testhost that
+         fails to launch in the container ("Could not find 'dotnet' host for the
+         'X64' architecture"). So we copy the bundled libvips.so.42 into the
+         output explicitly (flat, next to the test dll) on Linux only; Windows
+         gets it transitively from the API project's NetVips.Native.win-x64. -->
+    <None Include="$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42"
+          Condition="'$([MSBuild]::IsOSPlatform(Linux))'"
+          Link="libvips.so.42"
+          CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">

@@ -37,43 +37,60 @@ The bundled `libvips.so.42` is otherwise self-contained: `readelf -d` lists only
 glibc/libstdc++/libm/libpthread/libdl/libgcc_s/ld-linux — all present in the Debian
 SDK image, so no `apt-get install` is required.
 
-## Fix
+## A note on the RID detour
 
-`tests/Hanadicrochet.Api.Tests/Dockerfile` — build for the RID, but write to the plain
-output path and run **without** a RID:
+Two container runs chased the native lib by building with a `RuntimeIdentifier` — first
+passing it to `dotnet test`, then only to `dotnet build`:
 
-```dockerfile
-RUN dotnet build tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj \
-    -p:RuntimeIdentifier=linux-x64 -p:SelfContained=false \
-    -p:AppendRuntimeIdentifierToOutputPath=false
-CMD ["dotnet", "test", "tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj", \
-     "--no-build", "--nologo"]
+1. `dotnet test -p:RuntimeIdentifier=linux-x64` → `Could not find 'dotnet' host for the
+   'X64' architecture` (vstest launches an architecture-specific testhost from the flag).
+2. `dotnet build -p:RuntimeIdentifier=linux-x64` (with `AppendRuntimeIdentifierToOutputPath=false`,
+   RID-less `dotnet test`) → still `Could not find 'dotnet' host for the 'X64' architecture`.
+   A RID build emits RID-specific `testhost`/apphost artifacts, and even from a
+   framework-dependent RID build the container cannot launch the X64 testhost. **Any RID in
+   the build poisons `dotnet test` here** — the RID approach is abandoned.
+
+## Fix (final)
+
+Copy the bundled `libvips.so.42` into the test output **explicitly** and keep the build
+RID-free:
+
+`tests/Hanadicrochet.Api.Tests.csproj`:
+
+```xml
+<PackageReference Include="NetVips.Native.linux-x64" Version="8.18.7" GeneratePathProperty="true" />
+<None Include="$(PkgNetVips_Native_linux-x64)/runtimes/linux-x64/native/libvips.so.42"
+      Condition="'$([MSBuild]::IsOSPlatform(Linux))'"
+      Link="libvips.so.42"
+      CopyToOutputDirectory="PreserveNewest" />
 ```
 
-- `RuntimeIdentifier=linux-x64` (build) — makes the RID-specific native asset get copied.
-- `SelfContained=false` — keeps the build framework-dependent (the SDK image already
-  carries the .NET runtime), avoiding a self-contained runtime pack pull.
-- `AppendRuntimeIdentifierToOutputPath=false` — puts the output in the plain
-  `bin/Debug/net10.0/` (with `libvips.so.42` beside the test dll) instead of an
-  `…/linux-x64/` subfolder.
-- `dotnet test` gets **no** `RuntimeIdentifier`. First attempt passed it to `dotnet test`
-  and the container died with `Could not find 'dotnet' host for the 'X64' architecture`
-  (vstest launches an architecture-specific testhost from `/p:RuntimeIdentifier`). When
-  the RID lives only in `dotnet build`, the test host simply runs the prebuilt dlls in
-  the default path where `libvips.so.42` already sits.
+`tests/Hanadicrochet.Api.Tests/Dockerfile` is back to a plain build + test (no RID):
+
+```dockerfile
+RUN dotnet build tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj --nologo
+CMD ["dotnet", "test", "tests/Hanadicrochet.Api.Tests/Hanadicrochet.Api.Tests.csproj", "--no-build", "--nologo"]
+```
+
+- The `None` item (Linux only) copies the bundled `libvips.so.42` **flat** beside the
+  test dll (NetVips resolves `libvips.so.42` from the app base dir — verified). Windows
+  is untouched: it still gets libvips transitively from the API project's
+  `NetVips.Native.win-x64`.
+- The generated path property retains the hyphen: `$(PkgNetVips_Native_linux-x64)`.
 
 ## Decision
 
-- **D1 — Keep `NetVips.Native.linux-x64` and build for the RID**, rather than
-  `apt-get install libvips…`: the bundled binary matches sub-plan 01's decision, is
-  self-contained, and avoids adding an OS-package install + apt-source step (whose
-  Debian package name varies — `libvips42`/`libvips42t64`/`libvips`) to the hermetic
-  test image.
+- **D1 — Bundle the binary, don't `apt-get install`.** The bundled `libvips.so.42` is
+  self-contained (only glibc/libstdc++/libm per `readelf -d`), matches sub-plan 01, and
+  avoids an OS-package install whose Debian package name varies across releases
+  (`libvips42`/`libvips42t64`/`libvips`).
+- **D2 — No `RuntimeIdentifier` in the Dockerfile build/test.** It reliably breaks
+  `dotnet test` in the container (`Could not find 'dotnet' host for the 'X64' architecture`).
 
 ## Verification
 
-- `dotnet build tests/Hanadicrochet.Api.Tests/*.csproj -r linux-x64 -p:SelfContained=false -p:AppendRuntimeIdentifierToOutputPath=false`
-  → 0 warnings; `libvips.so.42` lands in the plain `bin/Debug/net10.0/`. output dir.
-- `dotnet test … --no-build --list-tests` (no RID) → resolves that output and discovers
-the tests.
+- Forcing the `None` item on in a RID-free build → `libvips.so.42` lands flat in
+  `bin/Debug/net10.0/` beside the test dll (0 warnings/errors).
+- With the Linux condition active, a RID-free `dotnet build` is clean on Windows
+  (item correctly excluded there).
 - Not run here (no Docker on the dev machine): the full hermetic suite on the Pi.
